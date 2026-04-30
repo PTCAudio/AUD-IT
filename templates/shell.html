@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUD-IT Suite — {% block title %}{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Lora:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AUD-IT">
+<meta name="theme-color" content="#0a0a0a">
+{% block head %}{% endblock %}
+</head>
+<body>
+
+<header id="hdr">
+  <div class="hdr-left">
+    <div>
+      <div class="hdr-title">AUD-IT Suite</div>
+      <div class="hdr-sub">Phoenix Theatre Company — Audio Department</div>
+    </div>
+  </div>
+  <nav class="hdr-nav">
+    <a href="/inventory" class="nav-tab {% if active == 'inventory' %}active{% endif %}">&#x1F3AD; Inventory</a>
+    <a href="/tasks" class="nav-tab {% if active == 'tasks' %}active{% endif %}">&#x2611; Tasks</a>
+  </nav>
+  <div class="hdr-actions">
+    {% block header_actions %}{% endblock %}
+    <a href="/logout" class="btn" title="Sign out" style="font-size:9px">&#x23FB;</a>
+  </div>
+</header>
+
+{% block content %}{% endblock %}
+
+<div id="toast"></div>
+
+<script>
+/* ── Shared utilities ── */
+function gi(id){return document.getElementById(id)}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function uid(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4)}
+function toast(msg){
+  var t=gi('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show')},2600);
+}
+
+/* ── API helper ── */
+async function api(method, url, body){
+  var opts={method:method, headers:{'Content-Type':'application/json'}};
+  if(body) opts.body=JSON.stringify(body);
+  var res=await fetch(url, opts);
+  if(res.status===401){window.location='/login';return null;}
+  return await res.json();
+}
+</script>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>
