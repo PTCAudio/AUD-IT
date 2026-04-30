@@ -168,6 +168,14 @@
 .pj-hours{font-size:10px;color:#666;font-family:'Courier New',monospace;margin-bottom:4px}
 .pj-body{font-size:11px;line-height:1.5;white-space:pre-wrap}
 
+/* ── DESKTOP (ensure sidebar visible) ── */
+@media(min-width:769px){
+  #tsk-app{display:grid!important;grid-template-columns:240px 1fr}
+  #sidebar{display:block!important;position:sticky}
+  .mob-menu-btn{display:none!important}
+  .mob-overlay{display:none!important}
+}
+
 /* ── MOBILE ── */
 @media(max-width:768px){
   #tsk-app{display:block}
@@ -188,10 +196,10 @@
 {% endblock %}
 
 {% block content %}
-<div id="tsk-app">
-  <button class="btn mob-menu-btn" onclick="mobToggle()" style="display:none;position:fixed;bottom:20px;left:20px;z-index:95;height:40px;padding:0 16px;background:var(--sur);border-color:var(--b2);font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.4)">&#x2630; Spaces &amp; Shows</button>
-  <div class="mob-overlay" id="mobOverlay" onclick="mobToggle()"></div>
+<button class="btn mob-menu-btn" onclick="mobToggle()" style="display:none;position:fixed;bottom:20px;left:20px;z-index:95;height:40px;padding:0 16px;background:var(--sur);border-color:var(--b2);font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.4)">&#x2630; Spaces &amp; Shows</button>
+<div class="mob-overlay" id="mobOverlay" onclick="mobToggle()"></div>
 
+<div id="tsk-app">
   <nav id="sidebar">
     <div class="sb-section">
       <div class="sb-label">VIEWS</div>
