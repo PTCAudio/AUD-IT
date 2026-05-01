@@ -594,7 +594,7 @@ async function drop(e,id){
 function dragEnd(){dragIdx=null;document.querySelectorAll('.task').forEach(function(el){el.classList.remove('dragging','drag-over')});}
 
 /* ── FILTER ── */
-function getViewTasks(){var v=currentView;return tasks.filter(function(t){if(v==='dashboard')return true;if(v.startsWith('space:'))return t.space===v.split(':')[1];if(v.startsWith('show:'))return t.show===v.split(':')[1];return true;});}
+function getViewTasks(){var v=currentView;return tasks.filter(function(t){if(v==='dashboard')return true;if(v.startsWith('space:'))return t.space===v.split(':')[1]&&!t.show;if(v.startsWith('show:'))return t.show===v.split(':')[1];return true;});}
 function getFilteredTasks(){var ts=getViewTasks(),f=currentFilter;return ts.filter(function(t){if(f==='active')return!t.done;if(f==='done')return t.done;if(f==='high')return t.pri==='high'&&!t.done;if(f==='med')return t.pri==='med'&&!t.done;if(f==='low')return t.pri==='low'&&!t.done;if(f==='now')return t.urg==='now'&&!t.done;if(f==='today')return t.urg==='today'&&!t.done;if(f==='week')return t.urg==='week'&&!t.done;return true;});}
 function setFilter(f){currentFilter=f;document.querySelectorAll('.fpill').forEach(function(el){el.className='fpill'+(el.getAttribute('data-f')===f?' on':'')});renderTasks();}
 
