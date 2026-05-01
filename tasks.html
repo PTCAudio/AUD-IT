@@ -58,7 +58,7 @@
 /* ── TASKS ── */
 .task-group-label{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--mut);margin:14px 0 6px 4px}
 .task-wrap{margin-bottom:4px}
-.task{display:grid;grid-template-columns:26px 1fr auto auto auto auto 26px;gap:6px;align-items:center;padding:8px 10px;border:1px solid var(--b1);border-radius:3px;background:var(--pan);transition:all .15s;cursor:grab}
+.task{display:grid;grid-template-columns:26px 1fr auto auto auto 26px;gap:6px;align-items:center;padding:8px 10px;border:1px solid var(--b1);border-radius:3px;background:var(--pan);transition:all .15s;cursor:grab}
 .task-wrap .task{border-radius:3px 3px 0 0}
 .task-wrap.no-notes .task{border-radius:3px}
 .task:hover{border-color:var(--b2)}
@@ -86,6 +86,7 @@
 .xbtn{width:24px;height:24px;border:none;background:none;cursor:pointer;color:var(--mut);font-size:13px;display:flex;align-items:center;justify-content:center;border-radius:3px;transition:all .12s;opacity:0}
 .task:hover .xbtn{opacity:1}
 .xbtn:hover{background:rgba(192,57,43,.1);color:#c0392b}
+.task-badges{display:flex;gap:4px;align-items:center;flex-shrink:0}
 
 /* ── NOTES ── */
 .note-toggle{background:none;border:none;cursor:pointer;color:var(--mut);font-family:var(--mono);font-size:9px;padding:2px 4px;border-radius:2px;transition:all .12s;display:flex;align-items:center;gap:4px;opacity:0}
@@ -179,7 +180,7 @@
 /* ── DESKTOP (ensure sidebar visible) ── */
 @media(min-width:769px){
   #tsk-app{display:grid!important;grid-template-columns:240px 1fr}
-  #sidebar,#sidebar.open{display:block!important;position:sticky!important;width:auto!important;height:calc(100vh - 56px)!important;top:56px!important;left:auto!important;z-index:auto!important;box-shadow:none!important}
+  #sidebar,#sidebar.open{display:block!important;position:sticky!important;width:auto!important;height:calc(100vh - 56px)!important;top:56px!important;left:auto!important;z-index:auto!important;box-shadow:none!important;padding-bottom:0!important}
   .mob-menu-btn{display:none!important}
   .mob-overlay,.mob-overlay.open{display:none!important}
 }
@@ -187,18 +188,34 @@
 /* ── MOBILE ── */
 @media(max-width:768px){
   #tsk-app{display:block}
-  #sidebar{display:none;position:fixed;left:0;top:56px;width:100%;height:calc(100vh - 56px);z-index:90;background:#111;overflow-y:auto;padding-bottom:60px}
+  #sidebar{display:none;position:fixed;left:0;top:56px;width:100%;height:calc(100vh - 56px);z-index:90;background:#111;overflow-y:auto;padding-bottom:80px}
   #sidebar.open{display:block}
   .mob-menu-btn{display:flex!important}
   .mob-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:89}
   .mob-overlay.open{display:block}
   #logDayBtn{right:20px!important;left:auto!important}
   .add-row{flex-direction:column}
+  .add-row input[type=text]{min-width:0!important;width:100%}
   .add-row select{width:100%}
-  .task{grid-template-columns:26px 1fr auto auto 26px!important;gap:4px}
+  /* Task cards: checkbox left, text + badges stacked right */
+  .task{display:flex!important;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:10px 12px}
+  .task-cb{width:22px;height:22px;flex-shrink:0}
+  .task-text{flex:1;min-width:0;font-size:13px;white-space:normal!important;overflow:visible!important;text-overflow:unset!important}
+  .task-badges{display:flex;gap:4px;flex-shrink:0}
+  .task-pri,.task-urg{font-size:8px;padding:2px 6px}
   .note-toggle{display:none!important}
-  .task-urg,.task-pri{font-size:8px;padding:2px 6px}
-  #main{padding:12px 14px}
+  .xbtn{display:none!important}
+  .task-notes-bar{padding-left:42px!important}
+  #main{padding:12px 10px 90px 10px}
+  .view-title{font-size:22px}
+  .stats-bar{flex-wrap:wrap;gap:10px}
+  .stat{min-width:50px}
+  .toolbar{gap:4px}
+  .fpill{font-size:8px;padding:2px 8px}
+  .toolbar-sep{display:none}
+  /* Header adjustments */
+  .hdr-actions .btn{padding:0 8px;font-size:9px}
+  .hdr-actions .btnp{padding:0 10px}
 }
 </style>
 {% endblock %}
@@ -613,8 +630,10 @@ function renderTask(t){
   if(sh) h+=' <span style="font-family:var(--mono);font-size:9px;color:'+sp.color+';opacity:.7">'+esc(sh.name)+'</span>';
   h+='</span>';
   h+='<button class="note-toggle'+(hasNote?' has-note':'')+'" onclick="toggleNotes(\''+t.id+'\')" title="'+(hasNote?'View notes':'Add notes')+'">&#x1F4DD; '+(hasNote?'Notes':'Note')+'</button>';
+  h+='<span class="task-badges">';
   h+='<span class="task-urg '+urgCls+'" onclick="showCtx(event,\'urg\',\''+t.id+'\')">'+urgLabel+'</span>';
   h+='<span class="task-pri '+PRI_CLS[t.pri]+'" onclick="showCtx(event,\'pri\',\''+t.id+'\')">'+PRI_LBL[t.pri]+'</span>';
+  h+='</span>';
   h+='<button class="xbtn" onclick="delTask(\''+t.id+'\')">&#x2715;</button>';
   h+='</div>';
   if(hasNote){h+='<div class="task-notes-bar" id="tnb-'+t.id+'"><span class="task-note-preview">'+notePreview+'</span></div>';}
