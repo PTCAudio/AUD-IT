@@ -426,7 +426,7 @@ def import_inventory(data):
 
 
 def import_tasks(data):
-    """Import tasks from legacy JSON backup."""
+    """Import tasks from legacy JSON or app backup."""
     db = get_db()
     db.execute('DELETE FROM tasks')
     db.execute('DELETE FROM journal_entries')
@@ -436,10 +436,14 @@ def import_tasks(data):
         db.execute('''INSERT INTO tasks (id, text, space, show_id, priority, urgency, due_date, notes, done, sort_order)
             VALUES (?,?,?,?,?,?,?,?,?,?)''',
             (task.get('id', ''), task.get('text', ''),
-             task.get('space', 'general'), task.get('show', ''),
-             task.get('pri', 'none'), task.get('urg', 'soon'),
-             task.get('date', ''), task.get('notes', ''),
-             1 if task.get('done') else 0, i))
+             task.get('space', 'general'),
+             task.get('show', task.get('show_id', '')),
+             task.get('pri', task.get('priority', 'none')),
+             task.get('urg', task.get('urgency', 'soon')),
+             task.get('date', task.get('due_date', '')),
+             task.get('notes', ''),
+             1 if task.get('done') else 0,
+             task.get('sort_order', i)))
 
     journal = data.get('journal', [])
     for entry in journal:
@@ -448,7 +452,7 @@ def import_tasks(data):
             (entry.get('id', ''), entry.get('date', ''),
              entry.get('body', ''), entry.get('author', 'Matthew'),
              json.dumps(entry.get('hours', {})),
-             entry.get('totalHours', 0)))
+             entry.get('totalHours', entry.get('total_hours', 0))))
 
     # Also import shows if present
     shows = data.get('shows', [])
