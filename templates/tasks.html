@@ -446,7 +446,7 @@ function setView(v){
   gi('mobOverlay').classList.remove('open');
   document.querySelectorAll('.fpill').forEach(function(el){el.className='fpill'+(el.getAttribute('data-f')==='all'?' on':'')});
 
-  if(v.startsWith('space:')) gi('newSpace').value=v.split(':')[1];
+  if(v.startsWith('space:')) gi('newSpace').value=v.split(':')[1];&&!t.show;
   else if(v.startsWith('show:')){
     var sh=shows.find(function(s){return s.id===v.split(':')[1]});
     if(sh){gi('newSpace').value=sh.space; updateShowSelect(); gi('newShow').value=sh.id;}
