@@ -119,6 +119,14 @@
 /* ── JOURNAL ── */
 .journal-entry{background:var(--sur);border:1px solid var(--b1);border-left:3px solid var(--red);border-radius:4px;padding:16px 18px;margin-bottom:12px;transition:border-color .15s}
 .journal-entry:hover{border-color:var(--b2)}
+.journal-author{font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:10px;white-space:nowrap;display:inline-block;margin-bottom:6px}
+.author-matthew{background:rgba(200,16,46,.1);color:#e8394f;border:1px solid rgba(200,16,46,.25)}
+.author-katie{background:rgba(52,152,219,.1);color:#5dade2;border:1px solid rgba(52,152,219,.25)}
+.author-jess{background:rgba(39,174,96,.1);color:#58d68d;border:1px solid rgba(39,174,96,.25)}
+.journal-filter{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.journal-filter .fpill{font-family:var(--mono);font-size:9px;padding:3px 10px;border-radius:20px;border:1px solid var(--b2);color:var(--mut);cursor:pointer;transition:all .15s;user-select:none}
+.journal-filter .fpill:hover{border-color:var(--b3);color:var(--txt)}
+.journal-filter .fpill.on{border-color:var(--red);color:var(--red);background:rgba(200,16,46,.08)}
 .journal-date{font-family:var(--disp);font-size:18px;letter-spacing:.06em;color:var(--wht);margin-bottom:2px;display:flex;align-items:center;justify-content:space-between}
 .journal-date-sub{font-family:var(--mono);font-size:9px;color:var(--mut);margin-bottom:10px}
 .journal-hours{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
@@ -311,7 +319,16 @@
 <div class="modal-bg" id="journalModal">
   <div class="modal" style="width:520px">
     <h2 id="jmTitle">Log Your Day</h2>
-    <div class="fg"><label>Date</label><input type="date" id="jmDate"></div>
+    <div style="display:flex;gap:8px">
+      <div class="fg" style="flex:1"><label>Who</label>
+        <select id="jmAuthor" style="font-size:13px;padding:8px 10px">
+          <option value="Matthew">Matthew</option>
+          <option value="Katie">Katie</option>
+          <option value="Jess">Jess</option>
+        </select>
+      </div>
+      <div class="fg" style="flex:1"><label>Date</label><input type="date" id="jmDate"></div>
+    </div>
     <div class="fg">
       <label>Hours by Space</label>
       <div class="jm-hours-grid" id="jmHoursGrid"></div>
@@ -379,7 +396,7 @@ async function loadAll(){
   });
   journal = (j||[]).map(function(r){
     return {id:r.id, date:r.date, body:r.body,
-            hours:r.hours||{}, totalHours:r.total_hours||0, created:r.created_at};
+            hours:r.hours||{}, totalHours:r.total_hours||0, author:r.author||'Matthew', created:r.created_at};
   });
 
   buildSidebar();
@@ -641,11 +658,16 @@ function renderShowList(){
 }
 
 /* ── JOURNAL ── */
+var TEAM=['Matthew','Katie','Jess'];
+var AUTHOR_CLS={Matthew:'author-matthew',Katie:'author-katie',Jess:'author-jess'};
+var journalAuthorFilter='all';
+
 function openJournalModal(existingId){
   editingJournalId=existingId||null;
   var entry=existingId?journal.find(function(j){return j.id===existingId}):null;
   gi('jmTitle').textContent=entry?'Edit Entry':'Log Your Day';
   gi('jmSaveBtn').textContent=entry?'Update Entry':'Save Entry';
+  gi('jmAuthor').value=entry&&entry.author?entry.author:'Matthew';
   gi('jmDate').value=entry?entry.date:new Date().toISOString().slice(0,10);
   gi('jmBody').value=entry?entry.body:'';
   var h='';SPACES.forEach(function(sp){var val=entry&&entry.hours&&entry.hours[sp.id]?entry.hours[sp.id]:'';h+='<div class="jm-hour-row"><div class="sb-dot" style="background:'+sp.color+'"></div><label>'+sp.name+'</label><input type="number" min="0" max="24" step="0.25" id="jmh-'+sp.id+'" value="'+val+'" placeholder="0" oninput="updateJmTotal()"></div>';});
@@ -656,19 +678,19 @@ function openJournalModal(existingId){
 function updateJmTotal(){var total=0;SPACES.forEach(function(sp){total+=parseFloat(gi('jmh-'+sp.id).value)||0;});gi('jmTotal').innerHTML='Total: <b>'+total+'</b> hrs';}
 
 async function saveJournalEntry(){
-  var date=gi('jmDate').value,body=gi('jmBody').value.trim();
+  var date=gi('jmDate').value,body=gi('jmBody').value.trim(),author=gi('jmAuthor').value;
   if(!date){toast('Set a date');return;}if(!body){toast('Write something');return;}
   var hours={},totalHrs=0;
   SPACES.forEach(function(sp){var v=parseFloat(gi('jmh-'+sp.id).value)||0;if(v>0){hours[sp.id]=v;totalHrs+=v;}});
   if(editingJournalId){
     var entry=journal.find(function(j){return j.id===editingJournalId});
-    if(entry){entry.date=date;entry.body=body;entry.hours=hours;entry.totalHours=totalHrs;}
-    await api('PUT','/api/journal/'+editingJournalId,{date:date,body:body,hours:hours,totalHours:totalHrs});
+    if(entry){entry.date=date;entry.body=body;entry.hours=hours;entry.totalHours=totalHrs;entry.author=author;}
+    await api('PUT','/api/journal/'+editingJournalId,{date:date,body:body,hours:hours,totalHours:totalHrs,author:author});
     toast('Entry updated');
   } else {
-    var ne={id:uid(),date:date,body:body,hours:hours,totalHours:totalHrs,created:new Date().toISOString()};
+    var ne={id:uid(),date:date,body:body,hours:hours,totalHours:totalHrs,author:author,created:new Date().toISOString()};
     await api('POST','/api/journal',ne);
-    journal.push(ne);toast('Day logged');
+    journal.push(ne);toast('Day logged — '+author);
   }
   journal.sort(function(a,b){return b.date.localeCompare(a.date)});
   editingJournalId=null;closeModal('journalModal');buildSidebar();
@@ -686,27 +708,43 @@ async function deleteJournalEntry(id){
 function renderJournal(){
   var list=gi('tlist');
   if(!journal.length){list.innerHTML='<div class="journal-empty"><div class="journal-empty-icon">&#x1F4D3;</div><div class="journal-empty-text">No journal entries yet</div><button class="btn btnp" onclick="openJournalModal()">&#x270E; Log Your First Day</button></div>';return;}
+
+  // Filter by author
+  var filtered=journalAuthorFilter==='all'?journal:journal.filter(function(e){return e.author===journalAuthorFilter});
+
   var totalHrs=0,spaceTotals={};SPACES.forEach(function(sp){spaceTotals[sp.id]=0;});
-  journal.forEach(function(e){totalHrs+=e.totalHours||0;SPACES.forEach(function(sp){spaceTotals[sp.id]+=(e.hours&&e.hours[sp.id])||0;});});
+  filtered.forEach(function(e){totalHrs+=e.totalHours||0;SPACES.forEach(function(sp){spaceTotals[sp.id]+=(e.hours&&e.hours[sp.id])||0;});});
   var now=new Date(),wa=new Date(now);wa.setDate(wa.getDate()-7);var ws=wa.toISOString().slice(0,10);
-  var weekHrs=0;journal.filter(function(e){return e.date>=ws}).forEach(function(e){weekHrs+=e.totalHours||0;});
-  var html='<div class="journal-summary">';
-  html+='<div class="js-card"><div class="js-card-num">'+journal.length+'</div><div class="js-card-lbl">Entries</div></div>';
+  var weekHrs=0;filtered.filter(function(e){return e.date>=ws}).forEach(function(e){weekHrs+=e.totalHours||0;});
+
+  // Author filter pills
+  var html='<div class="journal-filter">';
+  html+='<span class="fpill'+(journalAuthorFilter==='all'?' on':'')+'" onclick="setJAuthor(\'all\')">All</span>';
+  TEAM.forEach(function(name){html+='<span class="fpill'+(journalAuthorFilter===name?' on':'')+'" onclick="setJAuthor(\''+name+'\')">'+name+'</span>';});
+  html+='</div>';
+
+  html+='<div class="journal-summary">';
+  html+='<div class="js-card"><div class="js-card-num">'+filtered.length+'</div><div class="js-card-lbl">Entries</div></div>';
   html+='<div class="js-card js-card-accent"><div class="js-card-num">'+totalHrs.toFixed(1)+'</div><div class="js-card-lbl">Total Hours</div></div>';
   html+='<div class="js-card"><div class="js-card-num">'+weekHrs.toFixed(1)+'</div><div class="js-card-lbl">This Week</div></div>';
-  html+='<div class="js-card"><div class="js-card-num">'+(journal.length?(totalHrs/journal.length).toFixed(1):'0')+'</div><div class="js-card-lbl">Avg / Day</div></div>';
+  html+='<div class="js-card"><div class="js-card-num">'+(filtered.length?(totalHrs/filtered.length).toFixed(1):'0')+'</div><div class="js-card-lbl">Avg / Day</div></div>';
   SPACES.forEach(function(sp){if(spaceTotals[sp.id]>0)html+='<div class="js-card"><div class="js-card-num" style="color:'+sp.color+'">'+spaceTotals[sp.id].toFixed(1)+'</div><div class="js-card-lbl">'+sp.name+'</div></div>';});
   html+='</div>';
-  var start=journalPage*JOURNAL_PER_PAGE,page=journal.slice(start,start+JOURNAL_PER_PAGE),tp=Math.ceil(journal.length/JOURNAL_PER_PAGE);
+
+  var start=journalPage*JOURNAL_PER_PAGE,page=filtered.slice(start,start+JOURNAL_PER_PAGE),tp=Math.ceil(filtered.length/JOURNAL_PER_PAGE);
   if(tp>1)html+='<div class="journal-nav"><button onclick="jPrev()"'+(journalPage<=0?' disabled style="opacity:.3"':'')+'>&#x2190; Newer</button><span class="journal-nav-label">Page '+(journalPage+1)+'/'+tp+'</span><button onclick="jNext()"'+(journalPage>=tp-1?' disabled style="opacity:.3"':'')+'>Older &#x2192;</button></div>';
+
   page.forEach(function(e){
+    var authorCls=AUTHOR_CLS[e.author]||'author-matthew';
+    var authorName=e.author||'Unknown';
     html+='<div class="journal-entry"><div class="journal-date"><span>'+fmtDateLong(e.date)+'</span><div class="journal-actions"><button class="btn" style="height:24px;font-size:9px;padding:0 8px" onclick="openJournalModal(\''+e.id+'\')">Edit</button><button class="btn" style="height:24px;font-size:9px;padding:0 8px" onclick="deleteJournalEntry(\''+e.id+'\')">&#x2715;</button></div></div>';
-    html+='<div class="journal-date-sub">'+getDayOfWeek(e.date)+'</div>';
+    html+='<div class="journal-date-sub">'+getDayOfWeek(e.date)+' <span class="journal-author '+authorCls+'">'+esc(authorName)+'</span></div>';
     if(e.totalHours>0){html+='<div class="journal-hours">';SPACES.forEach(function(sp){var hrs=(e.hours&&e.hours[sp.id])||0;if(hrs>0)html+='<span class="journal-hour-chip"><span class="jh-dot" style="background:'+sp.color+'"></span>'+sp.name+': <span class="jh-val">'+hrs+'h</span></span>';});html+='<span class="journal-total">'+e.totalHours.toFixed(1)+' hrs total</span></div>';}
     html+='<div class="journal-body">'+esc(e.body)+'</div></div>';
   });
   list.innerHTML=html;
 }
+function setJAuthor(a){journalAuthorFilter=a;journalPage=0;renderJournal();}
 function jPrev(){if(journalPage>0){journalPage--;renderJournal();}}
 function jNext(){var tp=Math.ceil(journal.length/JOURNAL_PER_PAGE);if(journalPage<tp-1){journalPage++;renderJournal();}}
 
@@ -766,7 +804,7 @@ function printJournal(){
   if(!journal.length){toast('No entries');return;}
   var today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   var totalHrs=0;journal.forEach(function(e){totalHrs+=e.totalHours||0;});
-  var body='';journal.forEach(function(e){body+='<div class="pj-entry"><div class="pj-date">'+fmtDateLong(e.date)+' — '+getDayOfWeek(e.date)+'</div>';if(e.totalHours>0){var hp=[];SPACES.forEach(function(sp){var hrs=(e.hours&&e.hours[sp.id])||0;if(hrs>0)hp.push(sp.name+': '+hrs+'h');});body+='<div class="pj-hours">'+hp.join(' | ')+' — '+e.totalHours.toFixed(1)+' hrs</div>';}body+='<div class="pj-body">'+esc(e.body)+'</div></div>';});
+  var body='';journal.forEach(function(e){body+='<div class="pj-entry"><div class="pj-date">'+fmtDateLong(e.date)+' — '+getDayOfWeek(e.date)+' <span style="font-weight:400;color:#999">('+(e.author||'Matthew')+')</span></div>';if(e.totalHours>0){var hp=[];SPACES.forEach(function(sp){var hrs=(e.hours&&e.hours[sp.id])||0;if(hrs>0)hp.push(sp.name+': '+hrs+'h');});body+='<div class="pj-hours">'+hp.join(' | ')+' — '+e.totalHours.toFixed(1)+' hrs</div>';}body+='<div class="pj-body">'+esc(e.body)+'</div></div>';});
   gi('pr').innerHTML='<div style="padding:20mm"><div class="ph"><div class="pho">Phoenix Theatre Company — Audio Department</div><div class="pht">Daily Journal</div><div class="phm">'+journal.length+' entries &middot; '+totalHrs.toFixed(1)+' hrs &middot; '+today+'</div></div>'+body+'<div class="pft"><span>AUD-IT Task Manager</span><span>'+today+'</span></div></div>';
   setTimeout(function(){window.print()},200);
 }

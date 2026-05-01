@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUD-IT Suite — {% block title %}{% endblock %}</title>
+<title>AUD-IT Tasks — {% block title %}{% endblock %}</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Lora:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,13 +16,12 @@
 <header id="hdr">
   <div class="hdr-left">
     <div>
-      <div class="hdr-title">AUD-IT TASKS </div>
+      <div class="hdr-title">AUD-IT Tasks</div>
       <div class="hdr-sub">Phoenix Theatre Company — Audio Department</div>
     </div>
   </div>
   <nav class="hdr-nav">
-    <a href="/inventory" class="nav-tab {% if active == 'inventory' %}active{% endif %}">&#x1F3AD; Inventory</a>
-    <a href="/tasks" class="nav-tab {% if active == 'tasks' %}active{% endif %}">&#x2611; Tasks</a>
+    <a href="/tasks" class="nav-tab active">&#x2611; Tasks & Journal</a>
   </nav>
   <div class="hdr-actions">
     {% block header_actions %}{% endblock %}

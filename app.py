@@ -1,12 +1,11 @@
 """
-AUD-IT Suite — Flask Application
+AUD-IT Tasks — Flask Application
 Phoenix Theatre Company — Audio Department
 
 Routes:
-  /              → redirects to /inventory
+  /              → redirects to /tasks
   /login         → password gate
-  /inventory     → inventory module
-  /tasks         → task manager + journal module
+  /tasks         → task manager + journal
   /api/...       → REST API endpoints
 """
 
@@ -45,7 +44,7 @@ def login():
         if request.form.get('password') == APP_PASSWORD:
             session['authenticated'] = True
             session.permanent = True
-            return redirect(request.args.get('next', url_for('inventory')))
+            return redirect(request.args.get('next', url_for('tasks')))
         error = 'Wrong password'
     return render_template('login.html', error=error)
 
@@ -63,59 +62,13 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    return redirect(url_for('inventory'))
-
-
-@app.route('/inventory')
-@login_required
-def inventory():
-    return render_template('inventory.html', active='inventory')
+    return redirect(url_for('tasks'))
 
 
 @app.route('/tasks')
 @login_required
 def tasks():
     return render_template('tasks.html', active='tasks')
-
-
-# ══════════════════════════════════
-# API — INVENTORY ITEMS
-# ══════════════════════════════════
-
-@app.route('/api/inventory', methods=['GET'])
-@login_required
-def api_get_items():
-    items = models.get_all_items()
-    for item in items:
-        if isinstance(item.get('show_allocations'), str):
-            try:
-                item['show_allocations'] = json.loads(item['show_allocations'])
-            except:
-                item['show_allocations'] = {}
-    return jsonify(items)
-
-
-@app.route('/api/inventory', methods=['POST'])
-@login_required
-def api_create_item():
-    data = request.get_json()
-    item_id = models.create_item(data)
-    return jsonify({'id': item_id, 'status': 'created'}), 201
-
-
-@app.route('/api/inventory/<int:item_id>', methods=['PUT'])
-@login_required
-def api_update_item(item_id):
-    data = request.get_json()
-    models.update_item(item_id, data)
-    return jsonify({'status': 'updated'})
-
-
-@app.route('/api/inventory/<int:item_id>', methods=['DELETE'])
-@login_required
-def api_delete_item(item_id):
-    models.delete_item(item_id)
-    return jsonify({'status': 'deleted'})
 
 
 # ══════════════════════════════════
@@ -268,41 +221,12 @@ def api_backup():
     return jsonify(data)
 
 
-@app.route('/api/restore/inventory', methods=['POST'])
-@login_required
-def api_restore_inventory():
-    data = request.get_json()
-    count = models.import_inventory(data)
-    return jsonify({'status': 'restored', 'items': count})
-
-
 @app.route('/api/restore/tasks', methods=['POST'])
 @login_required
 def api_restore_tasks():
     data = request.get_json()
     count = models.import_tasks(data)
     return jsonify({'status': 'restored', 'tasks': count})
-
-
-@app.route('/api/restore/full', methods=['POST'])
-@login_required
-def api_restore_full():
-    """Restore from a full suite backup."""
-    data = request.get_json()
-    inv_count = 0
-    task_count = 0
-
-    if data.get('inventory'):
-        inv_data = {'items': data['inventory'], 'shows': data.get('shows', []),
-                     'cats': data.get('categories', [])}
-        inv_count = models.import_inventory(inv_data)
-
-    if data.get('tasks'):
-        task_data = {'tasks': data['tasks'], 'journal': data.get('journal', []),
-                     'shows': data.get('shows', [])}
-        task_count = models.import_tasks(task_data)
-
-    return jsonify({'status': 'restored', 'items': inv_count, 'tasks': task_count})
 
 
 # ══════════════════════════════════

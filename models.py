@@ -90,6 +90,7 @@ def init_db():
             id TEXT PRIMARY KEY,
             date TEXT NOT NULL,
             body TEXT NOT NULL DEFAULT '',
+            author TEXT NOT NULL DEFAULT 'Matthew',
             hours TEXT DEFAULT '{}',
             total_hours REAL DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now')),
@@ -97,6 +98,14 @@ def init_db():
         );
     ''')
     db.commit()
+
+    # Migrations
+    try:
+        db.execute("ALTER TABLE journal_entries ADD COLUMN author TEXT NOT NULL DEFAULT 'Matthew'")
+        db.commit()
+    except:
+        pass
+
     db.close()
 
 
@@ -304,9 +313,9 @@ def get_all_journal():
 
 def create_journal(data):
     db = get_db()
-    db.execute('''INSERT INTO journal_entries (id, date, body, hours, total_hours)
-        VALUES (?,?,?,?,?)''',
-        (data['id'], data['date'], data['body'],
+    db.execute('''INSERT INTO journal_entries (id, date, body, author, hours, total_hours)
+        VALUES (?,?,?,?,?,?)''',
+        (data['id'], data['date'], data['body'], data.get('author', 'Matthew'),
          json.dumps(data.get('hours', {})), data.get('totalHours', 0)))
     db.commit()
     db.close()
@@ -314,9 +323,10 @@ def create_journal(data):
 
 def update_journal(entry_id, data):
     db = get_db()
-    db.execute('''UPDATE journal_entries SET date=?, body=?, hours=?, total_hours=?,
+    db.execute('''UPDATE journal_entries SET date=?, body=?, author=?, hours=?, total_hours=?,
         updated_at=datetime('now') WHERE id=?''',
-        (data['date'], data['body'], json.dumps(data.get('hours', {})),
+        (data['date'], data['body'], data.get('author', 'Matthew'),
+         json.dumps(data.get('hours', {})),
          data.get('totalHours', 0), entry_id))
     db.commit()
     db.close()
