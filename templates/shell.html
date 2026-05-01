@@ -45,21 +45,13 @@ function toast(msg){
   setTimeout(function(){t.classList.remove('show')},2600);
 }
 
-/* ── API helper with error handling ── */
-var _apiOk=true;
+/* ── API helper ── */
 async function api(method, url, body){
   var opts={method:method, headers:{'Content-Type':'application/json'}};
   if(body) opts.body=JSON.stringify(body);
-  try{
-    var res=await fetch(url, opts);
-    if(res.status===401){window.location='/login';return null;}
-    if(!res.ok){toast('Server error: '+res.status);return null;}
-    if(!_apiOk){_apiOk=true;toast('Connection restored');}
-    return await res.json();
-  }catch(err){
-    if(_apiOk){_apiOk=false;toast('Connection lost — retrying...');}
-    return null;
-  }
+  var res=await fetch(url, opts);
+  if(res.status===401){window.location='/login';return null;}
+  return await res.json();
 }
 </script>
 

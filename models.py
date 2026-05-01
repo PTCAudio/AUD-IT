@@ -106,16 +106,6 @@ def init_db():
     except:
         pass
 
-    # Indexes
-    db.executescript('''
-        CREATE INDEX IF NOT EXISTS idx_tasks_space ON tasks(space);
-        CREATE INDEX IF NOT EXISTS idx_tasks_show ON tasks(show_id);
-        CREATE INDEX IF NOT EXISTS idx_tasks_done ON tasks(done);
-        CREATE INDEX IF NOT EXISTS idx_journal_date ON journal_entries(date);
-        CREATE INDEX IF NOT EXISTS idx_journal_author ON journal_entries(author);
-        CREATE INDEX IF NOT EXISTS idx_shows_space ON shows(space);
-    ''')
-    db.commit()
     db.close()
 
 
@@ -347,26 +337,6 @@ def delete_journal(entry_id):
     db.execute('DELETE FROM journal_entries WHERE id=?', (entry_id,))
     db.commit()
     db.close()
-
-
-# ══════════════════════════════════
-# LAST MODIFIED (for smart polling)
-# ══════════════════════════════════
-
-def get_last_modified():
-    """Return the most recent updated_at across tasks, journal, and shows."""
-    db = get_db()
-    row = db.execute('''
-        SELECT MAX(ts) as latest FROM (
-            SELECT MAX(updated_at) as ts FROM tasks
-            UNION ALL
-            SELECT MAX(updated_at) as ts FROM journal_entries
-            UNION ALL
-            SELECT MAX(created_at) as ts FROM shows
-        )
-    ''').fetchone()
-    db.close()
-    return row['latest'] if row and row['latest'] else ''
 
 
 # ══════════════════════════════════
