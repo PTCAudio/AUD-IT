@@ -443,10 +443,10 @@ def import_tasks(data):
 
     journal = data.get('journal', [])
     for entry in journal:
-        db.execute('''INSERT INTO journal_entries (id, date, body, hours, total_hours)
-            VALUES (?,?,?,?,?)''',
+        db.execute('''INSERT INTO journal_entries (id, date, body, author, hours, total_hours)
+            VALUES (?,?,?,?,?,?)''',
             (entry.get('id', ''), entry.get('date', ''),
-             entry.get('body', ''),
+             entry.get('body', ''), entry.get('author', 'Matthew'),
              json.dumps(entry.get('hours', {})),
              entry.get('totalHours', 0)))
 
