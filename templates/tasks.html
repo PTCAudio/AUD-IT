@@ -141,6 +141,26 @@
 .journal-empty{text-align:center;padding:50px 20px;color:var(--mut)}
 .journal-empty-icon{font-size:36px;margin-bottom:8px;opacity:.3}
 .journal-empty-text{font-style:italic;font-size:13px;margin-bottom:12px}
+
+/* Journal people cards */
+.journal-covers{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:12px}
+.journal-cover{background:var(--sur);border:1px solid var(--b1);border-radius:6px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.journal-cover:hover{border-color:var(--b3);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.journal-cover-name{font-family:var(--disp);font-size:28px;letter-spacing:.08em;color:var(--wht);margin-bottom:4px}
+.journal-cover-stat{font-family:var(--mono);font-size:10px;color:var(--mut);margin-bottom:2px}
+.journal-cover-latest{font-family:var(--mono);font-size:9px;color:var(--mut);font-style:italic;margin-top:8px}
+.journal-cover-bar{position:absolute;top:0;left:0;right:0;height:3px}
+.journal-cover-add{background:var(--pan);border:2px dashed var(--b2);border-radius:6px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.journal-cover-add:hover{border-color:var(--red);background:rgba(200,16,46,.03)}
+.journal-cover-add-icon{font-size:24px;color:var(--mut)}
+.journal-cover-add-label{font-family:var(--mono);font-size:10px;color:var(--mut)}
+
+/* Journal person view */
+.journal-back{font-family:var(--mono);font-size:10px;color:var(--mut);cursor:pointer;display:inline-flex;align-items:center;gap:4px;margin-bottom:12px;transition:color .15s}
+.journal-back:hover{color:var(--red)}
+.journal-person-header{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.journal-person-name{font-family:var(--disp);font-size:32px;letter-spacing:.08em;color:var(--wht)}
+
 .journal-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-bottom:20px}
 .js-card{background:var(--sur);border:1px solid var(--b1);border-radius:4px;padding:12px;text-align:center}
 .js-card-num{font-family:var(--disp);font-size:26px;color:var(--wht);line-height:1}
@@ -193,7 +213,6 @@
   .mob-menu-btn{display:flex!important}
   .mob-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:89}
   .mob-overlay.open{display:block}
-  #logDayBtn{right:20px!important;left:auto!important}
   .add-row{flex-direction:column}
   .add-row input[type=text]{min-width:0!important;width:100%}
   .add-row select{width:100%}
@@ -253,8 +272,6 @@
     </div>
   </nav>
 
-  <button id="logDayBtn" class="btn btnp" onclick="openJournalModal()" style="position:fixed;bottom:20px;left:20px;z-index:90;height:36px;padding:0 16px;font-size:11px;box-shadow:0 4px 16px rgba(200,16,46,.3)">&#x270E; Log Day</button>
-
   <div id="main">
     <div class="view-title" id="viewTitle">Dashboard</div>
     <div class="view-sub" id="viewSub">All active tasks across all spaces</div>
@@ -294,6 +311,7 @@
       <span class="fpill" data-f="today" onclick="setFilter('today')">Today</span>
       <span class="fpill" data-f="week" onclick="setFilter('week')">This Week</span>
       <span style="flex:1"></span>
+      <button class="btn" onclick="toggleSort()" id="sortBtn" style="font-size:9px;height:24px;padding:0 8px">Sort: Manual</button>
       <button class="btn" onclick="clearDone()" style="font-size:9px;height:24px;padding:0 8px">✓ Clear Done</button>
     </div>
 
@@ -389,6 +407,7 @@ var tasks=[], shows=[], journal=[];
 var currentView='dashboard', currentFilter='all';
 var dragIdx=null, dateCallback=null, editingJournalId=null;
 var journalPage=0, JOURNAL_PER_PAGE=10;
+var taskSort='manual'; // 'manual', 'urgency', 'priority'
 
 function closeModal(id){gi(id).classList.remove('open')}
 function mobToggle(){gi('sidebar').classList.toggle('open');gi('mobOverlay').classList.toggle('open')}
@@ -426,7 +445,7 @@ async function loadAll(){
 function buildSidebar(){
   var spNav='';
   SPACES.forEach(function(sp){
-    var cnt=tasks.filter(function(t){return t.space===sp.id&&!t.done}).length;
+    var cnt=tasks.filter(function(t){return t.space===sp.id&&!t.done&&!t.show}).length;
     var cls=currentView==='space:'+sp.id?' active':'';
     spNav+='<div class="sb-item'+cls+'" data-view="space:'+sp.id+'" onclick="setView(\'space:'+sp.id+'\')">';
     spNav+='<div class="sb-dot" style="background:'+sp.color+'"></div>'+sp.name;
@@ -459,6 +478,7 @@ function buildSidebar(){
 function setView(v){
   currentView=v;
   currentFilter='all';
+  journalPerson=null;
   gi('sidebar').classList.remove('open');
   gi('mobOverlay').classList.remove('open');
   document.querySelectorAll('.fpill').forEach(function(el){el.className='fpill'+(el.getAttribute('data-f')==='all'?' on':'')});
@@ -481,14 +501,14 @@ function updateHeader(){
   if(v==='dashboard'){gi('viewTitle').textContent='Dashboard';gi('viewSub').textContent='All active tasks across all spaces';}
   else if(v.startsWith('space:')){var sp=SPACES.find(function(s){return s.id===v.split(':')[1]});gi('viewTitle').textContent=sp?sp.name:'Space';gi('viewSub').textContent='All tasks for '+(sp?sp.name:'this space');}
   else if(v.startsWith('show:')){var sh=shows.find(function(s){return s.id===v.split(':')[1]});var sp=sh?SPACES.find(function(s){return s.id===sh.space}):null;gi('viewTitle').textContent=sh?sh.name:'Show';gi('viewSub').textContent=(sp?sp.name+' — ':'')+'Show Tasks';}
-  else if(v==='journal'){gi('viewTitle').textContent='Daily Journal';gi('viewSub').textContent='End-of-day logs and hour tracking';}
+  else if(v==='journal'){gi('viewTitle').textContent='Daily Journal';gi('viewSub').textContent='Select a team member';}
 }
 
 function buildAddSelects(){
   var h='';SPACES.forEach(function(sp){h+='<option value="'+sp.id+'">'+sp.name+'</option>';});
   gi('newSpace').innerHTML=h;gi('newShowSpace').innerHTML=h;
   updateShowSelect();
-  gi('newUrg').onchange=function(){gi('newDate').style.display=this.value==='date'?'block':'none';if(this.value==='date'&&!gi('newDate').value)gi('newDate').value=new Date().toISOString().slice(0,10);};
+  gi('newUrg').onchange=function(){gi('newDate').style.display=this.value==='date'?'block':'none';if(this.value==='date'&&!gi('newDate').value)gi('newDate').value=new Date().toLocaleDateString('en-CA');};
   gi('newSpace').onchange=function(){updateShowSelect()};
 }
 
@@ -568,7 +588,7 @@ function showCtx(e,type,taskId){
     opt.innerHTML='<span class="dot" style="background:'+o.color+'"></span>'+o.label;
     opt.onclick=function(ev){ev.stopPropagation();var t=tasks.find(function(x){return x.id===taskId});if(!t)return;
       if(type==='pri'){t.pri=o.val;api('PUT','/api/tasks/'+taskId,{pri:o.val});renderTasks();closeCtx();}
-      else{if(o.val==='date'){closeCtx();dateCallback=function(d){t.urg='date';t.date=d;api('PUT','/api/tasks/'+taskId,{urg:'date',date:d});renderTasks();};gi('modalDate').value=t.date||new Date().toISOString().slice(0,10);gi('dateModal').classList.add('open');}
+      else{if(o.val==='date'){closeCtx();dateCallback=function(d){t.urg='date';t.date=d;api('PUT','/api/tasks/'+taskId,{urg:'date',date:d});renderTasks();};gi('modalDate').value=t.date||new Date().toLocaleDateString('en-CA');gi('dateModal').classList.add('open');}
       else{t.urg=o.val;t.date='';api('PUT','/api/tasks/'+taskId,{urg:o.val,date:''});renderTasks();closeCtx();}}};
     menu.appendChild(opt);
   });
@@ -593,6 +613,28 @@ async function drop(e,id){
 }
 function dragEnd(){dragIdx=null;document.querySelectorAll('.task').forEach(function(el){el.classList.remove('dragging','drag-over')});}
 
+/* ── SORT ── */
+function toggleSort(){
+  var modes=['manual','urgency','priority'];
+  var labels=['Sort: Manual','Sort: Urgency','Sort: Priority'];
+  var idx=modes.indexOf(taskSort);
+  idx=(idx+1)%modes.length;
+  taskSort=modes[idx];
+  gi('sortBtn').textContent=labels[idx];
+  renderTasks();
+}
+
+function sortTasks(arr){
+  if(taskSort==='manual') return arr;
+  var sorted=arr.slice();
+  if(taskSort==='urgency'){
+    sorted.sort(function(a,b){var u=(URG_ORDER[a.urg]||4)-(URG_ORDER[b.urg]||4);return u!==0?u:(PRI_ORDER[a.pri]||3)-(PRI_ORDER[b.pri]||3);});
+  } else if(taskSort==='priority'){
+    sorted.sort(function(a,b){var p=(PRI_ORDER[a.pri]||3)-(PRI_ORDER[b.pri]||3);return p!==0?p:(URG_ORDER[a.urg]||4)-(URG_ORDER[b.urg]||4);});
+  }
+  return sorted;
+}
+
 /* ── FILTER ── */
 function getViewTasks(){var v=currentView;return tasks.filter(function(t){if(v==='dashboard')return true;if(v.startsWith('space:'))return t.space===v.split(':')[1]&&!t.show;if(v.startsWith('show:'))return t.show===v.split(':')[1];return true;});}
 function getFilteredTasks(){var ts=getViewTasks(),f=currentFilter;return ts.filter(function(t){if(f==='active')return!t.done;if(f==='done')return t.done;if(f==='high')return t.pri==='high'&&!t.done;if(f==='med')return t.pri==='med'&&!t.done;if(f==='low')return t.pri==='low'&&!t.done;if(f==='now')return t.urg==='now'&&!t.done;if(f==='today')return t.urg==='today'&&!t.done;if(f==='week')return t.urg==='week'&&!t.done;return true;});}
@@ -610,6 +652,7 @@ function renderTasks(){
     +(highCnt?'<div class="stat stat-red"><span class="stat-num">'+highCnt+'</span><span class="stat-lbl">High Pri</span></div>':'')
     +(nowCnt?'<div class="stat stat-red"><span class="stat-num">'+nowCnt+'</span><span class="stat-lbl">Right Now</span></div>':'');
   if(!filtered.length){gi('tlist').innerHTML='<div class="empty-state">'+(total?'No tasks match this filter':'No tasks yet — add one above')+'</div>';return;}
+  filtered=sortTasks(filtered);
   var html='';
   if(currentView==='dashboard'){SPACES.forEach(function(sp){var st=filtered.filter(function(t){return t.space===sp.id});if(!st.length)return;html+='<div class="task-group-label" style="color:'+sp.color+'">'+sp.name+' ('+st.filter(function(t){return!t.done}).length+' active)</div>';st.forEach(function(t){html+=renderTask(t)});});}
   else{filtered.forEach(function(t){html+=renderTask(t)});}
@@ -679,15 +722,17 @@ function renderShowList(){
 /* ── JOURNAL ── */
 var TEAM=['Matthew','Katie','Jess'];
 var AUTHOR_CLS={Matthew:'author-matthew',Katie:'author-katie',Jess:'author-jess'};
+var AUTHOR_COLOR={Matthew:'#c8102e',Katie:'#3498db',Jess:'#27ae60'};
 var journalAuthorFilter='all';
+var journalPerson=null; // null = show covers, string = show that person's entries
 
-function openJournalModal(existingId){
+function openJournalModal(existingId, defaultAuthor){
   editingJournalId=existingId||null;
   var entry=existingId?journal.find(function(j){return j.id===existingId}):null;
   gi('jmTitle').textContent=entry?'Edit Entry':'Log Your Day';
   gi('jmSaveBtn').textContent=entry?'Update Entry':'Save Entry';
-  gi('jmAuthor').value=entry&&entry.author?entry.author:'Matthew';
-  gi('jmDate').value=entry?entry.date:new Date().toISOString().slice(0,10);
+  gi('jmAuthor').value=entry&&entry.author?entry.author:(defaultAuthor||'Matthew');
+  gi('jmDate').value=entry?entry.date:new Date().toLocaleDateString('en-CA');
   gi('jmBody').value=entry?entry.body:'';
   var h='';SPACES.forEach(function(sp){var val=entry&&entry.hours&&entry.hours[sp.id]?entry.hours[sp.id]:'';h+='<div class="jm-hour-row"><div class="sb-dot" style="background:'+sp.color+'"></div><label>'+sp.name+'</label><input type="number" min="0" max="24" step="0.25" id="jmh-'+sp.id+'" value="'+val+'" placeholder="0" oninput="updateJmTotal()"></div>';});
   gi('jmHoursGrid').innerHTML=h;updateJmTotal();
@@ -713,7 +758,10 @@ async function saveJournalEntry(){
   }
   journal.sort(function(a,b){return b.date.localeCompare(a.date)});
   editingJournalId=null;closeModal('journalModal');buildSidebar();
-  if(currentView==='journal')renderJournal();
+  if(currentView==='journal'){
+    if(journalPerson) renderJournalPerson(journalPerson);
+    else renderJournal();
+  }
 }
 
 async function deleteJournalEntry(id){
@@ -726,46 +774,90 @@ async function deleteJournalEntry(id){
 
 function renderJournal(){
   var list=gi('tlist');
-  if(!journal.length){list.innerHTML='<div class="journal-empty"><div class="journal-empty-icon">&#x1F4D3;</div><div class="journal-empty-text">No journal entries yet</div><button class="btn btnp" onclick="openJournalModal()">&#x270E; Log Your First Day</button></div>';return;}
+  if(journalPerson) return renderJournalPerson(journalPerson);
 
-  // Filter by author
-  var filtered=journalAuthorFilter==='all'?journal:journal.filter(function(e){return e.author===journalAuthorFilter});
+  // Book cover view
+  var html='<div class="journal-covers">';
+  TEAM.forEach(function(name){
+    var entries=journal.filter(function(e){return e.author===name});
+    var totalHrs=0;entries.forEach(function(e){totalHrs+=e.totalHours||0});
+    var latest=entries.length?entries[0]:null;
+    var color=AUTHOR_COLOR[name]||'#888';
+    html+='<div class="journal-cover" onclick="openJournalPerson(\''+name+'\')">';
+    html+='<div class="journal-cover-bar" style="background:'+color+'"></div>';
+    html+='<div class="journal-cover-name">'+esc(name)+'</div>';
+    html+='<div class="journal-cover-stat">'+entries.length+' entr'+(entries.length===1?'y':'ies')+' &middot; '+totalHrs.toFixed(1)+' hrs</div>';
+    if(latest) html+='<div class="journal-cover-latest">Last: '+fmtDateLong(latest.date)+'</div>';
+    else html+='<div class="journal-cover-latest">No entries yet</div>';
+    html+='</div>';
+  });
+  html+='</div>';
+  list.innerHTML=html;
+}
 
-  var totalHrs=0,spaceTotals={};SPACES.forEach(function(sp){spaceTotals[sp.id]=0;});
-  filtered.forEach(function(e){totalHrs+=e.totalHours||0;SPACES.forEach(function(sp){spaceTotals[sp.id]+=(e.hours&&e.hours[sp.id])||0;});});
-  var now=new Date(),wa=new Date(now);wa.setDate(wa.getDate()-7);var ws=wa.toISOString().slice(0,10);
-  var weekHrs=0;filtered.filter(function(e){return e.date>=ws}).forEach(function(e){weekHrs+=e.totalHours||0;});
+function openJournalPerson(name){
+  journalPerson=name;
+  journalPage=0;
+  gi('viewTitle').textContent=name+'\'s Journal';
+  gi('viewSub').textContent='Daily logs and hours';
+  renderJournalPerson(name);
+}
 
-  // Author filter pills
-  var html='<div class="journal-filter">';
-  html+='<span class="fpill'+(journalAuthorFilter==='all'?' on':'')+'" onclick="setJAuthor(\'all\')">All</span>';
-  TEAM.forEach(function(name){html+='<span class="fpill'+(journalAuthorFilter===name?' on':'')+'" onclick="setJAuthor(\''+name+'\')">'+name+'</span>';});
+function closeJournalPerson(){
+  journalPerson=null;
+  gi('viewTitle').textContent='Daily Journal';
+  gi('viewSub').textContent='Select a team member';
+  renderJournal();
+}
+
+function renderJournalPerson(name){
+  var list=gi('tlist');
+  var entries=journal.filter(function(e){return e.author===name});
+  var color=AUTHOR_COLOR[name]||'#888';
+
+  var html='<div class="journal-back" onclick="closeJournalPerson()">&#x2190; All Journals</div>';
+
+  // Add entry button
+  html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">';
+  html+='<div class="journal-person-header"><div class="journal-person-name" style="color:'+color+'">'+esc(name)+'</div></div>';
+  html+='<button class="btn btnp" onclick="openJournalModal(null,\''+name+'\')">+ Add Entry</button>';
   html+='</div>';
 
+  if(!entries.length){
+    html+='<div class="journal-empty"><div class="journal-empty-text">No entries yet for '+esc(name)+'</div></div>';
+    list.innerHTML=html;return;
+  }
+
+  // Stats
+  var totalHrs=0,spaceTotals={};SPACES.forEach(function(sp){spaceTotals[sp.id]=0;});
+  entries.forEach(function(e){totalHrs+=e.totalHours||0;SPACES.forEach(function(sp){spaceTotals[sp.id]+=(e.hours&&e.hours[sp.id])||0;});});
+  var now=new Date(),wa=new Date(now);wa.setDate(wa.getDate()-7);var ws=wa.toISOString().slice(0,10);
+  var weekHrs=0;entries.filter(function(e){return e.date>=ws}).forEach(function(e){weekHrs+=e.totalHours||0;});
+
   html+='<div class="journal-summary">';
-  html+='<div class="js-card"><div class="js-card-num">'+filtered.length+'</div><div class="js-card-lbl">Entries</div></div>';
+  html+='<div class="js-card"><div class="js-card-num">'+entries.length+'</div><div class="js-card-lbl">Entries</div></div>';
   html+='<div class="js-card js-card-accent"><div class="js-card-num">'+totalHrs.toFixed(1)+'</div><div class="js-card-lbl">Total Hours</div></div>';
   html+='<div class="js-card"><div class="js-card-num">'+weekHrs.toFixed(1)+'</div><div class="js-card-lbl">This Week</div></div>';
-  html+='<div class="js-card"><div class="js-card-num">'+(filtered.length?(totalHrs/filtered.length).toFixed(1):'0')+'</div><div class="js-card-lbl">Avg / Day</div></div>';
+  html+='<div class="js-card"><div class="js-card-num">'+(entries.length?(totalHrs/entries.length).toFixed(1):'0')+'</div><div class="js-card-lbl">Avg / Day</div></div>';
   SPACES.forEach(function(sp){if(spaceTotals[sp.id]>0)html+='<div class="js-card"><div class="js-card-num" style="color:'+sp.color+'">'+spaceTotals[sp.id].toFixed(1)+'</div><div class="js-card-lbl">'+sp.name+'</div></div>';});
   html+='</div>';
 
-  var start=journalPage*JOURNAL_PER_PAGE,page=filtered.slice(start,start+JOURNAL_PER_PAGE),tp=Math.ceil(filtered.length/JOURNAL_PER_PAGE);
+  // Pagination
+  var start=journalPage*JOURNAL_PER_PAGE,page=entries.slice(start,start+JOURNAL_PER_PAGE),tp=Math.ceil(entries.length/JOURNAL_PER_PAGE);
   if(tp>1)html+='<div class="journal-nav"><button onclick="jPrev()"'+(journalPage<=0?' disabled style="opacity:.3"':'')+'>&#x2190; Newer</button><span class="journal-nav-label">Page '+(journalPage+1)+'/'+tp+'</span><button onclick="jNext()"'+(journalPage>=tp-1?' disabled style="opacity:.3"':'')+'>Older &#x2192;</button></div>';
 
   page.forEach(function(e){
-    var authorCls=AUTHOR_CLS[e.author]||'author-matthew';
-    var authorName=e.author||'Unknown';
-    html+='<div class="journal-entry"><div class="journal-date"><span>'+fmtDateLong(e.date)+'</span><div class="journal-actions"><button class="btn" style="height:24px;font-size:9px;padding:0 8px" onclick="openJournalModal(\''+e.id+'\')">Edit</button><button class="btn" style="height:24px;font-size:9px;padding:0 8px" onclick="deleteJournalEntry(\''+e.id+'\')">&#x2715;</button></div></div>';
-    html+='<div class="journal-date-sub">'+getDayOfWeek(e.date)+' <span class="journal-author '+authorCls+'">'+esc(authorName)+'</span></div>';
+    html+='<div class="journal-entry" style="border-left-color:'+color+'">';
+    html+='<div class="journal-date"><span>'+fmtDateLong(e.date)+'</span><div class="journal-actions" style="opacity:1"><button class="btn" style="height:24px;font-size:9px;padding:0 8px" onclick="openJournalModal(\''+e.id+'\',\''+name+'\')">Edit</button><button class="btn" style="height:24px;font-size:9px;padding:0 8px" onclick="deleteJournalEntry(\''+e.id+'\')">&#x2715;</button></div></div>';
+    html+='<div class="journal-date-sub">'+getDayOfWeek(e.date)+'</div>';
     if(e.totalHours>0){html+='<div class="journal-hours">';SPACES.forEach(function(sp){var hrs=(e.hours&&e.hours[sp.id])||0;if(hrs>0)html+='<span class="journal-hour-chip"><span class="jh-dot" style="background:'+sp.color+'"></span>'+sp.name+': <span class="jh-val">'+hrs+'h</span></span>';});html+='<span class="journal-total">'+e.totalHours.toFixed(1)+' hrs total</span></div>';}
     html+='<div class="journal-body">'+esc(e.body)+'</div></div>';
   });
   list.innerHTML=html;
 }
 function setJAuthor(a){journalAuthorFilter=a;journalPage=0;renderJournal();}
-function jPrev(){if(journalPage>0){journalPage--;renderJournal();}}
-function jNext(){var tp=Math.ceil(journal.length/JOURNAL_PER_PAGE);if(journalPage<tp-1){journalPage++;renderJournal();}}
+function jPrev(){if(journalPage>0){journalPage--;if(journalPerson)renderJournalPerson(journalPerson);else renderJournal();}}
+function jNext(){var entries=journalPerson?journal.filter(function(e){return e.author===journalPerson}):journal;var tp=Math.ceil(entries.length/JOURNAL_PER_PAGE);if(journalPage<tp-1){journalPage++;if(journalPerson)renderJournalPerson(journalPerson);else renderJournal();}}
 
 /* ── EXPORT / IMPORT ── */
 async function tskExportJSON(){
@@ -830,5 +922,6 @@ function printJournal(){
 
 /* ── INIT ── */
 loadAll();
+setInterval(loadAll, 15000);
 </script>
 {% endblock %}
