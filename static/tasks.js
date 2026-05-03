@@ -142,7 +142,6 @@ async function addTask(){
   await api('POST','/api/tasks',task);
   tasks.push(task);
  gi('newTask').value='';gi('newPri').value='none';gi('newUrg').value='soon';gi('newDate').style.display='none';
-  if(currentView.startsWith('show:')){var sh=shows.find(function(s){return s.id===currentView.split(':')[1]});if(sh){gi('newSpace').value=sh.space;updateShowSelect();gi('newShow').value=sh.id;}}else if(currentView.startsWith('space:'))gi('newSpace').value=currentView.split(':')[1];
   buildSidebar();renderTasks();gi('newTask').focus();toast('Task added');
    
 /* ── TASK ACTIONS ── */
