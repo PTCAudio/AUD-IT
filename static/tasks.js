@@ -134,6 +134,7 @@ function updateShowSelect(){
 }
 
 /* ── ADD TASK ── */
+
 async function addTask(){
   var text=gi('newTask').value.trim();if(!text)return;
   var task={id:uid(),text:text,space:gi('newSpace').value,show:gi('newShow').value||'',
@@ -143,6 +144,7 @@ async function addTask(){
   tasks.push(task);
  gi('newTask').value='';gi('newPri').value='none';gi('newUrg').value='soon';gi('newDate').style.display='none';
   buildSidebar();renderTasks();gi('newTask').focus();toast('Task added');
+}
    
 /* ── TASK ACTIONS ── */
 async function toggleTask(id){
