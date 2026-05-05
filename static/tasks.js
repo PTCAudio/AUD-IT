@@ -296,7 +296,7 @@ function renderTask(t){
   var urgLabel=t.urg==='date'&&t.date?fmtDate(t.date):URG_LBL[t.urg]||'';
   var urgCls=URG_CLS[t.urg]||'urg-soon';
   var hasNote=t.notes&&t.notes.trim().length>0;
-  var notePreview=hasNote?esc(t.notes.trim().substring(0,60))+(t.notes.length>60?'...':''):'';
+  var dateAdded=t.created?fmtDate(t.created.slice(0,10)):'';
   var h='<div class="task-wrap'+(hasNote?'':' no-notes')+'" id="tw-'+t.id+'">';
   h+='<div class="task'+(t.done?' done':'')+'" draggable="true" ondragstart="dragStart(event,\''+t.id+'\')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event,\''+t.id+'\')" ondragend="dragEnd()">';
   h+='<input type="checkbox" class="task-cb"'+(t.done?' checked':'')+' onchange="toggleTask(\''+t.id+'\')">';
@@ -308,10 +308,12 @@ function renderTask(t){
   h+='<span class="task-urg '+urgCls+'" onclick="showCtx(event,\'urg\',\''+t.id+'\')">'+urgLabel+'</span>';
   h+='<span class="task-pri '+PRI_CLS[t.pri]+'" onclick="showCtx(event,\'pri\',\''+t.id+'\')">'+PRI_LBL[t.pri]+'</span>';
   h+='</span>';
+  if(dateAdded) h+='<span class="task-date-added">'+dateAdded+'</span>';
   h+='<button class="xbtn" onclick="delTask(\''+t.id+'\')">&#x2715;</button>';
   h+='</div>';
-  if(hasNote){h+='<div class="task-notes-bar" id="tnb-'+t.id+'"><span class="task-note-preview">'+notePreview+'</span></div>';}
-  h+='<div class="task-notes-area" id="tna-'+t.id+'"><textarea placeholder="Add context, blockers, follow-ups..." onblur="saveNote(\''+t.id+'\',this.value)" onkeydown="if(event.key===\'Escape\')this.blur()">'+esc(t.notes||'')+'</textarea></div>';
+  // Notes section - full display, not truncated
+  if(hasNote){h+='<div class="task-notes-bar" id="tnb-'+t.id+'"><span class="task-note-preview">'+esc(t.notes.trim())+'</span></div>';}
+  h+='<div class="task-notes-area" id="tna-'+t.id+'"><textarea placeholder="Add context, blockers, follow-ups, checklists..." onblur="saveNote(\''+t.id+'\',this.value)" onkeydown="if(event.key===\'Escape\')this.blur()">'+esc(t.notes||'')+'</textarea></div>';
   h+='</div>';
   return h;
 }
