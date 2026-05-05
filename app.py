@@ -286,7 +286,34 @@ def api_delete_journal(entry_id):
 
 
 # ══════════════════════════════════
-# API — BACKUP / RESTORE
+# API — HOURS LOG
+# ══════════════════════════════════
+
+@app.route('/api/hours', methods=['GET'])
+@login_required
+def api_get_hours():
+    author = request.args.get('author')
+    date_from = request.args.get('from')
+    date_to = request.args.get('to')
+    return jsonify(models.get_hours(author, date_from, date_to))
+
+
+@app.route('/api/hours', methods=['POST'])
+@login_required
+def api_set_hours():
+    data = request.get_json()
+    author = sanitize(data.get('author', ''), 50)
+    date = sanitize(data.get('date', ''), 10)
+    space = sanitize(data.get('space', ''), 50)
+    hours = float(data.get('hours', 0) or 0)
+    if not author or not date or not space:
+        return jsonify({'error': 'Missing fields'}), 400
+    models.set_hours(author, date, space, hours)
+    return jsonify({'status': 'saved'})
+
+
+# ══════════════════════════════════
+# API — LAST MODIFIED & BACKUP
 # ══════════════════════════════════
 
 @app.route('/api/last-modified', methods=['GET'])

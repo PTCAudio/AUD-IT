@@ -96,6 +96,20 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
         );
+
+        -- ══════════════════════════════════
+        -- HOURS LOG (separate from journal)
+        -- ══════════════════════════════════
+        CREATE TABLE IF NOT EXISTS hours_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            author TEXT NOT NULL,
+            date TEXT NOT NULL,
+            space TEXT NOT NULL,
+            hours REAL NOT NULL DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(author, date, space)
+        );
     ''')
     db.commit()
 
@@ -114,6 +128,8 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_journal_date ON journal_entries(date);
         CREATE INDEX IF NOT EXISTS idx_journal_author ON journal_entries(author);
         CREATE INDEX IF NOT EXISTS idx_shows_space ON shows(space);
+        CREATE INDEX IF NOT EXISTS idx_hours_author ON hours_log(author);
+        CREATE INDEX IF NOT EXISTS idx_hours_date ON hours_log(date);
     ''')
     db.commit()
     db.close()
@@ -350,6 +366,53 @@ def delete_journal(entry_id):
 
 
 # ══════════════════════════════════
+# HOURS LOG CRUD
+# ══════════════════════════════════
+
+def get_hours(author=None, date_from=None, date_to=None):
+    db = get_db()
+    query = 'SELECT * FROM hours_log WHERE 1=1'
+    params = []
+    if author:
+        query += ' AND author=?'
+        params.append(author)
+    if date_from:
+        query += ' AND date>=?'
+        params.append(date_from)
+    if date_to:
+        query += ' AND date<=?'
+        params.append(date_to)
+    query += ' ORDER BY date DESC, space'
+    rows = db.execute(query, params).fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+
+def set_hours(author, date, space, hours):
+    """Upsert hours for a specific author/date/space."""
+    db = get_db()
+    if hours and float(hours) > 0:
+        db.execute('''INSERT INTO hours_log (author, date, space, hours)
+            VALUES (?,?,?,?)
+            ON CONFLICT(author, date, space)
+            DO UPDATE SET hours=?, updated_at=datetime('now')''',
+            (author, date, space, float(hours), float(hours)))
+    else:
+        db.execute('DELETE FROM hours_log WHERE author=? AND date=? AND space=?',
+            (author, date, space))
+    db.commit()
+    db.close()
+
+
+def get_hours_week(author, week_start):
+    """Get hours for a full week starting from week_start (Monday)."""
+    from datetime import timedelta
+    start = datetime.strptime(week_start, '%Y-%m-%d')
+    end = start + timedelta(days=6)
+    return get_hours(author, week_start, end.strftime('%Y-%m-%d'))
+
+
+# ══════════════════════════════════
 # LAST MODIFIED (for smart polling)
 # ══════════════════════════════════
 
@@ -361,6 +424,8 @@ def get_last_modified():
             SELECT MAX(updated_at) as ts FROM tasks
             UNION ALL
             SELECT MAX(updated_at) as ts FROM journal_entries
+            UNION ALL
+            SELECT MAX(updated_at) as ts FROM hours_log
             UNION ALL
             SELECT MAX(created_at) as ts FROM shows
         )
