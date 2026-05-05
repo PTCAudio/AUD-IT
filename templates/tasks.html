@@ -143,6 +143,28 @@
 .journal-empty-icon{font-size:36px;margin-bottom:8px;opacity:.3}
 .journal-empty-text{font-style:italic;font-size:13px;margin-bottom:12px}
 
+/* Hours weekly grid */
+.hours-section{background:var(--sur);border:1px solid var(--b1);border-radius:6px;padding:16px;margin-bottom:20px}
+.hours-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.hours-title{font-family:var(--disp);font-size:18px;letter-spacing:.06em;color:var(--wht)}
+.hours-nav{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;color:var(--mut)}
+.hours-nav button{background:none;border:1px solid var(--b2);color:var(--txt);cursor:pointer;padding:2px 8px;border-radius:3px;font-size:10px;transition:all .15s}
+.hours-nav button:hover{border-color:var(--red);color:var(--red)}
+.hours-grid{overflow-x:auto}
+.hours-grid-header,.hours-grid-row{display:grid;grid-template-columns:110px repeat(7,1fr) 60px;gap:2px;align-items:center}
+.hours-day-label{font-family:var(--mono);font-size:8px;text-transform:uppercase;color:var(--mut);text-align:center;padding:4px 2px;letter-spacing:.05em}
+.hours-day-label.hours-today{color:var(--red);font-weight:500}
+.hours-space-label{font-family:var(--mono);font-size:10px;color:var(--txt);padding:4px 6px;white-space:nowrap}
+.hours-cell{text-align:center;padding:2px}
+.hours-cell input{width:100%;font-family:var(--mono);font-size:11px;text-align:center;padding:4px 2px;border:1px solid var(--b1);border-radius:3px;background:var(--pan);color:var(--txt);outline:none}
+.hours-cell input:focus{border-color:var(--red);background:var(--sur)}
+.hours-cell input::placeholder{color:var(--b2)}
+.hours-total{font-family:var(--mono);font-size:10px;color:var(--mut);font-weight:500}
+.hours-grand-total{font-family:var(--mono);font-size:11px;color:var(--red);font-weight:700}
+.hours-totals-row{border-top:1px solid var(--b2);margin-top:4px;padding-top:4px}
+
+.journal-section-header{font-family:var(--disp);font-size:18px;letter-spacing:.06em;color:var(--wht);margin:20px 0 12px 0}
+
 /* Journal people cards */
 .journal-covers{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:12px}
 .journal-cover{background:var(--sur);border:1px solid var(--b1);border-radius:6px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
@@ -364,11 +386,6 @@
         </select>
       </div>
       <div class="fg" style="flex:1"><label>Date</label><input type="date" id="jmDate"></div>
-    </div>
-    <div class="fg">
-      <label>Hours by Space</label>
-      <div class="jm-hours-grid" id="jmHoursGrid"></div>
-      <div class="jm-total" id="jmTotal">Total: <b>0</b> hrs</div>
     </div>
     <div class="fg">
       <label>What happened today?</label>
