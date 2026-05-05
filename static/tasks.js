@@ -22,6 +22,9 @@ var dragIdx=null, dateCallback=null, editingJournalId=null;
 var journalPage=0, JOURNAL_PER_PAGE=10;
 var taskSort='manual'; // 'manual', 'urgency', 'priority'
 
+// Track when each view was last visited for notification dots
+var viewLastSeen={};
+
 function closeModal(id){gi(id).classList.remove('open')}
 function mobToggle(){gi('sidebar').classList.toggle('open');gi('mobOverlay').classList.toggle('open')}
 
@@ -37,7 +40,7 @@ async function loadAll(){
     return {id:r.id, text:r.text, space:r.space, show:r.show_id||'',
             pri:r.priority, urg:r.urgency, date:r.due_date||'',
             notes:r.notes||'', done:!!r.done, created:r.created_at,
-            sort_order:r.sort_order};
+            updated:r.updated_at||r.created_at, sort_order:r.sort_order};
   });
   shows = (s||[]).map(function(r){
     return {id:r.id, name:r.name, space:r.space,
@@ -55,13 +58,22 @@ async function loadAll(){
 }
 
 /* ── SIDEBAR ── */
+function hasNewActivity(viewKey, viewTasks){
+  var lastSeen=viewLastSeen[viewKey];
+  if(!lastSeen) return viewTasks.length>0; // never visited = dot if has tasks
+  return viewTasks.some(function(t){return t.updated>lastSeen||t.created>lastSeen});
+}
+
 function buildSidebar(){
   var spNav='';
   SPACES.forEach(function(sp){
-    var cnt=tasks.filter(function(t){return t.space===sp.id&&!t.done&&!t.show}).length;
+    var spaceTasks=tasks.filter(function(t){return t.space===sp.id&&!t.show});
+    var cnt=spaceTasks.filter(function(t){return !t.done}).length;
     var cls=currentView==='space:'+sp.id?' active':'';
+    var dot=hasNewActivity('space:'+sp.id, spaceTasks)&&currentView!=='space:'+sp.id;
     spNav+='<div class="sb-item'+cls+'" data-view="space:'+sp.id+'" onclick="setView(\'space:'+sp.id+'\')">';
     spNav+='<div class="sb-dot" style="background:'+sp.color+'"></div>'+sp.name;
+    if(dot) spNav+='<span class="sb-new-dot"></span>';
     spNav+='<span class="sb-count">'+cnt+'</span></div>';
   });
   gi('space-nav').innerHTML=spNav;
@@ -70,10 +82,13 @@ function buildSidebar(){
   var active=shows.filter(function(s){return !s.archived});
   active.forEach(function(sh){
     var sp=SPACES.find(function(s){return s.id===sh.space})||SPACES[3];
-    var cnt=tasks.filter(function(t){return t.show===sh.id&&!t.done}).length;
+    var showTasks=tasks.filter(function(t){return t.show===sh.id});
+    var cnt=showTasks.filter(function(t){return !t.done}).length;
     var cls=currentView==='show:'+sh.id?' active':'';
+    var dot=hasNewActivity('show:'+sh.id, showTasks)&&currentView!=='show:'+sh.id;
     shNav+='<div class="sb-item'+cls+'" data-view="show:'+sh.id+'" onclick="setView(\'show:'+sh.id+'\')">';
     shNav+='<div class="sb-dot" style="background:'+sp.color+'"></div>'+esc(sh.name);
+    if(dot) shNav+='<span class="sb-new-dot"></span>';
     shNav+='<span class="sb-count">'+cnt+'</span></div>';
   });
   if(!active.length) shNav='<div style="padding:4px 10px;font-family:var(--mono);font-size:10px;color:var(--mut);font-style:italic">No active shows</div>';
@@ -89,6 +104,8 @@ function buildSidebar(){
 
 /* ── VIEW ── */
 function setView(v){
+  // Mark current view as seen
+  viewLastSeen[v]=new Date().toISOString();
   currentView=v;
   currentFilter='all';
   journalPerson=null;
@@ -134,7 +151,6 @@ function updateShowSelect(){
 }
 
 /* ── ADD TASK ── */
-
 async function addTask(){
   var text=gi('newTask').value.trim();if(!text)return;
   var task={id:uid(),text:text,space:gi('newSpace').value,show:gi('newShow').value||'',
@@ -142,11 +158,11 @@ async function addTask(){
     date:gi('newUrg').value==='date'?gi('newDate').value:'',notes:'',done:false,sort_order:tasks.length};
   await api('POST','/api/tasks',task);
   tasks.push(task);
-gi('newTask').value='';gi('newPri').value='none';gi('newUrg').value='soon';gi('newDate').style.display='none';
+  gi('newTask').value='';gi('newPri').value='none';gi('newUrg').value='soon';gi('newDate').style.display='none';
   if(currentView.startsWith('show:')){var sh=shows.find(function(s){return s.id===currentView.split(':')[1]});if(sh){gi('newSpace').value=sh.space;updateShowSelect();gi('newShow').value=sh.id;}}else if(currentView.startsWith('space:'))gi('newSpace').value=currentView.split(':')[1];
   buildSidebar();renderTasks();gi('newTask').focus();toast('Task added');
 }
-   
+
 /* ── TASK ACTIONS ── */
 async function toggleTask(id){
   var t=tasks.find(function(x){return x.id===id});if(!t)return;

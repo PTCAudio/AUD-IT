@@ -32,6 +32,10 @@ body{background:var(--bg);color:var(--txt);font-family:var(--serif);min-height:1
 #toast{position:fixed;bottom:20px;right:20px;background:var(--pan);border:1px solid var(--rdm);border-left:3px solid var(--red);padding:10px 16px;border-radius:3px;font-family:var(--mono);font-size:11px;color:var(--txt);opacity:0;transform:translateY(6px);transition:all .22s;z-index:400;pointer-events:none}
 #toast.show{opacity:1;transform:translateY(0)}
 
+/* ── NOTIFICATION DOT ── */
+.sb-new-dot{width:7px;height:7px;border-radius:50%;background:#e74c3c;flex-shrink:0;animation:dot-pulse 2s ease-in-out infinite;box-shadow:0 0 4px rgba(231,76,60,.5)}
+@keyframes dot-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
 /* ── MODAL ── */
 .modal-bg{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
 .modal-bg.open{display:flex}
