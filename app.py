@@ -22,11 +22,10 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-me')
-app.permanent_session_lifetime = 43200  # 12 hours
 APP_PASSWORD = os.environ.get('APP_PASSWORD', 'changeme')
 
 MAX_TEXT = 500
-MAX_NOTES = 2000
+MAX_NOTES = 5000
 MAX_BODY = 5000
 
 
