@@ -376,7 +376,7 @@ function fmtDateShort(d){
 
 function dateFmt(d){
   var dt=typeof d==='string'?new Date(d+'T00:00:00'):d;
-  return dt.toISOString().slice(0,10);
+  return dt.toLocaleDateString('en-CA');
 }
 
 function openJournalModal(existingId, defaultAuthor){
@@ -557,7 +557,7 @@ async function tskExportJSON(){
   var data=await api('GET','/api/backup');
   var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='AUD-IT_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+  a.download='AUD-IT_Backup_'+new Date().toLocaleDateString('en-CA')+'.json';a.click();
   URL.revokeObjectURL(a.href);toast('Backup exported');
 }
 
@@ -589,7 +589,7 @@ function tskExportCSV(){
     rows.push([t.id,'"'+t.text.replace(/"/g,'""')+'"',sp?sp.name:'',sh?sh.name:'',PRI_LBL[t.pri]||'',URG_LBL[t.urg]||(t.urg==='date'?t.date:''),t.date||'','"'+(t.notes||'').replace(/"/g,'""')+'"',t.done?'Yes':'No',t.created||'']);});
   var csv=rows.map(function(r){return r.join(',')}).join('\n');
   var blob=new Blob([csv],{type:'text/csv'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='audit-tasks-'+new Date().toISOString().slice(0,10)+'.csv';a.click();toast('CSV exported');
+  a.download='audit-tasks-'+new Date().toLocaleDateString('en-CA')+'.csv';a.click();toast('CSV exported');
 }
 
 /* ── PRINT ── */
