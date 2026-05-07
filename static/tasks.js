@@ -24,6 +24,9 @@ var taskSort='manual'; // 'manual', 'urgency', 'priority'
 
 // Track when each view was last visited for notification dots
 var viewLastSeen={};
+function loadLastSeen(){try{viewLastSeen=JSON.parse(localStorage.getItem('audit_lastSeen')||'{}')}catch(e){viewLastSeen={}}}
+function saveLastSeen(){localStorage.setItem('audit_lastSeen',JSON.stringify(viewLastSeen))}
+loadLastSeen();
 
 function closeModal(id){gi(id).classList.remove('open')}
 function mobToggle(){gi('sidebar').classList.toggle('open');gi('mobOverlay').classList.toggle('open')}
@@ -53,6 +56,15 @@ async function loadAll(){
   });
   hoursLog = h||[];
 
+  // Seed lastSeen for any views we haven't visited yet (first time setup)
+  var now=new Date().toISOString();
+  var seeded=false;
+  SPACES.forEach(function(sp){if(!viewLastSeen['space:'+sp.id]){viewLastSeen['space:'+sp.id]=now;seeded=true}});
+  shows.forEach(function(sh){if(!viewLastSeen['show:'+sh.id]){viewLastSeen['show:'+sh.id]=now;seeded=true}});
+  if(!viewLastSeen['dashboard']){viewLastSeen['dashboard']=now;seeded=true}
+  if(!viewLastSeen['journal']){viewLastSeen['journal']=now;seeded=true}
+  if(seeded) saveLastSeen();
+
   buildSidebar();
   buildAddSelects();
   if(currentView==='journal') renderJournal();
@@ -62,7 +74,7 @@ async function loadAll(){
 /* ── SIDEBAR ── */
 function hasNewActivity(viewKey, viewTasks){
   var lastSeen=viewLastSeen[viewKey];
-  if(!lastSeen) return viewTasks.length>0; // never visited = dot if has tasks
+  if(!lastSeen) return false; // never visited = no dot, nothing to compare against
   return viewTasks.some(function(t){return t.updated>lastSeen||t.created>lastSeen});
 }
 
@@ -108,6 +120,7 @@ function buildSidebar(){
 function setView(v){
   // Mark current view as seen
   viewLastSeen[v]=new Date().toISOString();
+  saveLastSeen();
   currentView=v;
   currentFilter='all';
   journalPerson=null;
