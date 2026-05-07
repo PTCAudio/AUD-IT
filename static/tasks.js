@@ -67,6 +67,10 @@ async function loadAll(){
 
   buildSidebar();
   buildAddSelects();
+  // Don't re-render if user is actively editing a note or task text
+  var activeEl=document.activeElement;
+  var isEditing=activeEl&&(activeEl.closest('.task-notes-area')||activeEl.getAttribute('contenteditable')==='true');
+  if(isEditing) return;
   if(currentView==='journal') renderJournal();
   else renderTasks();
 }
