@@ -376,14 +376,10 @@
 
 <div class="modal-bg" id="journalModal">
   <div class="modal" style="width:520px">
-    <h2 id="jmTitle">Log Your Day</h2>
+    <h2 id="jmTitle">New Journal Entry</h2>
     <div style="display:flex;gap:8px">
       <div class="fg" style="flex:1"><label>Who</label>
-        <select id="jmAuthor" style="font-size:13px;padding:8px 10px">
-          <option value="Matthew">Matthew</option>
-          <option value="Katie">Katie</option>
-          <option value="Jess">Jess</option>
-        </select>
+        <select id="jmAuthor" style="font-size:13px;padding:8px 10px"></select>
       </div>
       <div class="fg" style="flex:1"><label>Date</label><input type="date" id="jmDate"></div>
     </div>
@@ -395,6 +391,25 @@
       <button class="btn" onclick="closeModal('journalModal')">Cancel</button>
       <button class="btn btnp" onclick="saveJournalEntry()" id="jmSaveBtn">Save Entry</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="teamModal">
+  <div class="modal">
+    <h2>Manage Team</h2>
+    <div class="fg">
+      <label>Add Team Member</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="newTeamName" placeholder="Name" onkeydown="if(event.key==='Enter')addTeamMember()" style="flex:1">
+        <button class="btn btnp" onclick="addTeamMember()" style="height:34px">+ Add</button>
+      </div>
+    </div>
+    <div class="fg" style="margin-top:12px"><label>Active</label><div id="teamList"></div></div>
+    <div style="margin-top:8px">
+      <div style="font-family:var(--mono);font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);margin-bottom:6px">ARCHIVED</div>
+      <div id="archivedTeamList"></div>
+    </div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal('teamModal')">Close</button></div>
   </div>
 </div>
 

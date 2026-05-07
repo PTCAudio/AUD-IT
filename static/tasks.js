@@ -16,7 +16,7 @@ var URG_LBL={now:'RIGHT NOW',today:'Today',week:'This Week',soon:'Whenever',date
 var URG_ORDER={now:0,today:1,week:2,date:3,soon:4};
 
 // Local state (loaded from API)
-var tasks=[], shows=[], journal=[], hoursLog=[];
+var tasks=[], shows=[], journal=[], hoursLog=[], team=[];
 var currentView='dashboard', currentFilter='all';
 var dragIdx=null, dateCallback=null, editingJournalId=null;
 var journalPage=0, JOURNAL_PER_PAGE=10;
@@ -33,11 +33,12 @@ function mobToggle(){gi('sidebar').classList.toggle('open');gi('mobOverlay').cla
 
 /* ── LOAD FROM API ── */
 async function loadAll(){
-  var [t, s, j, h] = await Promise.all([
+  var [t, s, j, h, tm] = await Promise.all([
     api('GET','/api/tasks'),
     api('GET','/api/shows'),
     api('GET','/api/journal'),
-    api('GET','/api/hours')
+    api('GET','/api/hours'),
+    api('GET','/api/team')
   ]);
   // Map DB fields to frontend fields
   tasks = (t||[]).map(function(r){
@@ -55,6 +56,7 @@ async function loadAll(){
             hours:r.hours||{}, totalHours:r.total_hours||0, author:r.author||'Matthew', created:r.created_at};
   });
   hoursLog = h||[];
+  team = (tm||[]).map(function(r){return {id:r.id, name:r.name, color:r.color||'#888078', archived:!!r.archived}});
 
   // Seed lastSeen for any views we haven't visited yet (first time setup)
   var now=new Date().toISOString();
@@ -372,9 +374,8 @@ function renderShowList(){
 }
 
 /* ── JOURNAL ── */
-var TEAM=['Matthew','Katie','Jess'];
-var AUTHOR_CLS={Matthew:'author-matthew',Katie:'author-katie',Jess:'author-jess'};
-var AUTHOR_COLOR={Matthew:'#c8102e',Katie:'#3498db',Jess:'#27ae60'};
+function getActiveTeam(){return team.filter(function(m){return !m.archived})}
+function getTeamColor(name){var m=team.find(function(t){return t.name===name});return m?m.color:'#888078'}
 var journalAuthorFilter='all';
 var journalPerson=null; // null = show covers, string = show that person's entries
 var hoursWeekOffset=0; // 0 = current week, -1 = last week, etc
@@ -401,7 +402,10 @@ function openJournalModal(existingId, defaultAuthor){
   var entry=existingId?journal.find(function(j){return j.id===existingId}):null;
   gi('jmTitle').textContent=entry?'Edit Entry':'New Journal Entry';
   gi('jmSaveBtn').textContent=entry?'Update Entry':'Save Entry';
-  gi('jmAuthor').value=entry&&entry.author?entry.author:(defaultAuthor||'Matthew');
+  // Build author dropdown from team
+  var ah='';getActiveTeam().forEach(function(m){ah+='<option value="'+esc(m.name)+'"'+(((entry&&entry.author===m.name)||(!entry&&m.name===(defaultAuthor||'')))?' selected':'')+'>'+esc(m.name)+'</option>'});
+  gi('jmAuthor').innerHTML=ah;
+  if(defaultAuthor&&!entry) gi('jmAuthor').value=defaultAuthor;
   gi('jmDate').value=entry?entry.date:new Date().toLocaleDateString('en-CA');
   gi('jmBody').value=entry?entry.body:'';
   gi('journalModal').classList.add('open');
@@ -441,15 +445,17 @@ function renderJournal(){
   var list=gi('tlist');
   if(journalPerson) return renderJournalPerson(journalPerson);
 
-  // Book cover view
-  var html='<div class="journal-covers">';
-  TEAM.forEach(function(name){
+  // Book cover view — active team members
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span></span><button class="btn" onclick="openTeamModal()" style="font-size:10px">&#x2699; Manage Team</button></div>';
+  html+='<div class="journal-covers">';
+  getActiveTeam().forEach(function(member){
+    var name=member.name;
     var entries=journal.filter(function(e){return e.author===name});
     var personHours=hoursLog.filter(function(h){return h.author===name});
     var totalHrs=0;personHours.forEach(function(h){totalHrs+=h.hours||0});
     var latest=entries.length?entries[0]:null;
-    var color=AUTHOR_COLOR[name]||'#888';
-    html+='<div class="journal-cover" onclick="openJournalPerson(\''+name+'\')">';
+    var color=member.color;
+    html+='<div class="journal-cover" onclick="openJournalPerson(\''+esc(name)+'\')">';
     html+='<div class="journal-cover-bar" style="background:'+color+'"></div>';
     html+='<div class="journal-cover-name">'+esc(name)+'</div>';
     html+='<div class="journal-cover-stat">'+entries.length+' entr'+(entries.length===1?'y':'ies')+' &middot; '+totalHrs.toFixed(1)+' hrs</div>';
@@ -457,6 +463,19 @@ function renderJournal(){
     else html+='<div class="journal-cover-latest">No entries yet</div>';
     html+='</div>';
   });
+  // Archived members
+  var archived=team.filter(function(m){return m.archived});
+  if(archived.length){
+    archived.forEach(function(member){
+      var entries=journal.filter(function(e){return e.author===member.name});
+      if(!entries.length) return; // don't show archived with no entries
+      html+='<div class="journal-cover" onclick="openJournalPerson(\''+esc(member.name)+'\')" style="opacity:.5">';
+      html+='<div class="journal-cover-bar" style="background:var(--mut)"></div>';
+      html+='<div class="journal-cover-name">'+esc(member.name)+'</div>';
+      html+='<div class="journal-cover-stat" style="color:var(--mut)">'+entries.length+' entries (archived)</div>';
+      html+='</div>';
+    });
+  }
   html+='</div>';
   list.innerHTML=html;
 }
@@ -480,7 +499,7 @@ function renderJournalPerson(name){
   var list=gi('tlist');
   var entries=journal.filter(function(e){return e.author===name});
   var personHours=hoursLog.filter(function(h){return h.author===name});
-  var color=AUTHOR_COLOR[name]||'#888';
+  var color=getTeamColor(name);
 
   var html='<div class="journal-back" onclick="closeJournalPerson()">&#x2190; All Journals</div>';
 
@@ -628,6 +647,75 @@ function printJournal(){
   var body='';journal.forEach(function(e){body+='<div class="pj-entry"><div class="pj-date">'+fmtDateLong(e.date)+' — '+getDayOfWeek(e.date)+' <span style="font-weight:400;color:#999">('+(e.author||'Matthew')+')</span></div>';if(e.totalHours>0){var hp=[];SPACES.forEach(function(sp){var hrs=(e.hours&&e.hours[sp.id])||0;if(hrs>0)hp.push(sp.name+': '+hrs+'h');});body+='<div class="pj-hours">'+hp.join(' | ')+' — '+e.totalHours.toFixed(1)+' hrs</div>';}body+='<div class="pj-body">'+esc(e.body)+'</div></div>';});
   gi('pr').innerHTML='<div style="padding:20mm"><div class="ph"><div class="pho">Phoenix Theatre Company — Audio Department</div><div class="pht">Daily Journal</div><div class="phm">'+journal.length+' entries &middot; '+totalHrs.toFixed(1)+' hrs &middot; '+today+'</div></div>'+body+'<div class="pft"><span>AUD-IT Task Manager</span><span>'+today+'</span></div></div>';
   setTimeout(function(){window.print()},200);
+}
+
+/* ── TEAM MANAGEMENT ── */
+var COLORS=['#c8102e','#3498db','#27ae60','#e67e22','#9b59b6','#1abc9c','#e74c3c','#f39c12','#2ecc71','#e84393'];
+
+function openTeamModal(){
+  renderTeamList();
+  gi('teamModal').classList.add('open');
+}
+
+function renderTeamList(){
+  var active=team.filter(function(m){return !m.archived});
+  var archived=team.filter(function(m){return m.archived});
+  var h='';
+  if(!active.length) h='<div style="color:var(--mut);font-size:11px;font-style:italic;padding:8px">No team members yet</div>';
+  active.forEach(function(m){
+    h+='<div class="show-manage-item"><div class="sb-dot" style="background:'+m.color+'"></div>';
+    h+='<span>'+esc(m.name)+'</span>';
+    h+='<input type="color" value="'+m.color+'" style="width:24px;height:24px;border:none;cursor:pointer;background:none" onchange="updateTeamColor('+m.id+',this.value)">';
+    h+='<button onclick="archiveTeamMember('+m.id+')" title="Archive">&#x2193;</button>';
+    h+='<button onclick="deleteTeamMember('+m.id+',\''+esc(m.name)+'\')" title="Delete">&#x2715;</button>';
+    h+='</div>';
+  });
+  gi('teamList').innerHTML=h;
+
+  var ah='';
+  if(!archived.length) ah='<div style="color:var(--mut);font-size:11px;font-style:italic;padding:8px">None</div>';
+  archived.forEach(function(m){
+    ah+='<div class="show-manage-item" style="opacity:.6"><div class="sb-dot" style="background:var(--mut)"></div>';
+    ah+='<span>'+esc(m.name)+'</span>';
+    ah+='<button onclick="unarchiveTeamMember('+m.id+')" title="Restore">&#x2191;</button>';
+    ah+='<button onclick="deleteTeamMember('+m.id+',\''+esc(m.name)+'\')" title="Delete permanently">&#x2715;</button>';
+    ah+='</div>';
+  });
+  gi('archivedTeamList').innerHTML=ah;
+}
+
+async function addTeamMember(){
+  var name=gi('newTeamName').value.trim();
+  if(!name){toast('Enter a name');return;}
+  var color=COLORS[team.length%COLORS.length];
+  var res=await api('POST','/api/team',{name:name,color:color});
+  if(res&&res.error){toast(res.error);return;}
+  gi('newTeamName').value='';
+  await loadAll();renderTeamList();toast(name+' added');
+}
+
+async function updateTeamColor(id,color){
+  await api('PUT','/api/team/'+id,{color:color});
+  var m=team.find(function(t){return t.id===id});if(m)m.color=color;
+  renderTeamList();
+}
+
+async function archiveTeamMember(id){
+  var m=team.find(function(t){return t.id===id});if(!m)return;
+  if(!confirm('Archive '+m.name+'? Their entries will be preserved but read-only.'))return;
+  await api('POST','/api/team/'+id+'/archive');
+  await loadAll();renderTeamList();toast(m.name+' archived');
+}
+
+async function unarchiveTeamMember(id){
+  await api('POST','/api/team/'+id+'/unarchive');
+  await loadAll();renderTeamList();toast('Restored');
+}
+
+async function deleteTeamMember(id,name){
+  if(!confirm('PERMANENTLY delete '+name+' and ALL their journal entries and hours? This cannot be undone.'))return;
+  await api('DELETE','/api/team/'+id);
+  await loadAll();renderTeamList();toast(name+' deleted');
 }
 
 /* ── INIT ── */

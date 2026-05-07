@@ -110,6 +110,17 @@ def init_db():
             updated_at TEXT DEFAULT (datetime('now')),
             UNIQUE(author, date, space)
         );
+
+        -- ══════════════════════════════════
+        -- TEAM MEMBERS
+        -- ══════════════════════════════════
+        CREATE TABLE IF NOT EXISTS team_members (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            color TEXT NOT NULL DEFAULT '#888078',
+            archived INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
     ''')
     db.commit()
 
@@ -361,6 +372,71 @@ def update_journal(entry_id, data):
 def delete_journal(entry_id):
     db = get_db()
     db.execute('DELETE FROM journal_entries WHERE id=?', (entry_id,))
+    db.commit()
+    db.close()
+
+
+# ══════════════════════════════════
+# TEAM MEMBERS CRUD
+# ══════════════════════════════════
+
+def get_team():
+    db = get_db()
+    rows = db.execute('SELECT * FROM team_members ORDER BY archived, name').fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+
+def create_team_member(name, color='#888078'):
+    db = get_db()
+    try:
+        db.execute('INSERT INTO team_members (name, color) VALUES (?,?)', (name, color))
+        db.commit()
+    except:
+        db.close()
+        return False  # Duplicate name
+    db.close()
+    return True
+
+
+def update_team_member(member_id, data):
+    db = get_db()
+    fields = []
+    values = []
+    for key in ['name', 'color', 'archived']:
+        if key in data:
+            fields.append(f'{key}=?')
+            values.append(data[key])
+    if fields:
+        values.append(member_id)
+        db.execute(f'UPDATE team_members SET {",".join(fields)} WHERE id=?', values)
+        db.commit()
+    db.close()
+
+
+def delete_team_member(member_id):
+    """Delete a team member and all their journal entries and hours."""
+    db = get_db()
+    row = db.execute('SELECT name FROM team_members WHERE id=?', (member_id,)).fetchone()
+    if row:
+        name = row['name']
+        db.execute('DELETE FROM journal_entries WHERE author=?', (name,))
+        db.execute('DELETE FROM hours_log WHERE author=?', (name,))
+        db.execute('DELETE FROM team_members WHERE id=?', (member_id,))
+        db.commit()
+    db.close()
+
+
+def archive_team_member(member_id):
+    db = get_db()
+    db.execute('UPDATE team_members SET archived=1 WHERE id=?', (member_id,))
+    db.commit()
+    db.close()
+
+
+def unarchive_team_member(member_id):
+    db = get_db()
+    db.execute('UPDATE team_members SET archived=0 WHERE id=?', (member_id,))
     db.commit()
     db.close()
 

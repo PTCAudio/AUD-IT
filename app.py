@@ -286,6 +286,62 @@ def api_delete_journal(entry_id):
 
 
 # ══════════════════════════════════
+# API — TEAM MEMBERS
+# ══════════════════════════════════
+
+@app.route('/api/team', methods=['GET'])
+@login_required
+def api_get_team():
+    return jsonify(models.get_team())
+
+
+@app.route('/api/team', methods=['POST'])
+@login_required
+def api_create_team():
+    data = request.get_json()
+    name = sanitize(data.get('name', ''), 50)
+    color = sanitize(data.get('color', '#888078'), 10)
+    if not name:
+        return jsonify({'error': 'Name required'}), 400
+    if models.create_team_member(name, color):
+        return jsonify({'status': 'created'}), 201
+    return jsonify({'error': 'Name already exists'}), 409
+
+
+@app.route('/api/team/<int:member_id>', methods=['PUT'])
+@login_required
+def api_update_team(member_id):
+    data = request.get_json()
+    clean = {}
+    if 'name' in data: clean['name'] = sanitize(data['name'], 50)
+    if 'color' in data: clean['color'] = sanitize(data['color'], 10)
+    if 'archived' in data: clean['archived'] = int(bool(data['archived']))
+    models.update_team_member(member_id, clean)
+    return jsonify({'status': 'updated'})
+
+
+@app.route('/api/team/<int:member_id>/archive', methods=['POST'])
+@login_required
+def api_archive_team(member_id):
+    models.archive_team_member(member_id)
+    return jsonify({'status': 'archived'})
+
+
+@app.route('/api/team/<int:member_id>/unarchive', methods=['POST'])
+@login_required
+def api_unarchive_team(member_id):
+    models.unarchive_team_member(member_id)
+    return jsonify({'status': 'unarchived'})
+
+
+@app.route('/api/team/<int:member_id>', methods=['DELETE'])
+@login_required
+def api_delete_team(member_id):
+    models.delete_team_member(member_id)
+    return jsonify({'status': 'deleted'})
+
+
+# ══════════════════════════════════
 # API — HOURS LOG
 # ══════════════════════════════════
 
