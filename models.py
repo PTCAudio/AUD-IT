@@ -2,7 +2,7 @@
 AUD-IT Suite — Database Models
 SQLite schema and helper functions for inventory and task management.
 """
-
+import uuid
 import sqlite3
 import os
 import json
@@ -290,14 +290,16 @@ def get_all_tasks():
 
 def create_task(data):
     db = get_db()
+    task_id = data.get('id') or str(uuid.uuid4())[:12]
     db.execute('''INSERT INTO tasks (id, text, space, show_id, priority, urgency, due_date, notes, done, sort_order)
         VALUES (?,?,?,?,?,?,?,?,?,?)''',
-        (data['id'], data['text'], data.get('space', 'general'),
+        (task_id, data.get('text', ''), data.get('space', 'general'),
          data.get('show', ''), data.get('pri', 'none'),
          data.get('urg', 'soon'), data.get('date', ''),
          data.get('notes', ''), 0, data.get('sort_order', 0)))
     db.commit()
     db.close()
+    return task_id
 
 
 def update_task(task_id, data):
