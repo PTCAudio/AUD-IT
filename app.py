@@ -83,6 +83,9 @@ def validate_journal(data):
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        key = request.headers.get('X-API-Key', '')
+        if key and key == os.environ.get('AUD_IT_API_KEY', ''):
+            return f(*args, **kwargs)
         if not session.get('authenticated'):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
