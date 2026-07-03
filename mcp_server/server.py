@@ -28,6 +28,7 @@ from typing import Optional
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 AUDIT_APP_URL = os.environ.get("AUDIT_APP_URL", "").rstrip("/")
 AUDIT_API_KEY = os.environ.get("AUDIT_API_KEY", "")
@@ -37,7 +38,10 @@ if not AUDIT_APP_URL:
 if not AUDIT_API_KEY:
     raise RuntimeError("AUDIT_API_KEY environment variable is required")
 
-mcp = FastMCP("audit-tasks")
+mcp = FastMCP(
+    "audit-tasks",
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+)
 
 
 def new_id() -> str:
