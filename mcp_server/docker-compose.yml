@@ -1,0 +1,11 @@
+services:
+  audit-mcp:
+    build: .
+    container_name: audit-mcp
+    restart: unless-stopped
+    ports:
+      - "8090:8000"
+    environment:
+      - AUDIT_APP_URL=${AUDIT_APP_URL}
+      - AUDIT_API_KEY=${AUDIT_API_KEY}
+      - PORT=8000
