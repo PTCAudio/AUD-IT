@@ -10,17 +10,17 @@ Routes:
 import os
 import json
 import html as html_lib
-from functools import wraps
 from flask import (Flask, request, jsonify, render_template,
                    redirect, url_for, session, send_file)
 from dotenv import load_dotenv
 import models
+import auth
+import email_utils
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-me')
-APP_PASSWORD = os.environ.get('APP_PASSWORD', 'changeme')
 API_KEY = os.environ.get('API_KEY', '')
 
 MAX_TEXT = 500
@@ -80,40 +80,101 @@ def validate_journal(data):
 # AUTH
 # ══════════════════════════════════
 
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('authenticated'):
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated
+login_required = auth.login_required
+admin_required = auth.admin_required
+require_api_key_or_session = auth.require_api_key_or_session
 
-def require_api_key_or_session(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        key = request.headers.get('X-API-Key')
-        if key and API_KEY and key == API_KEY:
-            return f(*args, **kwargs)
-        if session.get('authenticated'):
-            return f(*args, **kwargs)
-        return jsonify({'error': 'Unauthorized'}), 401
-    return decorated
+# Generic message shown regardless of whether an email is registered,
+# so /forgot-password can't be used to enumerate accounts.
+FORGOT_PASSWORD_GENERIC_MSG = 'If an account exists for that email, a reset link is on its way.'
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
     if request.method == 'POST':
-        if request.form.get('password') == APP_PASSWORD:
-            session['authenticated'] = True
-            session.permanent = True
-            return redirect(request.args.get('next', url_for('tasks')))
-        error = 'Wrong password'
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        user = models.get_user_by_email(email)
+        if user and user['is_active'] and auth.verify_password(password, user['password_hash']):
+            auth.log_in_user(user)
+            models.log_action(user['id'], user['name'], 'login')
+            return redirect(request.args.get('next') or url_for('tasks'))
+        error = 'Invalid email or password'
     return render_template('login.html', error=error)
 
 @app.route('/logout')
 def logout():
+    user = auth.current_user()
+    if user:
+        models.log_action(user['id'], user['name'], 'logout')
     session.clear()
     return redirect(url_for('login'))
+
+@app.route('/accept-invite/<token>', methods=['GET', 'POST'])
+def accept_invite(token):
+    invite = auth.validate_invite(token)
+    if not invite:
+        return render_template('token_invalid.html', reason='invite')
+
+    error = None
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm = request.form.get('confirm', '')
+        if len(password) < 8:
+            error = 'Password must be at least 8 characters.'
+        elif password != confirm:
+            error = 'Passwords do not match.'
+        else:
+            existing = models.get_user_by_email(invite['email'])
+            if existing:
+                error = 'An account with this email already exists. Try logging in or resetting your password.'
+            else:
+                user_id = models.create_user(invite['email'], invite['name'],
+                                              auth.hash_password(password), invite['role'])
+                models.mark_invite_used(token)
+                models.log_action(user_id, invite['name'], 'account_created', detail=f"via invite from user {invite['invited_by']}")
+                user = models.get_user_by_id(user_id)
+                auth.log_in_user(user)
+                return redirect(url_for('tasks'))
+    return render_template('accept_invite.html', invite=invite, error=error)
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    message = None
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        user = models.get_user_by_email(email)
+        if user and user['is_active']:
+            token = auth.create_password_reset(user['id'])
+            email_utils.send_password_reset_email(user['email'], user['name'], token)
+            models.log_action(user['id'], user['name'], 'password_reset_requested')
+        # Same message whether or not the account exists.
+        message = FORGOT_PASSWORD_GENERIC_MSG
+    return render_template('forgot_password.html', message=message)
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    reset = auth.validate_reset_token(token)
+    if not reset:
+        return render_template('token_invalid.html', reason='reset')
+
+    error = None
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm = request.form.get('confirm', '')
+        if len(password) < 8:
+            error = 'Password must be at least 8 characters.'
+        elif password != confirm:
+            error = 'Passwords do not match.'
+        else:
+            models.update_user_password(reset['user_id'], auth.hash_password(password))
+            models.mark_reset_used(token)
+            models.invalidate_user_reset_tokens(reset['user_id'])
+            user = models.get_user_by_id(reset['user_id'])
+            models.log_action(user['id'], user['name'], 'password_reset_completed')
+            auth.log_in_user(user)
+            return redirect(url_for('tasks'))
+    return render_template('reset_password.html', error=error)
 
 # ══════════════════════════════════
 # PAGES
@@ -127,7 +188,14 @@ def index():
 @app.route('/tasks')
 @login_required
 def tasks():
-    return render_template('tasks.html', active='tasks')
+    user = auth.current_user()
+    return render_template('tasks.html', active='tasks', current_user=user)
+
+@app.route('/admin/users')
+@admin_required
+def admin_users_page():
+    return render_template('admin_users.html', users=models.list_users(),
+                            invites=models.get_pending_invites())
 
 # ══════════════════════════════════
 # API — SHOWS
@@ -197,8 +265,22 @@ def api_create_task():
     data = validate_task(request.get_json())
     if not data['text']:
         return jsonify({'error': 'Task text required'}), 400
-    models.create_task(data)
-    return jsonify({'status': 'created'}), 201
+    user = auth.current_user()
+    created_by = user['id'] if user else None
+    created_by_name = user['name'] if user else ''
+    task_id = models.create_task(data, created_by=created_by, created_by_name=created_by_name)
+    return jsonify({'status': 'created', 'id': task_id}), 201
+
+@app.route('/api/tasks/clear-done', methods=['POST'])
+@admin_required
+def api_clear_done_tasks():
+    data = request.get_json(silent=True) or {}
+    space = sanitize(data.get('space', ''), 50) or None
+    show_id = sanitize(data.get('show', ''), 50) or None
+    count = models.clear_done_tasks(space=space, show_id=show_id)
+    user = auth.current_user()
+    models.log_action(user['id'], user['name'], 'clear_done_tasks', detail=f'{count} tasks, space={space}, show={show_id}')
+    return jsonify({'status': 'cleared', 'count': count})
 
 @app.route('/api/tasks/<task_id>', methods=['PUT'])
 @require_api_key_or_session
@@ -368,11 +450,86 @@ def api_restore_tasks():
     return jsonify({'status': 'restored', 'tasks': count})
 
 # ══════════════════════════════════
+# API — USER MANAGEMENT (admin only)
+# ══════════════════════════════════
+
+@app.route('/api/users', methods=['GET'])
+@admin_required
+def api_list_users():
+    return jsonify(models.list_users())
+
+@app.route('/api/users/invite', methods=['POST'])
+@admin_required
+def api_invite_user():
+    data = request.get_json() or {}
+    email = sanitize(data.get('email', ''), 120)
+    name = sanitize(data.get('name', ''), 50)
+    role = data.get('role', 'user') if data.get('role') in ('admin', 'user') else 'user'
+
+    if not email or '@' not in email:
+        return jsonify({'error': 'Valid email required'}), 400
+    if not name:
+        return jsonify({'error': 'Name required'}), 400
+    if models.get_user_by_email(email):
+        return jsonify({'error': 'A user with this email already exists'}), 409
+
+    admin = auth.current_user()
+    token = auth.create_invite(email, name, role, admin['id'])
+    email_utils.send_invite_email(email, name, token)
+    models.log_action(admin['id'], admin['name'], 'invite_sent', target=email, detail=f'role={role}')
+    return jsonify({'status': 'invited'}), 201
+
+@app.route('/api/users/<int:user_id>/role', methods=['PUT'])
+@admin_required
+def api_set_user_role(user_id):
+    data = request.get_json() or {}
+    role = data.get('role')
+    if role not in ('admin', 'user'):
+        return jsonify({'error': 'Role must be admin or user'}), 400
+    admin = auth.current_user()
+    if user_id == admin['id'] and role != 'admin':
+        return jsonify({'error': "You can't remove your own admin access"}), 400
+    models.set_user_role(user_id, role)
+    models.log_action(admin['id'], admin['name'], 'role_changed', target=str(user_id), detail=role)
+    return jsonify({'status': 'updated'})
+
+@app.route('/api/users/<int:user_id>/active', methods=['PUT'])
+@admin_required
+def api_set_user_active(user_id):
+    data = request.get_json() or {}
+    active = bool(data.get('active', True))
+    admin = auth.current_user()
+    if user_id == admin['id'] and not active:
+        return jsonify({'error': "You can't deactivate your own account"}), 400
+    models.set_user_active(user_id, active)
+    models.log_action(admin['id'], admin['name'], 'active' if active else 'deactivated', target=str(user_id))
+    return jsonify({'status': 'updated'})
+
+@app.route('/api/audit-log', methods=['GET'])
+@admin_required
+def api_audit_log():
+    return jsonify(models.get_audit_log())
+
+# ══════════════════════════════════
 # INIT
 # ══════════════════════════════════
 
+def bootstrap_admin():
+    """One-time: if no users exist yet, create the first admin from env vars.
+    Set BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_NAME / BOOTSTRAP_ADMIN_PASSWORD,
+    deploy once, then you can remove them — this only fires when users table is empty."""
+    if models.list_users():
+        return
+    email = os.environ.get('BOOTSTRAP_ADMIN_EMAIL', '')
+    name = os.environ.get('BOOTSTRAP_ADMIN_NAME', 'Admin')
+    password = os.environ.get('BOOTSTRAP_ADMIN_PASSWORD', '')
+    if email and password:
+        models.create_user(email, name, auth.hash_password(password), role='admin')
+        print(f'[bootstrap] Created first admin account: {email}')
+
 with app.app_context():
     models.init_db()
+    bootstrap_admin()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

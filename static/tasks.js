@@ -200,10 +200,11 @@ async function clearDone(){
   var inView=getViewTasks().filter(function(t){return t.done});
   if(!inView.length){toast('No completed tasks');return;}
   if(!confirm('Clear '+inView.length+' completed?'))return;
-  for(var i=0;i<inView.length;i++) await api('DELETE','/api/tasks/'+inView[i].id);
+  var res=await api('POST','/api/tasks/clear-done',{});
+  if(!res){return;}
   var ids=inView.map(function(t){return t.id});
   tasks=tasks.filter(function(t){return ids.indexOf(t.id)===-1});
-  buildSidebar();renderTasks();toast(inView.length+' cleared');
+  buildSidebar();renderTasks();toast(res.count+' cleared');
 }
 
 /* ── EDIT TEXT ── */
@@ -330,6 +331,7 @@ function renderTask(t){
   h+='<span class="task-pri '+PRI_CLS[t.pri]+'" onclick="showCtx(event,\'pri\',\''+t.id+'\')">'+PRI_LBL[t.pri]+'</span>';
   h+='</span>';
   if(dateAdded) h+='<span class="task-date-added">'+dateAdded+'</span>';
+  if(t.created_by_name) h+='<span class="task-date-added" title="Created by">by '+esc(t.created_by_name)+'</span>';
   h+='<button class="xbtn" onclick="delTask(\''+t.id+'\')">&#x2715;</button>';
   h+='</div>';
   // Notes section - full display, not truncated

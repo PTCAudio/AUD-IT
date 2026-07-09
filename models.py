@@ -121,12 +121,67 @@ def init_db():
             archived INTEGER NOT NULL DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now'))
         );
+
+        -- ══════════════════════════════════
+        -- USERS / AUTH
+        -- ══════════════════════════════════
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            password_hash TEXT NOT NULL DEFAULT '',
+            role TEXT NOT NULL DEFAULT 'user',
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            last_login_at TEXT DEFAULT ''
+        );
+
+        CREATE TABLE IF NOT EXISTS invite_tokens (
+            token TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            name TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'user',
+            invited_by INTEGER,
+            expires_at TEXT NOT NULL,
+            used_at TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            expires_at TEXT NOT NULL,
+            used_at TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            actor_id INTEGER,
+            actor_name TEXT DEFAULT '',
+            action TEXT NOT NULL,
+            target TEXT DEFAULT '',
+            detail TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now'))
+        );
     ''')
     db.commit()
 
     # Migrations
     try:
         db.execute("ALTER TABLE journal_entries ADD COLUMN author TEXT NOT NULL DEFAULT 'Matthew'")
+        db.commit()
+    except:
+        pass
+
+    try:
+        db.execute("ALTER TABLE tasks ADD COLUMN created_by INTEGER")
+        db.commit()
+    except:
+        pass
+
+    try:
+        db.execute("ALTER TABLE tasks ADD COLUMN created_by_name TEXT DEFAULT ''")
         db.commit()
     except:
         pass
@@ -141,6 +196,10 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_shows_space ON shows(space);
         CREATE INDEX IF NOT EXISTS idx_hours_author ON hours_log(author);
         CREATE INDEX IF NOT EXISTS idx_hours_date ON hours_log(date);
+        CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+        CREATE INDEX IF NOT EXISTS idx_invite_email ON invite_tokens(email);
+        CREATE INDEX IF NOT EXISTS idx_reset_user ON password_reset_tokens(user_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
     ''')
     db.commit()
     db.close()
@@ -288,18 +347,38 @@ def get_all_tasks():
     return [dict(r) for r in rows]
 
 
-def create_task(data):
+def create_task(data, created_by=None, created_by_name=''):
     db = get_db()
     task_id = data.get('id') or str(uuid.uuid4())[:12]
-    db.execute('''INSERT INTO tasks (id, text, space, show_id, priority, urgency, due_date, notes, done, sort_order)
-        VALUES (?,?,?,?,?,?,?,?,?,?)''',
+    db.execute('''INSERT INTO tasks (id, text, space, show_id, priority, urgency, due_date, notes, done, sort_order, created_by, created_by_name)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
         (task_id, data.get('text', ''), data.get('space', 'general'),
          data.get('show', ''), data.get('pri', 'none'),
          data.get('urg', 'soon'), data.get('date', ''),
-         data.get('notes', ''), 0, data.get('sort_order', 0)))
+         data.get('notes', ''), 0, data.get('sort_order', 0),
+         created_by, created_by_name))
     db.commit()
     db.close()
     return task_id
+
+
+def clear_done_tasks(space=None, show_id=None):
+    """Delete all done tasks, optionally scoped to a space/show. Returns count deleted."""
+    db = get_db()
+    query = 'SELECT id FROM tasks WHERE done=1'
+    params = []
+    if space:
+        query += ' AND space=?'
+        params.append(space)
+    if show_id:
+        query += ' AND show_id=?'
+        params.append(show_id)
+    ids = [r['id'] for r in db.execute(query, params).fetchall()]
+    if ids:
+        db.executemany('DELETE FROM tasks WHERE id=?', [(i,) for i in ids])
+        db.commit()
+    db.close()
+    return len(ids)
 
 
 def update_task(task_id, data):
@@ -638,3 +717,154 @@ def import_tasks(data):
     db.commit()
     db.close()
     return len(tasks)
+
+
+# ══════════════════════════════════
+# USERS / AUTH
+# ══════════════════════════════════
+
+def get_user_by_email(email):
+    db = get_db()
+    row = db.execute('SELECT * FROM users WHERE email=? COLLATE NOCASE', (email.strip(),)).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id):
+    db = get_db()
+    row = db.execute('SELECT * FROM users WHERE id=?', (user_id,)).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+
+def list_users():
+    db = get_db()
+    rows = db.execute('''SELECT id, email, name, role, is_active, created_at, last_login_at
+        FROM users ORDER BY is_active DESC, name''').fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+
+def create_user(email, name, password_hash, role='user'):
+    db = get_db()
+    cur = db.execute('INSERT INTO users (email, name, password_hash, role) VALUES (?,?,?,?)',
+        (email.lower().strip(), name.strip(), password_hash, role))
+    db.commit()
+    user_id = cur.lastrowid
+    db.close()
+    return user_id
+
+
+def update_user_password(user_id, password_hash):
+    db = get_db()
+    db.execute('UPDATE users SET password_hash=? WHERE id=?', (password_hash, user_id))
+    db.commit()
+    db.close()
+
+
+def set_user_role(user_id, role):
+    db = get_db()
+    db.execute('UPDATE users SET role=? WHERE id=?', (role, user_id))
+    db.commit()
+    db.close()
+
+
+def set_user_active(user_id, active):
+    db = get_db()
+    db.execute('UPDATE users SET is_active=? WHERE id=?', (1 if active else 0, user_id))
+    db.commit()
+    db.close()
+
+
+def touch_last_login(user_id):
+    db = get_db()
+    db.execute("UPDATE users SET last_login_at=datetime('now') WHERE id=?", (user_id,))
+    db.commit()
+    db.close()
+
+
+# ══════════════════════════════════
+# INVITE TOKENS
+# ══════════════════════════════════
+
+def create_invite_token(token, email, name, role, invited_by, expires_at):
+    db = get_db()
+    db.execute('''INSERT INTO invite_tokens (token, email, name, role, invited_by, expires_at)
+        VALUES (?,?,?,?,?,?)''', (token, email.lower().strip(), name.strip(), role, invited_by, expires_at))
+    db.commit()
+    db.close()
+
+
+def get_invite_token(token):
+    db = get_db()
+    row = db.execute('SELECT * FROM invite_tokens WHERE token=?', (token,)).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+
+def mark_invite_used(token):
+    db = get_db()
+    db.execute("UPDATE invite_tokens SET used_at=datetime('now') WHERE token=?", (token,))
+    db.commit()
+    db.close()
+
+
+def get_pending_invites():
+    db = get_db()
+    rows = db.execute('''SELECT * FROM invite_tokens
+        WHERE used_at='' AND expires_at > datetime('now') ORDER BY created_at DESC''').fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+
+# ══════════════════════════════════
+# PASSWORD RESET TOKENS
+# ══════════════════════════════════
+
+def create_reset_token(token, user_id, expires_at):
+    db = get_db()
+    db.execute('INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES (?,?,?)',
+        (token, user_id, expires_at))
+    db.commit()
+    db.close()
+
+
+def get_reset_token(token):
+    db = get_db()
+    row = db.execute('SELECT * FROM password_reset_tokens WHERE token=?', (token,)).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+
+def mark_reset_used(token):
+    db = get_db()
+    db.execute("UPDATE password_reset_tokens SET used_at=datetime('now') WHERE token=?", (token,))
+    db.commit()
+    db.close()
+
+
+def invalidate_user_reset_tokens(user_id):
+    """Invalidate any outstanding reset tokens for a user (call after a successful reset)."""
+    db = get_db()
+    db.execute("UPDATE password_reset_tokens SET used_at=datetime('now') WHERE user_id=? AND used_at=''", (user_id,))
+    db.commit()
+    db.close()
+
+
+# ══════════════════════════════════
+# AUDIT LOG
+# ══════════════════════════════════
+
+def log_action(actor_id, actor_name, action, target='', detail=''):
+    db = get_db()
+    db.execute('INSERT INTO audit_log (actor_id, actor_name, action, target, detail) VALUES (?,?,?,?,?)',
+        (actor_id, actor_name, action, target, detail))
+    db.commit()
+    db.close()
+
+
+def get_audit_log(limit=200):
+    db = get_db()
+    rows = db.execute('SELECT * FROM audit_log ORDER BY id DESC LIMIT ?', (limit,)).fetchall()
+    db.close()
+    return [dict(r) for r in rows]

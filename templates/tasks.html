@@ -335,7 +335,9 @@
       <span class="fpill" data-f="week" onclick="setFilter('week')">This Week</span>
       <span style="flex:1"></span>
       <button class="btn" onclick="toggleSort()" id="sortBtn" style="font-size:9px;height:24px;padding:0 8px">Sort: Manual</button>
+      {% if current_user and current_user.role == 'admin' %}
       <button class="btn" onclick="clearDone()" style="font-size:9px;height:24px;padding:0 8px">✓ Clear Done</button>
+      {% endif %}
     </div>
 
     <div id="tlist"></div>
@@ -417,5 +419,12 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+window.CURRENT_USER = {
+  id: {{ current_user.id if current_user else 'null' }},
+  name: {{ current_user.name|tojson if current_user else 'null' }},
+  role: {{ current_user.role|tojson if current_user else 'null' }}
+};
+</script>
 <script src="{{ url_for('static', filename='tasks.js') }}"></script>
 {% endblock %}
