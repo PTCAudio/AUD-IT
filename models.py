@@ -809,6 +809,14 @@ def mark_invite_used(token):
     db.close()
 
 
+def delete_invite_token(token):
+    """Cancel/remove a pending invite so it no longer shows up or can be accepted."""
+    db = get_db()
+    db.execute('DELETE FROM invite_tokens WHERE token=?', (token,))
+    db.commit()
+    db.close()
+
+
 def get_pending_invites():
     db = get_db()
     rows = db.execute('''SELECT * FROM invite_tokens

@@ -63,13 +63,13 @@ table.usr-table td{padding:10px;border-bottom:1px solid #222;vertical-align:midd
         </tr>
         {% endfor %}
         {% for inv in invites %}
-        <tr class="pending-row">
+        <tr class="pending-row" data-token="{{ inv.token }}">
           <td>{{ inv.name }}</td>
           <td>{{ inv.email }}</td>
           <td><span class="badge {{ 'badge-admin' if inv.role=='admin' else 'badge-user' }}">{{ inv.role }}</span></td>
           <td><span class="badge badge-inactive">invite pending</span></td>
           <td>expires {{ inv.expires_at }}</td>
-          <td></td>
+          <td class="usr-actions"><button onclick="cancelInvite('{{ inv.token }}')">Cancel</button></td>
         </tr>
         {% endfor %}
       </tbody>
@@ -96,6 +96,11 @@ async function toggleRole(id,currentRole){
 async function toggleActive(id,isActive){
   var res=await api('PUT','/api/users/'+id+'/active',{active: isActive?false:true});
   if(res){toast('Updated');setTimeout(function(){location.reload()},600);}
+}
+async function cancelInvite(token){
+  if(!confirm('Cancel this invite? The link will stop working.'))return;
+  var res=await api('DELETE','/api/users/invite/'+token);
+  if(res){toast('Invite cancelled');setTimeout(function(){location.reload()},600);}
 }
 </script>
 {% endblock %}
