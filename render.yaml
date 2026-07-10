@@ -5,11 +5,21 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
-      - key: APP_PASSWORD
-        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: API_KEY
+        sync: false
+      - key: POSTMARK_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: noreply@ptc-audio.com
+      - key: APP_BASE_URL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_NAME
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
         sync: false
       - key: PYTHON_VERSION
         value: 3.11.0

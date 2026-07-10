@@ -1,0 +1,101 @@
+{% extends "shell.html" %}
+{% block title %}Users{% endblock %}
+
+{% block head %}
+<style>
+#usr{padding:20px 24px;max-width:900px;margin:0 auto}
+.usr-title{font-family:var(--disp);font-size:28px;letter-spacing:.06em;color:var(--wht);margin-bottom:16px}
+.usr-panel{background:var(--sur);border:1px solid var(--b1);border-radius:6px;padding:20px;margin-bottom:20px}
+.usr-panel h3{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin-bottom:14px}
+.usr-form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.usr-form input, .usr-form select{font-family:var(--mono);font-size:13px;padding:9px 12px;border:1px solid var(--b2);border-radius:4px;background:var(--pan);color:var(--txt)}
+.usr-form input[type=email]{flex:1;min-width:200px}
+.usr-form input[type=text]{width:160px}
+.usr-btn{font-family:var(--mono);font-size:11px;letter-spacing:.05em;padding:9px 16px;border:none;border-radius:4px;background:var(--red);color:#fff;cursor:pointer;text-transform:uppercase}
+.usr-btn:hover{background:#e8394f}
+table.usr-table{width:100%;border-collapse:collapse;font-size:13px}
+table.usr-table th{text-align:left;font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);padding:8px 10px;border-bottom:1px solid var(--b1)}
+table.usr-table td{padding:10px;border-bottom:1px solid #222;vertical-align:middle}
+.badge{font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:3px;text-transform:uppercase;letter-spacing:.05em}
+.badge-admin{background:#3a1418;color:#e8394f}
+.badge-user{background:#1a2a1a;color:#7ec97e}
+.badge-inactive{background:#2a2a2a;color:var(--mut)}
+.usr-actions{display:flex;gap:6px}
+.usr-actions button{font-family:var(--mono);font-size:9px;padding:4px 8px;border:1px solid var(--b2);border-radius:3px;background:var(--pan);color:var(--txt);cursor:pointer}
+.usr-actions button:hover{border-color:var(--red)}
+.pending-row{opacity:.7;font-style:italic}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="usr">
+  <div class="usr-title">Users & Access</div>
+
+  <div class="usr-panel">
+    <h3>Invite a new user</h3>
+    <div class="usr-form">
+      <input type="text" id="inv-name" placeholder="Full name">
+      <input type="email" id="inv-email" placeholder="Email address">
+      <select id="inv-role">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button class="usr-btn" onclick="sendInvite()">Send Invite</button>
+    </div>
+  </div>
+
+  <div class="usr-panel">
+    <h3>Active & pending</h3>
+    <table class="usr-table">
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last login</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for u in users %}
+        <tr data-id="{{ u.id }}">
+          <td>{{ u.name }}</td>
+          <td>{{ u.email }}</td>
+          <td><span class="badge {{ 'badge-admin' if u.role=='admin' else 'badge-user' }}">{{ u.role }}</span></td>
+          <td>{% if u.is_active %}<span class="badge badge-user">active</span>{% else %}<span class="badge badge-inactive">disabled</span>{% endif %}</td>
+          <td>{{ u.last_login_at or '—' }}</td>
+          <td class="usr-actions">
+            <button onclick="toggleRole({{ u.id }}, '{{ u.role }}')">{{ 'Make user' if u.role=='admin' else 'Make admin' }}</button>
+            <button onclick="toggleActive({{ u.id }}, {{ u.is_active|int }})">{{ 'Deactivate' if u.is_active else 'Reactivate' }}</button>
+          </td>
+        </tr>
+        {% endfor %}
+        {% for inv in invites %}
+        <tr class="pending-row">
+          <td>{{ inv.name }}</td>
+          <td>{{ inv.email }}</td>
+          <td><span class="badge {{ 'badge-admin' if inv.role=='admin' else 'badge-user' }}">{{ inv.role }}</span></td>
+          <td><span class="badge badge-inactive">invite pending</span></td>
+          <td>expires {{ inv.expires_at }}</td>
+          <td></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function sendInvite(){
+  var name=gi('inv-name').value.trim();
+  var email=gi('inv-email').value.trim();
+  var role=gi('inv-role').value;
+  if(!name||!email){toast('Name and email required');return;}
+  var res=await api('POST','/api/users/invite',{name:name,email:email,role:role});
+  if(res){toast('Invite sent to '+email);setTimeout(function(){location.reload()},900);}
+}
+async function toggleRole(id,currentRole){
+  var newRole = currentRole==='admin' ? 'user' : 'admin';
+  var res=await api('PUT','/api/users/'+id+'/role',{role:newRole});
+  if(res){toast('Role updated');setTimeout(function(){location.reload()},600);}
+}
+async function toggleActive(id,isActive){
+  var res=await api('PUT','/api/users/'+id+'/active',{active: isActive?false:true});
+  if(res){toast('Updated');setTimeout(function(){location.reload()},600);}
+}
+</script>
+{% endblock %}

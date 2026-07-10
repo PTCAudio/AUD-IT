@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUD-IT Tasks — Link Expired</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Lora:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0e0e0e;--sur:#161616;--b1:#2e2e2e;--txt:#e8e4e0;--mut:#888078;--wht:#f8f4f0;--red:#c8102e;--rlt:#e8394f}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:'Lora',Georgia,serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.login-box{background:var(--sur);border:1px solid var(--b1);border-top:4px solid var(--red);border-radius:6px;padding:40px 36px;width:360px;max-width:90vw;text-align:center}
+.login-title{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:.12em;color:var(--wht);margin-bottom:16px}
+.msg{font-size:14px;color:var(--txt);margin-bottom:20px;line-height:1.6}
+.login-footer a{font-family:'DM Mono',monospace;font-size:10px;color:var(--rlt);text-decoration:none;letter-spacing:.05em}
+</style>
+</head>
+<body>
+<div class="login-box">
+  <div class="login-title">Link Expired</div>
+  {% if reason == 'invite' %}
+  <div class="msg">This invite link is invalid, already used, or has expired. Ask an admin to send you a new invite.</div>
+  {% else %}
+  <div class="msg">This password reset link is invalid, already used, or has expired. Request a new one below.</div>
+  {% endif %}
+  <div class="login-footer"><a href="{{ url_for('login') }}">Back to login</a>{% if reason != 'invite' %} · <a href="{{ url_for('forgot_password') }}">Request new link</a>{% endif %}</div>
+</div>
+</body>
+</html>
