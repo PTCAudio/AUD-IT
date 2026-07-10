@@ -176,7 +176,8 @@ async function addTask(){
   var text=gi('newTask').value.trim();if(!text)return;
   var task={id:uid(),text:text,space:gi('newSpace').value,show:gi('newShow').value||'',
     pri:gi('newPri').value,urg:gi('newUrg').value,
-    date:gi('newUrg').value==='date'?gi('newDate').value:'',notes:'',done:false,sort_order:tasks.length};
+    date:gi('newUrg').value==='date'?gi('newDate').value:'',notes:'',done:false,sort_order:tasks.length,
+    created_by_name: (window.CURRENT_USER && window.CURRENT_USER.name) || ''};
   await api('POST','/api/tasks',task);
   tasks.push(task);
   gi('newTask').value='';gi('newPri').value='none';gi('newUrg').value='soon';gi('newDate').style.display='none';
