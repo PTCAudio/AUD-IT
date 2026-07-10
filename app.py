@@ -479,6 +479,17 @@ def api_invite_user():
     models.log_action(admin['id'], admin['name'], 'invite_sent', target=email, detail=f'role={role}')
     return jsonify({'status': 'invited'}), 201
 
+@app.route('/api/users/invite/<token>', methods=['DELETE'])
+@admin_required
+def api_cancel_invite(token):
+    invite = models.get_invite_token(token)
+    if not invite:
+        return jsonify({'error': 'Invite not found'}), 404
+    models.delete_invite_token(token)
+    admin = auth.current_user()
+    models.log_action(admin['id'], admin['name'], 'invite_cancelled', target=invite['email'])
+    return jsonify({'status': 'cancelled'})
+
 @app.route('/api/users/<int:user_id>/role', methods=['PUT'])
 @admin_required
 def api_set_user_role(user_id):
