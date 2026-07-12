@@ -206,7 +206,18 @@ let MODE=localStorage.getItem('ptcMode')||'staff';
 const crumb=document.getElementById('crumb'),stage=document.getElementById('stage');
 function setMode(m){MODE=m;localStorage.setItem('ptcMode',m);home()}
 function db(){return MODE==='staff'?STAFF:GUEST}
-function home(){document.getElementById('mStaff').classList.toggle('on',MODE==='staff');
+function home(){
+ // home() fully replaces #stage, including the #q search box itself — if
+ // that happens while the user is mid-keystroke (doSearch calls home() for
+ // any query under 2 chars), the box gets destroyed and recreated, which
+ // wipes focus and the just-typed character. Capture and restore state
+ // across the rebuild so typing doesn't get interrupted.
+ const prevQ = document.getElementById('q');
+ const hadFocus = prevQ && document.activeElement === prevQ;
+ const prevVal = prevQ ? prevQ.value : '';
+ const prevSel = prevQ ? [prevQ.selectionStart, prevQ.selectionEnd] : null;
+
+ document.getElementById('mStaff').classList.toggle('on',MODE==='staff');
  document.getElementById('mGuest').classList.toggle('on',MODE==='guest');
  crumb.innerHTML='<a onclick="home()">Home</a>';
  let h='<input id="q" placeholder="search everything…" oninput="doSearch(this.value)">';
@@ -221,7 +232,15 @@ function home(){document.getElementById('mStaff').classList.toggle('on',MODE==='
  } else {
   h+=sec('DOCUMENTS',COLORS.docs)+`<div class="grid"><div class="tile" style="border-left-color:${COLORS.docs}" onclick="docs()"><b>📄 Documents</b><span>${DOCS.filter(g=>g[1].some(d=>d[2])).reduce((n,g)=>n+g[1].filter(d=>d[2]).length,0)} files · browse all</span></div></div>`;
  }
- stage.innerHTML=h}
+ stage.innerHTML=h;
+
+ if(hadFocus){
+  const q=document.getElementById('q');
+  q.value=prevVal;
+  q.focus();
+  if(prevSel) q.setSelectionRange(prevSel[0],prevSel[1]);
+ }
+}
 function docs(){crumb.innerHTML='<a onclick="home()">Home</a> › <b style="color:#eee">Documents</b>';
  const list=MODE==='staff'?DOCS:DOCS.filter(g=>g[1].some(d=>d[2]));
  stage.innerHTML=list.map(g=>{const items=MODE==='staff'?g[1]:g[1].filter(d=>d[2]);
