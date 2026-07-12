@@ -522,6 +522,61 @@ def api_audit_log():
     return jsonify(models.get_audit_log())
 
 # ══════════════════════════════════
+# KNOWLEDGE BASE
+# ══════════════════════════════════
+
+MAX_KB_BODY = 300000  # generous — some Wiki pages (e.g. TOC-indexed manuals) run long
+
+def validate_kb_page(data):
+    slug = str(data.get('slug', '')).strip()[:120]
+    if not slug or not all(c.isalnum() or c in '-_' for c in slug):
+        return None
+    return {
+        'slug': slug,
+        'title': sanitize(data.get('title', slug), 200),
+        'section': sanitize(data.get('section', ''), 50),
+        'body_markdown': str(data.get('body_markdown', ''))[:MAX_KB_BODY],
+        'tags': data.get('tags', []) if isinstance(data.get('tags', []), list) else [],
+        'source_files': data.get('source_files', []) if isinstance(data.get('source_files', []), list) else [],
+    }
+
+@app.route('/kb')
+@login_required
+def kb_index():
+    return render_template('kb_index.html', active='kb', pages=models.list_kb_pages())
+
+@app.route('/kb/<slug>')
+@login_required
+def kb_page(slug):
+    page = models.get_kb_page(slug)
+    if not page:
+        return render_template('token_invalid.html', reason='kb page not found'), 404
+    import markdown as md_lib
+    body_html = md_lib.markdown(page['body_markdown'], extensions=['tables', 'fenced_code'])
+    return render_template('kb_page.html', active='kb', page=page, body_html=body_html)
+
+@app.route('/api/kb/pages', methods=['POST'])
+@require_api_key_or_session
+def api_kb_upsert():
+    data = request.get_json() or {}
+    page = validate_kb_page(data)
+    if not page:
+        return jsonify({'error': 'Invalid or missing slug'}), 400
+    models.upsert_kb_page(
+        page['slug'], page['title'], page['section'],
+        page['body_markdown'], page['tags'], page['source_files']
+    )
+    return jsonify({'status': 'ok', 'slug': page['slug']})
+
+@app.route('/api/kb/search', methods=['GET'])
+@require_api_key_or_session
+def api_kb_search():
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify([])
+    return jsonify(models.search_kb_pages(q))
+
+# ══════════════════════════════════
 # INIT
 # ══════════════════════════════════
 

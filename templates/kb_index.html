@@ -1,0 +1,42 @@
+{% extends "shell.html" %}
+{% block title %}Knowledge Base{% endblock %}
+
+{% block head %}
+<style>
+#kb-main{padding:20px 24px;max-width:900px;margin:0 auto}
+.view-title{font-family:var(--disp);font-size:28px;letter-spacing:.06em;color:var(--wht);margin-bottom:4px}
+.view-sub{font-family:var(--mono);font-size:10px;color:var(--mut);letter-spacing:.05em;margin-bottom:18px}
+.kb-section-label{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--mut);margin:20px 0 8px}
+.kb-list{display:flex;flex-direction:column;gap:4px}
+.kb-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--b1);border-radius:3px;background:var(--pan);text-decoration:none;transition:all .15s}
+.kb-row:hover{border-color:var(--red)}
+.kb-row-title{color:var(--txt);font-size:13px}
+.kb-row-updated{font-family:var(--mono);font-size:9px;color:var(--mut)}
+.kb-empty{color:var(--mut);font-family:var(--mono);font-size:11px;padding:20px 0}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="kb-main">
+  <div class="view-title">Knowledge Base</div>
+  <div class="view-sub">AUD-IT — compiled Wiki, synced from Raw/</div>
+
+  {% if not pages %}
+  <div class="kb-empty">No pages synced yet. Run sync_wiki_to_db.py to backfill from the local Wiki.</div>
+  {% else %}
+    {% set ns = namespace(last_section='') %}
+    {% for page in pages %}
+      {% if page.section != ns.last_section %}
+        <div class="kb-section-label">{{ page.section or 'General' }}</div>
+        {% set ns.last_section = page.section %}
+      {% endif %}
+      <div class="kb-list">
+        <a class="kb-row" href="{{ url_for('kb_page', slug=page.slug) }}">
+          <span class="kb-row-title">{{ page.title }}</span>
+          <span class="kb-row-updated">{{ page.updated_at }}</span>
+        </a>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

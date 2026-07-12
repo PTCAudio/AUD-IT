@@ -164,6 +164,20 @@ def init_db():
             detail TEXT DEFAULT '',
             created_at TEXT DEFAULT (datetime('now'))
         );
+
+        -- ══════════════════════════════════
+        -- KNOWLEDGE BASE (hosted copy of AUD-IT Operations/Wiki)
+        -- ══════════════════════════════════
+        CREATE TABLE IF NOT EXISTS kb_pages (
+            slug TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            section TEXT DEFAULT '',
+            body_markdown TEXT NOT NULL,
+            tags TEXT DEFAULT '[]',
+            source_files TEXT DEFAULT '[]',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        );
     ''')
     db.commit()
 
@@ -200,9 +214,57 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_invite_email ON invite_tokens(email);
         CREATE INDEX IF NOT EXISTS idx_reset_user ON password_reset_tokens(user_id);
         CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
+        CREATE INDEX IF NOT EXISTS idx_kb_section ON kb_pages(section);
     ''')
     db.commit()
     db.close()
+
+
+# ══════════════════════════════════
+# KNOWLEDGE BASE CRUD
+# ══════════════════════════════════
+
+def list_kb_pages():
+    db = get_db()
+    rows = db.execute(
+        'SELECT slug, title, section, updated_at FROM kb_pages ORDER BY section, title'
+    ).fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+def get_kb_page(slug):
+    db = get_db()
+    row = db.execute('SELECT * FROM kb_pages WHERE slug = ?', (slug,)).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+def upsert_kb_page(slug, title, section, body_markdown, tags, source_files):
+    db = get_db()
+    db.execute('''
+        INSERT INTO kb_pages (slug, title, section, body_markdown, tags, source_files, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(slug) DO UPDATE SET
+            title = excluded.title,
+            section = excluded.section,
+            body_markdown = excluded.body_markdown,
+            tags = excluded.tags,
+            source_files = excluded.source_files,
+            updated_at = datetime('now')
+    ''', (slug, title, section, body_markdown, json.dumps(tags), json.dumps(source_files)))
+    db.commit()
+    db.close()
+
+def search_kb_pages(q, limit=8):
+    """Plain LIKE search — fine at ~45 pages. Revisit with FTS5 if the KB grows a lot."""
+    db = get_db()
+    like = f'%{q}%'
+    rows = db.execute('''
+        SELECT slug, title, section FROM kb_pages
+        WHERE title LIKE ? OR body_markdown LIKE ?
+        ORDER BY title LIMIT ?
+    ''', (like, like, limit)).fetchall()
+    db.close()
+    return [dict(r) for r in rows]
 
 
 # ══════════════════════════════════
