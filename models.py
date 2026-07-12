@@ -6,6 +6,7 @@ import uuid
 import sqlite3
 import os
 import json
+import re
 from datetime import datetime
 
 DB_PATH = os.environ.get('DATABASE_PATH', 'audit_suite.db')
@@ -281,11 +282,11 @@ def _proximity_window(lower, words, span=250):
     such co-occurring window exists, only scattered individual mentions."""
     if len(words) == 1:
         positions = _find_positions(lower, words[0])
-        return (positions[0], True) if positions else (0, False)
+        return (positions[0], True, positions[:1]) if positions else (0, False, [])
 
     word_positions = {w: _find_positions(lower, w) for w in words}
     if any(not v for v in word_positions.values()):
-        return (0, False)
+        return (0, False, [])
 
     # Anchor on the rarest word's occurrences — most selective starting point.
     anchor_word = min(word_positions, key=lambda w: len(word_positions[w]))
@@ -306,19 +307,94 @@ def _proximity_window(lower, words, span=250):
             center = sum(nearby) // len(nearby)
             spread = max(nearby) - min(nearby)
             if best is None or spread < best[1]:
-                best = (center, spread)
+                best = (center, spread, nearby)
     if best is not None:
-        return best[0], True
-    return (word_positions[anchor_word][0], False)
+        return best[0], True, best[2]
+    return (word_positions[anchor_word][0], False, [word_positions[anchor_word][0]])
+
+_MD_EMPHASIS_RE = re.compile(r'\*\*(.+?)\*\*|__(.+?)__|`(.+?)`')
+
+def _strip_md_emphasis(text):
+    return _MD_EMPHASIS_RE.sub(lambda m: next(g for g in m.groups() if g is not None), text)
+
+def _is_table_row(line):
+    s = line.strip()
+    return s.startswith('|') and s.endswith('|') and s.count('|') >= 2
+
+def _is_table_separator(line):
+    # e.g. "|---|---|---|" — strip('|') only trims the outer edges, so split
+    # on '|' first rather than checking the whole string for '-'/':' chars
+    # (which would wrongly fail on the internal pipes between columns).
+    parts = [p.strip() for p in line.strip().strip('|').split('|')]
+    return bool(parts) and all(p != '' and all(c in '-: ' for c in p) for p in parts)
+
+def _table_row_snippet(body, pos):
+    """If the matched position falls inside a markdown table, reformat that
+    row as 'Header: value, Header: value' instead of dumping raw pipes —
+    much more readable than a sliced-up table row/header/separator jumble.
+    Returns None if the position isn't inside a table."""
+    lines = body.split('\n')
+    offsets = []
+    running = 0
+    for line in lines:
+        offsets.append(running)
+        running += len(line) + 1
+    line_idx = 0
+    for i, off in enumerate(offsets):
+        if off <= pos:
+            line_idx = i
+        else:
+            break
+
+    if not _is_table_row(lines[line_idx]):
+        return None
+    if _is_table_separator(lines[line_idx]):
+        # landed on the "|---|---|" row itself — nudge to the next data row
+        if line_idx + 1 < len(lines) and _is_table_row(lines[line_idx + 1]):
+            line_idx += 1
+        else:
+            return None
+
+    # Walk up to the header row: the first table row at the top of this
+    # contiguous block of table lines.
+    header_idx = line_idx
+    while header_idx > 0 and _is_table_row(lines[header_idx - 1]):
+        header_idx -= 1
+    if header_idx == line_idx:
+        return None  # matched row IS the header, nothing to pair it with
+
+    def cells(line):
+        return [c.strip() for c in line.strip().strip('|').split('|')]
+
+    headers = cells(lines[header_idx])
+    values = cells(lines[line_idx])
+    if len(headers) != len(values):
+        return None
+
+    pairs = [f'{h}: {_strip_md_emphasis(v)}' for h, v in zip(headers, values) if v and v != '—']
+    return ', '.join(pairs) if pairs else None
 
 def _snippet_for(body, words, width=200):
     """Snippet centered on the tightest co-occurrence of all search words, so
-    it shows the actual answer rather than an arbitrary single-word hit."""
+    it shows the actual answer rather than an arbitrary single-word hit.
+    Table rows get reformatted into readable 'Header: value' pairs instead
+    of raw markdown pipes."""
     lower = body.lower()
-    pos, _ = _proximity_window(lower, words)
+    pos, _, nearby = _proximity_window(lower, words)
+
+    # Try each individual matched word's position (not just the arithmetic-
+    # mean center) for a table hit — the center can land on a table's header
+    # row or fall between a heading and the table below it, even when one of
+    # the actual word matches is sitting right inside a data row.
+    for candidate in dict.fromkeys([pos] + nearby):  # dedupe, keep order
+        table_snippet = _table_row_snippet(body, candidate)
+        if table_snippet:
+            return table_snippet
+
     start = max(0, pos - width // 2)
     end = min(len(body), start + width)
     text = body[start:end]
+    text = _strip_md_emphasis(text)
     text = ' '.join(text.split())  # collapse markdown line breaks/whitespace
     text = text.lstrip('#-*| ')
     prefix = '…' if start > 0 else ''
@@ -361,7 +437,7 @@ def search_kb_pages(q, limit=5):
     for r in rows:
         title_l = r['title'].lower()
         body_l = r['body_markdown'].lower()
-        pos, co_occurs = _proximity_window(body_l, words)
+        pos, co_occurs, _ = _proximity_window(body_l, words)
         # Proximity dominates: a passage where all terms actually appear
         # together outranks a page that merely mentions each word somewhere
         # unrelated, regardless of how many scattered mentions it racks up.
