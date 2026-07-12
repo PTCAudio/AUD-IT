@@ -261,21 +261,62 @@ _STOPWORDS = {
     'can','could','will','would','should','with','about','our'
 }
 
-def _snippet_for(body, words, width=180):
-    """Grab a window of text around the first hit of any search word, so
-    results show the actual answer (e.g. an IP address) instead of just a
-    page title. Falls back to the start of the page if nothing hits (AND
-    match already guarantees every word is present somewhere, so this is
-    just about picking the most useful window)."""
+def _find_positions(lower, word):
+    positions = []
+    start = 0
+    while True:
+        idx = lower.find(word, start)
+        if idx == -1:
+            break
+        positions.append(idx)
+        start = idx + 1
+    return positions
+
+def _proximity_window(lower, words, span=250):
+    """Find the tightest spot in the body where every search word co-occurs
+    within `span` characters of each other, so results favor a passage that's
+    actually ABOUT all the query terms together (e.g. 'Hormel' right next to
+    'Console: CL5') over a page that just happens to mention each word
+    somewhere unrelated. Returns (center_pos, found) — found=False means no
+    such co-occurring window exists, only scattered individual mentions."""
+    if len(words) == 1:
+        positions = _find_positions(lower, words[0])
+        return (positions[0], True) if positions else (0, False)
+
+    word_positions = {w: _find_positions(lower, w) for w in words}
+    if any(not v for v in word_positions.values()):
+        return (0, False)
+
+    # Anchor on the rarest word's occurrences — most selective starting point.
+    anchor_word = min(word_positions, key=lambda w: len(word_positions[w]))
+    best = None
+    for anchor in word_positions[anchor_word]:
+        window_lo, window_hi = anchor - span, anchor + span
+        others_ok = all(
+            any(window_lo <= p <= window_hi for p in word_positions[w])
+            for w in words if w != anchor_word
+        )
+        if others_ok:
+            # tightest actual spread within this window, for a cleaner snippet center
+            nearby = [anchor] + [
+                min((p for p in word_positions[w] if window_lo <= p <= window_hi),
+                    key=lambda p: abs(p - anchor))
+                for w in words if w != anchor_word
+            ]
+            center = sum(nearby) // len(nearby)
+            spread = max(nearby) - min(nearby)
+            if best is None or spread < best[1]:
+                best = (center, spread)
+    if best is not None:
+        return best[0], True
+    return (word_positions[anchor_word][0], False)
+
+def _snippet_for(body, words, width=200):
+    """Snippet centered on the tightest co-occurrence of all search words, so
+    it shows the actual answer rather than an arbitrary single-word hit."""
     lower = body.lower()
-    pos = -1
-    for w in words:
-        idx = lower.find(w)
-        if idx != -1 and (pos == -1 or idx < pos):
-            pos = idx
-    if pos == -1:
-        pos = 0
-    start = max(0, pos - width // 3)
+    pos, _ = _proximity_window(lower, words)
+    start = max(0, pos - width // 2)
     end = min(len(body), start + width)
     text = body[start:end]
     text = ' '.join(text.split())  # collapse markdown line breaks/whitespace
@@ -320,7 +361,13 @@ def search_kb_pages(q, limit=5):
     for r in rows:
         title_l = r['title'].lower()
         body_l = r['body_markdown'].lower()
-        score = sum(6 for w in words if w in title_l) + sum(body_l.count(w) for w in words)
+        pos, co_occurs = _proximity_window(body_l, words)
+        # Proximity dominates: a passage where all terms actually appear
+        # together outranks a page that merely mentions each word somewhere
+        # unrelated, regardless of how many scattered mentions it racks up.
+        score = (100 if co_occurs else 0)
+        score += sum(6 for w in words if w in title_l)
+        score += sum(body_l.count(w) for w in words)
         scored.append((score, dict(
             slug=r['slug'], title=r['title'], section=r['section'],
             snippet=_snippet_for(r['body_markdown'], words),
