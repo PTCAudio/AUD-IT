@@ -1,0 +1,152 @@
+{% extends "shell.html" %}
+{% block title %}Venue Data{% endblock %}
+
+{% block head %}
+<style>
+#ven{padding:20px 24px;max-width:1000px;margin:0 auto}
+.ven-title{font-family:var(--disp);font-size:28px;letter-spacing:.06em;color:var(--wht);margin-bottom:6px}
+.ven-sub{font-family:var(--mono);font-size:12px;color:var(--mut);margin-bottom:20px}
+.ven-panel{background:var(--sur);border:1px solid var(--b1);border-radius:6px;padding:20px;margin-bottom:20px}
+.ven-panel h3{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin-bottom:14px}
+.ven-form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.ven-form input, .ven-form select{font-family:var(--mono);font-size:13px;padding:9px 12px;border:1px solid var(--b2);border-radius:4px;background:var(--pan);color:var(--txt)}
+.ven-form input[type=text]{min-width:160px}
+.ven-btn{font-family:var(--mono);font-size:11px;letter-spacing:.05em;padding:9px 16px;border:none;border-radius:4px;background:var(--red);color:#fff;cursor:pointer;text-transform:uppercase}
+.ven-btn:hover{background:#e8394f}
+.ven-btn-sm{font-family:var(--mono);font-size:9px;padding:5px 10px;border:1px solid var(--b2);border-radius:3px;background:var(--pan);color:var(--txt);cursor:pointer}
+.ven-btn-sm:hover{border-color:var(--red)}
+.venue-block{border:1px solid var(--b1);border-radius:6px;margin-bottom:16px;overflow:hidden}
+.venue-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--pan);border-bottom:1px solid var(--b1)}
+.venue-head-l{display:flex;flex-direction:column;gap:2px}
+.venue-name{font-family:var(--disp);font-size:16px;letter-spacing:.04em;color:var(--wht)}
+.venue-desc{font-family:var(--mono);font-size:11px;color:var(--mut)}
+.mode-badge{font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:3px;text-transform:uppercase;letter-spacing:.05em;margin-right:8px}
+.mode-staff{background:#3a1418;color:#e8394f}
+.mode-guest{background:#1a2a1a;color:#7ec97e}
+.system-row{padding:14px 16px;border-bottom:1px solid #222}
+.system-row:last-child{border-bottom:none}
+.system-name{font-family:var(--mono);font-size:12px;letter-spacing:.05em;color:var(--wht);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.system-fields{display:flex;flex-direction:column;gap:8px}
+.system-fields label{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);display:block;margin-bottom:3px}
+.system-fields textarea{width:100%;font-family:var(--mono);font-size:12px;padding:8px 10px;border:1px solid var(--b2);border-radius:4px;background:var(--pan);color:var(--txt);resize:vertical;box-sizing:border-box}
+.field-hint{font-family:var(--mono);font-size:9px;color:var(--mut);margin-top:2px}
+.add-system-row{padding:12px 16px;background:var(--pan)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="ven">
+  <div class="ven-title">Venue Fact Database</div>
+  <div class="ven-sub">Powers the Home page STAFF/GUEST system cards. Changes here update /home immediately — no deploy needed.</div>
+
+  <div class="ven-panel">
+    <h3>Add a venue</h3>
+    <div class="ven-form">
+      <select id="new-venue-mode">
+        <option value="staff">Staff</option>
+        <option value="guest">Guest</option>
+      </select>
+      <input type="text" id="new-venue-name" placeholder="Venue name (e.g. Stephenson)">
+      <input type="text" id="new-venue-desc" placeholder="Short description">
+      <button class="ven-btn" onclick="addVenue()">Add Venue</button>
+    </div>
+  </div>
+
+  {% for v in venues %}
+  <div class="venue-block" data-venue-id="{{ v.id }}">
+    <div class="venue-head">
+      <div class="venue-head-l">
+        <div class="venue-name"><span class="mode-badge mode-{{ v.mode }}">{{ v.mode }}</span>{{ v.name }}</div>
+        <div class="venue-desc">{{ v.description }}</div>
+      </div>
+      <button class="ven-btn-sm" onclick="deleteVenue({{ v.id }}, '{{ v.name }}')">Delete venue</button>
+    </div>
+
+    {% for s in v.systems %}
+    <div class="system-row" data-system-id="{{ s.id }}">
+      <div class="system-name">
+        <span>{{ s.name }}</span>
+        <button class="ven-btn-sm" onclick="deleteSystem({{ s.id }}, '{{ s.name }}')">Delete system</button>
+      </div>
+      <div class="system-fields">
+        <div>
+          <label>Rows (one "Label: Value" per line)</label>
+          <textarea rows="4" data-field="rows">{% for r in s.rows %}{{ r[0] }}: {{ r[1] }}
+{% endfor %}</textarea>
+        </div>
+        <div>
+          <label>Warnings (one per line)</label>
+          <textarea rows="2" data-field="warns">{% for w in s.warns %}{{ w }}
+{% endfor %}</textarea>
+        </div>
+        <div>
+          <label>Notes (one per line)</label>
+          <textarea rows="2" data-field="notes">{% for n in s.notes %}{{ n }}
+{% endfor %}</textarea>
+          <div class="field-hint">Edits save on blur (click outside the box).</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="add-system-row">
+      <div class="ven-form">
+        <input type="text" placeholder="New system name (e.g. Console — CL5)" class="new-system-name" style="flex:1">
+        <button class="ven-btn-sm" onclick="addSystem({{ v.id }}, this)">Add System</button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function linesOf(el){ return el.value; }
+
+async function addVenue(){
+  var mode=gi('new-venue-mode').value;
+  var name=gi('new-venue-name').value.trim();
+  var desc=gi('new-venue-desc').value.trim();
+  if(!name){toast('Venue name required');return;}
+  var res=await api('POST','/api/venues',{mode:mode,name:name,description:desc});
+  if(res){toast('Venue added');setTimeout(function(){location.reload()},600);}
+}
+
+async function deleteVenue(id,name){
+  if(!confirm('Delete "'+name+'" and all its systems? This cannot be undone.'))return;
+  var res=await api('DELETE','/api/venues/'+id);
+  if(res){toast('Venue deleted');setTimeout(function(){location.reload()},600);}
+}
+
+async function addSystem(venueId,btn){
+  var input=btn.parentElement.querySelector('.new-system-name');
+  var name=input.value.trim();
+  if(!name){toast('System name required');return;}
+  var res=await api('POST','/api/venues/'+venueId+'/systems',{name:name,rows_text:'',warns_text:'',notes_text:''});
+  if(res){toast('System added');setTimeout(function(){location.reload()},600);}
+}
+
+async function deleteSystem(id,name){
+  if(!confirm('Delete system "'+name+'"?'))return;
+  var res=await api('DELETE','/api/venue-systems/'+id);
+  if(res){toast('System deleted');setTimeout(function(){location.reload()},600);}
+}
+
+async function saveSystemField(systemId,field,value){
+  var payload={};
+  payload[field+'_text']=value;
+  var res=await api('PUT','/api/venue-systems/'+systemId,payload);
+  if(res){toast('Saved');}
+}
+
+document.querySelectorAll('.system-row textarea').forEach(function(ta){
+  ta.addEventListener('blur',function(){
+    var row=ta.closest('.system-row');
+    var systemId=row.getAttribute('data-system-id');
+    var field=ta.getAttribute('data-field');
+    saveSystemField(systemId,field,ta.value);
+  });
+});
+</script>
+{% endblock %}

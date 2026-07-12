@@ -179,8 +179,36 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
         );
+
+        -- ══════════════════════════════════
+        -- VENUE FACT DB (Home page STAFF/GUEST system data)
+        -- ══════════════════════════════════
+        CREATE TABLE IF NOT EXISTS venues (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mode TEXT NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            sort_order INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(mode, name)
+        );
+
+        CREATE TABLE IF NOT EXISTS venue_systems (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            venue_id INTEGER NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            rows_json TEXT NOT NULL DEFAULT '[]',
+            warns_json TEXT NOT NULL DEFAULT '[]',
+            notes_json TEXT NOT NULL DEFAULT '[]',
+            sort_order INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        );
     ''')
     db.commit()
+
+    _seed_venues_if_empty(db)
 
     # Migrations
     try:
@@ -216,9 +244,51 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_reset_user ON password_reset_tokens(user_id);
         CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
         CREATE INDEX IF NOT EXISTS idx_kb_section ON kb_pages(section);
+        CREATE INDEX IF NOT EXISTS idx_venues_mode ON venues(mode);
+        CREATE INDEX IF NOT EXISTS idx_venue_systems_venue ON venue_systems(venue_id);
     ''')
     db.commit()
     db.close()
+
+
+def _seed_venues_if_empty(db):
+    """One-time seed of the venues/venue_systems tables from the bundled JSON
+    snapshot of the original hardcoded STAFF/GUEST fact data. Only runs when
+    the venues table is empty, so it never clobbers edits made later through
+    the admin editor — safe to leave in init_db() permanently."""
+    existing = db.execute('SELECT COUNT(*) AS c FROM venues').fetchone()['c']
+    if existing:
+        return
+
+    base = os.path.dirname(os.path.abspath(__file__))
+    seed_files = {'staff': 'venues_staff.json', 'guest': 'venues_guest.json'}
+    for mode, filename in seed_files.items():
+        path = os.path.join(base, 'seed_data', filename)
+        if not os.path.exists(path):
+            continue
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        for v_order, (venue_name, venue_data) in enumerate(data.items()):
+            description = venue_data.get('_d', '')
+            cur = db.execute(
+                'INSERT INTO venues (mode, name, description, sort_order) VALUES (?,?,?,?)',
+                (mode, venue_name, description, v_order)
+            )
+            venue_id = cur.lastrowid
+            s_order = 0
+            for sys_name, sys_data in venue_data.items():
+                if sys_name == '_d':
+                    continue
+                db.execute('''INSERT INTO venue_systems
+                    (venue_id, name, rows_json, warns_json, notes_json, sort_order)
+                    VALUES (?,?,?,?,?,?)''',
+                    (venue_id, sys_name,
+                     json.dumps(sys_data.get('rows', [])),
+                     json.dumps(sys_data.get('warns', [])),
+                     json.dumps(sys_data.get('notes', [])),
+                     s_order))
+                s_order += 1
+    db.commit()
 
 
 # ══════════════════════════════════
@@ -450,6 +520,150 @@ def search_kb_pages(q, limit=5):
         )))
     scored.sort(key=lambda x: (-x[0], x[1]['title']))
     return [item for _, item in scored[:limit]]
+
+
+# ══════════════════════════════════
+# VENUE FACT DB CRUD (Home page STAFF/GUEST data)
+# ══════════════════════════════════
+
+def get_venues_nested(mode):
+    """Rebuild the exact {venueName: {_d, sysName: {rows,warns,notes}, ...}}
+    shape the Home page's client-side JS already expects, so the front-end
+    rendering code (sec/venue/card/home) needs zero changes — only the data
+    source moves from hardcoded JS to this DB-backed structure."""
+    db = get_db()
+    venues = db.execute(
+        'SELECT id, name, description FROM venues WHERE mode=? ORDER BY sort_order, name',
+        (mode,)
+    ).fetchall()
+    result = {}
+    for v in venues:
+        systems = db.execute(
+            'SELECT name, rows_json, warns_json, notes_json FROM venue_systems '
+            'WHERE venue_id=? ORDER BY sort_order, name',
+            (v['id'],)
+        ).fetchall()
+        venue_obj = {'_d': v['description']}
+        for s in systems:
+            venue_obj[s['name']] = {
+                'rows': json.loads(s['rows_json']),
+                'warns': json.loads(s['warns_json']),
+                'notes': json.loads(s['notes_json']),
+            }
+        result[v['name']] = venue_obj
+    db.close()
+    return result
+
+
+def list_venues(mode=None):
+    db = get_db()
+    if mode:
+        rows = db.execute('SELECT * FROM venues WHERE mode=? ORDER BY sort_order, name', (mode,)).fetchall()
+    else:
+        rows = db.execute('SELECT * FROM venues ORDER BY mode, sort_order, name').fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+
+def get_venue(venue_id):
+    db = get_db()
+    row = db.execute('SELECT * FROM venues WHERE id=?', (venue_id,)).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+
+def list_venue_systems(venue_id):
+    db = get_db()
+    rows = db.execute(
+        'SELECT * FROM venue_systems WHERE venue_id=? ORDER BY sort_order, name', (venue_id,)
+    ).fetchall()
+    db.close()
+    out = []
+    for r in rows:
+        d = dict(r)
+        d['rows'] = json.loads(d.pop('rows_json'))
+        d['warns'] = json.loads(d.pop('warns_json'))
+        d['notes'] = json.loads(d.pop('notes_json'))
+        out.append(d)
+    return out
+
+
+def create_venue(mode, name, description='', sort_order=0):
+    db = get_db()
+    cur = db.execute(
+        'INSERT INTO venues (mode, name, description, sort_order) VALUES (?,?,?,?)',
+        (mode, name, description, sort_order)
+    )
+    db.commit()
+    venue_id = cur.lastrowid
+    db.close()
+    return venue_id
+
+
+def update_venue(venue_id, data):
+    db = get_db()
+    fields = []
+    values = []
+    for key in ['name', 'description', 'sort_order']:
+        if key in data:
+            fields.append(f'{key}=?')
+            values.append(data[key])
+    if fields:
+        fields.append("updated_at=datetime('now')")
+        values.append(venue_id)
+        db.execute(f'UPDATE venues SET {",".join(fields)} WHERE id=?', values)
+        db.commit()
+    db.close()
+
+
+def delete_venue(venue_id):
+    db = get_db()
+    db.execute('DELETE FROM venue_systems WHERE venue_id=?', (venue_id,))
+    db.execute('DELETE FROM venues WHERE id=?', (venue_id,))
+    db.commit()
+    db.close()
+
+
+def create_venue_system(venue_id, name, rows=None, warns=None, notes=None, sort_order=0):
+    db = get_db()
+    cur = db.execute('''INSERT INTO venue_systems
+        (venue_id, name, rows_json, warns_json, notes_json, sort_order)
+        VALUES (?,?,?,?,?,?)''',
+        (venue_id, name, json.dumps(rows or []), json.dumps(warns or []),
+         json.dumps(notes or []), sort_order))
+    db.commit()
+    system_id = cur.lastrowid
+    db.close()
+    return system_id
+
+
+def update_venue_system(system_id, data):
+    db = get_db()
+    fields = []
+    values = []
+    if 'name' in data:
+        fields.append('name=?')
+        values.append(data['name'])
+    if 'sort_order' in data:
+        fields.append('sort_order=?')
+        values.append(data['sort_order'])
+    for key, col in [('rows', 'rows_json'), ('warns', 'warns_json'), ('notes', 'notes_json')]:
+        if key in data:
+            fields.append(f'{col}=?')
+            values.append(json.dumps(data[key]))
+    if fields:
+        fields.append("updated_at=datetime('now')")
+        values.append(system_id)
+        db.execute(f'UPDATE venue_systems SET {",".join(fields)} WHERE id=?', values)
+        db.commit()
+    db.close()
+
+
+def delete_venue_system(system_id):
+    db = get_db()
+    db.execute('DELETE FROM venue_systems WHERE id=?', (system_id,))
+    db.commit()
+    db.close()
 
 
 # ══════════════════════════════════

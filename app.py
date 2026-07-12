@@ -197,7 +197,9 @@ def tasks():
 def home_page():
     user = auth.current_user()
     is_admin = bool(user and user.get('role') == 'admin')
-    return render_template('home.html', is_admin=is_admin)
+    return render_template('home.html', is_admin=is_admin,
+                            staff_data=models.get_venues_nested('staff'),
+                            guest_data=models.get_venues_nested('guest'))
 
 # ══════════════════════════════════
 # DOCUMENTS (riders, system guides, network diagrams, budget/incident PDFs)
@@ -257,6 +259,14 @@ def tools_page(name):
 def admin_users_page():
     return render_template('admin_users.html', users=models.list_users(),
                             invites=models.get_pending_invites())
+
+@app.route('/admin/venues')
+@admin_required
+def admin_venues_page():
+    venues = models.list_venues()
+    for v in venues:
+        v['systems'] = models.list_venue_systems(v['id'])
+    return render_template('admin_venues.html', active='admin_venues', venues=venues)
 
 # ══════════════════════════════════
 # API — SHOWS
@@ -642,6 +652,104 @@ def api_kb_search():
     if not q:
         return jsonify([])
     return jsonify(models.search_kb_pages(q))
+
+# ══════════════════════════════════
+# VENUE FACT DB (Home page STAFF/GUEST editor)
+# ══════════════════════════════════
+
+@app.route('/api/venues', methods=['POST'])
+@admin_required
+def api_create_venue():
+    data = request.get_json() or {}
+    mode = data.get('mode')
+    name = str(data.get('name', '')).strip()[:100]
+    if mode not in ('staff', 'guest') or not name:
+        return jsonify({'error': 'mode (staff/guest) and name are required'}), 400
+    venue_id = models.create_venue(mode, name, str(data.get('description', ''))[:300],
+                                    int(data.get('sort_order', 0)))
+    return jsonify({'status': 'created', 'id': venue_id}), 201
+
+@app.route('/api/venues/<int:venue_id>', methods=['PUT'])
+@admin_required
+def api_update_venue(venue_id):
+    data = request.get_json() or {}
+    update = {}
+    if 'name' in data:
+        update['name'] = str(data['name']).strip()[:100]
+    if 'description' in data:
+        update['description'] = str(data['description'])[:300]
+    if 'sort_order' in data:
+        update['sort_order'] = int(data['sort_order'])
+    models.update_venue(venue_id, update)
+    return jsonify({'status': 'updated'})
+
+@app.route('/api/venues/<int:venue_id>', methods=['DELETE'])
+@admin_required
+def api_delete_venue(venue_id):
+    models.delete_venue(venue_id)
+    return jsonify({'status': 'deleted'})
+
+def _parse_rows_text(text):
+    """'Label: Value' per line -> [[label, value], ...]"""
+    rows = []
+    for line in str(text or '').split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        if ':' in line:
+            label, value = line.split(':', 1)
+            rows.append([label.strip(), value.strip()])
+        else:
+            rows.append([line, ''])
+    return rows
+
+def _parse_list_text(text):
+    """One item per line -> [item, ...]"""
+    return [l.strip() for l in str(text or '').split('\n') if l.strip()]
+
+@app.route('/api/venues/<int:venue_id>/systems', methods=['POST'])
+@admin_required
+def api_create_venue_system(venue_id):
+    data = request.get_json() or {}
+    name = str(data.get('name', '')).strip()[:100]
+    if not name:
+        return jsonify({'error': 'name is required'}), 400
+    rows = data['rows'] if isinstance(data.get('rows'), list) else _parse_rows_text(data.get('rows_text', ''))
+    warns = data['warns'] if isinstance(data.get('warns'), list) else _parse_list_text(data.get('warns_text', ''))
+    notes = data['notes'] if isinstance(data.get('notes'), list) else _parse_list_text(data.get('notes_text', ''))
+    system_id = models.create_venue_system(venue_id, name, rows, warns, notes,
+                                            int(data.get('sort_order', 0)))
+    return jsonify({'status': 'created', 'id': system_id}), 201
+
+@app.route('/api/venue-systems/<int:system_id>', methods=['PUT'])
+@admin_required
+def api_update_venue_system(system_id):
+    data = request.get_json() or {}
+    update = {}
+    if 'name' in data:
+        update['name'] = str(data['name']).strip()[:100]
+    if 'sort_order' in data:
+        update['sort_order'] = int(data['sort_order'])
+    if 'rows' in data and isinstance(data['rows'], list):
+        update['rows'] = data['rows']
+    elif 'rows_text' in data:
+        update['rows'] = _parse_rows_text(data['rows_text'])
+    if 'warns' in data and isinstance(data['warns'], list):
+        update['warns'] = data['warns']
+    elif 'warns_text' in data:
+        update['warns'] = _parse_list_text(data['warns_text'])
+    if 'notes' in data and isinstance(data['notes'], list):
+        update['notes'] = data['notes']
+    elif 'notes_text' in data:
+        update['notes'] = _parse_list_text(data['notes_text'])
+    models.update_venue_system(system_id, update)
+    return jsonify({'status': 'updated'})
+
+@app.route('/api/venue-systems/<int:system_id>', methods=['DELETE'])
+@admin_required
+def api_delete_venue_system(system_id):
+    models.delete_venue_system(system_id)
+    return jsonify({'status': 'deleted'})
 
 # ══════════════════════════════════
 # INIT

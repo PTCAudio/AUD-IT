@@ -50,6 +50,10 @@ td:last-child{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15.5px
 #jessQ{flex:1;background:#1c1c1c;border:1px solid #333;border-radius:6px;color:#fff;padding:8px 10px;font-size:14.5px}
 #jessSend{background:var(--red);color:#fff;border:none;border-radius:6px;padding:0 14px;cursor:pointer;font-weight:700}
 #jessSend:disabled{opacity:.5;cursor:default}
+/* Search box + Ask Jess hidden for now — dialing in relevance was eating
+   time better spent on the foundation. Code left intact underneath so it's
+   a one-line revert (delete this rule) rather than a rebuild. */
+#q,#jessBtn,#jessPanel{display:none !important}
 </style></head><body>
 <div id="top"><b>PTC <span class="r">AUDIO</span></b><span style="color:#888;font-size:13px">department home · The Phoenix Theatre Company</span>
 <div id="mode"><div id="mStaff" onclick="setMode('staff')">STAFF</div><div id="mGuest" onclick="setMode('guest')">GUEST</div></div></div>
@@ -126,63 +130,14 @@ async function jessAsk(){const inp=document.getElementById('jessQ');const q=inp.
  document.getElementById('jessSend').disabled=false}
 </script>
 <script>
-const F=(rows,warns,notes)=>({rows,warns:warns||[],notes:notes||[]});
-/* ===== STAFF fact DB (internal — full detail incl. warnings) ===== */
-const STAFF={
-"Stephenson":{_d:"Mainstage · 96 kHz · PM5",
- "Console — PM5":F([["Console","RIVAGE PM5 (CS-R5) + DSP-RX-EX · Theatre Mode · 96k · fw V7.00"],["Surface","10.18.11.49"],["DSP engine","10.18.11.40 · Unit ID 1"],["HY1 (96k I/O)","10.18.10.28 / 10.18.24.28 · gw 10.18.10.5"],["HY3 (SRC)","10.18.10.27 / 10.18.24.27"],["HY4 (records)","10.18.10.33 / 10.18.24.33"],["iPad","console's own Wi-Fi 192.168.53.x"]],
- ["DSP-RX-EX crashed twice 2026-07-09, ERR X16 MEMORY ERROR — cause disputed, active Yamaha ticket (Jeremy Satchell), no mirror engine."]),
- "Stage boxes":F([["FOH","Rio3224-D · Y005"],["Band 1 / 2","Rio3224-D2 · Y007 10.18.10.103 / Y008 .104"],["Amp room","Rio1608-D2 · Y009 · 10.18.10.102 (only 1608 in building)"]]),
- "PA & amps":F([["Mains/center/subs/fills","ARC A15 ×4 · KS21 ×4 · 5xt ×10 · 8xti"],["Amp bank ER1","AMP-1001-1008 on Luminex AVB (ASW-1007)"],["LA4X 1-4 ctl","10.18.11.155 / .152 / .153 / .154 (not in order)"],["LA2Xi 5-6 ctl","10.18.11.186 / .187"],["LA4X 7-8 ctl","10.18.11.188 / .189"],["Drive DSP","AuviTran AVBx7 · 10.18.11.88"],["Chain","PM5 → Dante → AuviTran → AVB 96k → amps"]],
- ["AuviTran in/out direction has an open flag — check dante-device-register before rewiring."]),
- "Computers":F([["QLab Mac","11.208 / Dante 10.208 / comms 16.208"],["VST Mac","11.207 / Dante 10.207"],["Nuendo PC","10.18.10.202"],["WWB Mac","10.18.10.204"],["Designer laptop","10.18.11.216 (reserved)"]]),
- "Video":F([["Projector (rear)","Christie Crimson WU31 · 31,500 lm"],["Conductor cam","SDI → Blackmagic 40×40 Videohub (basement, lives here)"],["Cam destinations","off-SL/SR · FOH · BOH L+R · SM rack — never lobby"],["BM 5″/7″ monitors","in practice Stephenson gear"]],
- ["SDI→Q-SYS hop for BOH TVs untraced — follow the cable from the Videohub."])},
-"Hormel":{_d:"48 kHz · CL5",
- "Console — CL5":F([["Dante","10.18.10.2"],["Mixer control","10.18.11.32"],["Device control","10.18.10.98"]]),
- "Stage boxes":F([["Rio3224-D ×2","Band + FOH (only 2 physical — register's 4 entries incl. 2 phantoms)"]]),
- "PA & amps":F([["Main PA amps","house LA4X ×4 — no network control (off-network ≠ off), register .142-.145 stale"],["Subs","SB18 ×2"],["Booth amp","Amp-6001 QSC CX-Q 4K8 · 10.18.10.189"],["NOT here","AMP-2001/2002 QSC = Stephenson paging (corrected 2026-07-09)"]],
- ["LIFE-SAFETY: Q-SYS fire-mute targets the LA4Xs over a network they're not on — no working fire-mute on Hormel PA. Escalated."]),
- "QLab / computers":F([["QLab audio","M1 Mac Mini · QLab 4.7"],["QLab video","Mac Pro · QLab 5 — separate machines"],["Show control","MSC via MIDI/Focusrite, not VLAN 12"]]),
- "Switches":F([["FOH pair","really ASW-1020/1021 (10.18.1.40/.41) — stickers say 1014/1015"],["Booth pair","true ASW-1014/1015 · 10.18.1.34/.35"],["Band rack","ASW-1018/1019 · Dante 1-11 · Ctl 12-21"],["WWB ports","booth 19-36 · FOH 31-40 · band 12-21"]],
- ["Trust mgmt IPs, not stickers. FOH relabel still pending."])},
-"Hardes":{_d:"Cabaret · island network",
- "System":F([["Console","CL5 (own)"],["Stage I/O","Rio3224-D + TIO1608-D (moved from Hormel, 2026-07)"],["Network","fully isolated — 10.18.x reuse vs main net is harmless"],["Wireless","Sennheiser SK5000 ×3 · 5212 ×13 · EM 3732 ×6"],["Comms","legacy Clear-Com partyline"],["QLab","Mac Mini (M2 Pro)"]])},
-"RF & Comms":{_d:"Shared dept systems",
- "Shure Axient":F([["Receivers","AD4Q ×13 = 52 ch · Y021-Y033 · Dante 10.18.10.50-.62"],["Control","10.18.10.70-.82 · WWB via VLAN 11 zone"],["Packs / HH","ADX1M ×52 · ADX2 ×4 (Les Mis wants 5 — short 1)"],["Coordination","AXT600 10.18.10.83 · UA845UWB · 4-zone combiner"]],
- ["ASW-1012: WLS-1001-1004 ctrl ports are VLAN 10 not 11 — those need a 10.18.10.x laptop.","Slots ≠ channels: 8 registered TX per channel; ACTIVATE passes one, RF-mutes the rest."]),
- "Comms — Arcadia":F([["Station","Arcadia 'Neptune' · web/CCM + AES67 both at 10.18.16.30"],["Redundancy","both LAN legs on ASW-1003 (p1 + p11) — same-switch SPOF"],["Roster","75 devices · labels = per-show roles, not hardware"]])},
-"Network":{_d:"VLANs · IPs · access",
- "VLAN map":F([["1 switch mgmt","10.18.1.0/24 · 22× Catalyst 1300"],["10 Dante pri","10.18.10.0/24"],["11 audio ctl/WWB","10.18.11.0/24"],["12 interdept OSC","10.18.12.0/24"],["13 lighting","10.18.13.0/24"],["16 comms","10.18.16.0/24 (+17, +52)"],["24 Dante sec","10.18.24.0/24"],["video/display","10.200.151.0/24 (Visionary Solutions)"]],
- ["Pure L2, no routing. Free picks (ping first): 10.18.11.50 · 10.18.10.170 · 10.18.16.200 · 10.18.24.200 · designer 10.18.11.216."]),
- "Q-SYS / building":F([["Core","DSP-1001 · Core 110f · 10.18.10.150 (ER1)"],["Does","paging/program · ALS · amp panels · lobby+BOH TV switching"],["Fire mute","1 building-wide NC contact → latch → 4 zone controls"],["Lobby TVs","VS decoders DEC-1001-1004 · program audio via Q-SYS zones"]],
- ["Fire mute: Stephenson path lands on live amps; Hormel path confirmed dead."])}};
-/* ===== GUEST fact DB (sanitized designer view) ===== */
-const GUEST={
-"Stephenson":{_d:"Mainstage · 96 kHz · Rivage PM5",
- "Console":F([["Console","Yamaha RIVAGE PM5 (CS-R5) + DSP-RX-EX"],["Capacity (DSP-RX-EX)","288 inputs · 60 mix · 36 matrix"],["Sample rate / mode","96 kHz · Theatre Mode"],["Wireless patching","every RF channel arrives on two redundant Dante paths"],["Ext. FX","Yamaha VST Rack (Bricasti reverbs)"],["Virtual soundcheck","Nuendo"],["iPad mixing","console's own Wi-Fi"]],[],
- ["Designer laptop drop: a reserved static IP on the control network gets you console remote + Wireless Workbench — ask and we'll set you up."]),
- "Stage I/O":F([["FOH","Rio3224-D"],["Pit band","Rio3224-D2 ×2"],["Amp room","Rio1608-D2"],["All I/O","Dante @ 96k, redundant"]]),
- "PA & monitors":F([["Mains / center","L-Acoustics ARC A15 ×4"],["Subs","KS21 ×4"],["Front fills","5xt ×10"],["Amps","LA4X / LA2Xi bank, AVB-fed"],["System drive","AuviTran AVBx7"],["Band monitoring","A&H ME-1 personal mixers (24) via ME-U hub"]]),
- "Playback":F([["QLab","dedicated Mac, QLab 5, Dante"],["VST Rack","dedicated Mac"],["Virtual soundcheck","Nuendo PC, full multitrack"]])},
-"Hormel":{_d:"Second stage · 48 kHz · CL5",
- "Console":F([["Console","Yamaha CL5 · 48 kHz"],["iPad mixing","CL StageMix"]]),
- "Stage I/O":F([["Stage boxes","Rio3224-D ×2 (Band + FOH), Dante redundant"]]),
- "PA & monitors":F([["Amplification","L-Acoustics LA4X ×4 (house bank)"],["Subs","SB18 ×2"],["Band monitoring","ME-1 via ME-U hub (shared stock)"]]),
- "Playback":F([["QLab audio","Mac Mini — QLab 4.7"],["QLab video","separate Mac Pro — QLab 5"],["Show control","MIDI (MSC) to lighting"]],[],
- ["Two QLab machines, two versions — build audio for 4.7, video for 5."])},
-"Hardes":{_d:"Cabaret space · CL5",
- "System":F([["Console","Yamaha CL5"],["Stage I/O","Rio3224-D + TIO1608-D"],["Wireless","Sennheiser: SK5000 ×3 · 5212 packs ×13 · EM 3732 ×6"],["Comms","wired Clear-Com partyline"],["Playback","Mac Mini (QLab)"],["Network","self-contained"]])},
-"RF & Comms":{_d:"Shared systems",
- "Wireless mics":F([["System","Shure Axient Digital · AD4Q ×13 = 52 channels"],["Bodypacks","ADX1M ×52 (LEMO)"],["Handhelds","ADX2 ×4"],["Lavs","Countryman B6 (tan/cocoa) · DPA 4099 kit w/ clips"],["Coordination","AXT600 + Wireless Workbench"]]),
- "Comms":F([["System","Clear-Com Arcadia (both main venues)"],["Wired","HelixNet panels + keypanels"],["Wireless","FreeSpeak II beltpacks (46)"]])},
-"Network":{_d:"Getting connected",
- "For visiting designers":F([["Control network","gets you WWB · console remote · comms programming"],["Dante network","for Dante Controller — ask for a drop"],["Your laptop","a reserved static IP is waiting — ask on arrival"]],[],
- ["Static IPs only, no DHCP. Please check with audio staff before plugging into any rack switch — ports are zoned."])},
-"Video (shared pool)":{_d:"Projectors float between spaces",
- "Projectors":F([["Christie Crimson WU31","31,500 lm · WUXGA"],["Christie DWU-2400JS ×2","23,750 lm laser"],["Christie DWU-1800JS","17,800 lm laser"],["Christie DWU-880A-GS","9,500 lm laser"],["Small format","Epson G5950 · InFocus ×3"],["Lenses","Jazz zoom/short/UST · Crimson UST · ILS1"]],[],
- ["No projector has a fixed home — advance your throw/placement needs early."]),
- "Infrastructure":F([["Routing","Blackmagic 40×40 SDI Videohub (Stephenson)"],["Conversion","BM HDMI↔SDI converters (28)"],["Monitors","BM 5-inch ×17 · 7-inch ×1 — in practice Stephenson gear"],["Cameras","Sony HXR-MC2500 ×5 · Marshall CV346"]])}};
+/* STAFF/GUEST venue fact data is now database-backed (venues + venue_systems
+   tables, editable at /admin/venues) rather than hardcoded here — server
+   injects the exact same nested shape the rendering code below already
+   expects, so sec()/venue()/card()/home() need zero changes. The original
+   hardcoded snapshot this was seeded from lives in seed_data/*.json and in
+   git history if it's ever needed for reference. */
+const STAFF = {{ staff_data|tojson }};
+const GUEST = {{ guest_data|tojson }};
 /* ===== documents / tools / procedures (staff unless noted) ===== */
 const DOCS=[
  ["Riders (external-ready)",[["Stephenson Audio System Rider v1.2","/docs/Riders/Stephenson_Audio_System_Rider_v1.2.pdf",1],["Hormel Audio System Rider v1.0","/docs/Riders/Hormel_Audio_System_Rider_v1.0.pdf",1]]],
@@ -197,7 +152,7 @@ const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
 // passes along Microsoft/Tallie credentials, it's just a bookmark.
 const ADMIN=[["Outlook Mail","https://outlook.cloud.microsoft/mail/"],["Tallie Expense Reports","https://usetallie.com/x9/Expense/Tile"]];
 // Infra/admin-only links — only shown to admin accounts.
-const ADMIN_ONLY=[["Manage Users","/admin/users"],["Render Dashboard","https://dashboard.render.com/"],["Chrome Remote Desktop","https://remotedesktop.google.com/access/"]];
+const ADMIN_ONLY=[["Manage Users","/admin/users"],["Manage Venue Data","/admin/venues"],["Render Dashboard","https://dashboard.render.com/"],["Chrome Remote Desktop","https://remotedesktop.google.com/access/"]];
 const TOOLS=[["Task Manager","/tasks"],["Knowledge Base","/kb"],["Inventory","/tools/inventory"],["QuoteBuilder","/tools/quotebuilder"],["Season Calendar","/tools/season-calendar"],["CL5 Patch Generator","/tools/cl5-patch-generator"],["Lens Throw Calculator","/tools/lens-throw-calculator"]];
 /* ===== app ===== */
 const COLORS={venues:'#E82C2A',tools:'#2C9BE8',admin:'#C9A227',docs:'#E8892C'};

@@ -1,0 +1,336 @@
+{
+  "Stephenson": {
+    "_d": "Mainstage · 96 kHz · Rivage PM5",
+    "Console": {
+      "rows": [
+        [
+          "Console",
+          "Yamaha RIVAGE PM5 (CS-R5) + DSP-RX-EX"
+        ],
+        [
+          "Capacity (DSP-RX-EX)",
+          "288 inputs · 60 mix · 36 matrix"
+        ],
+        [
+          "Sample rate / mode",
+          "96 kHz · Theatre Mode"
+        ],
+        [
+          "Wireless patching",
+          "every RF channel arrives on two redundant Dante paths"
+        ],
+        [
+          "Ext. FX",
+          "Yamaha VST Rack (Bricasti reverbs)"
+        ],
+        [
+          "Virtual soundcheck",
+          "Nuendo"
+        ],
+        [
+          "iPad mixing",
+          "console's own Wi-Fi"
+        ]
+      ],
+      "warns": [],
+      "notes": [
+        "Designer laptop drop: a reserved static IP on the control network gets you console remote + Wireless Workbench — ask and we'll set you up."
+      ]
+    },
+    "Stage I/O": {
+      "rows": [
+        [
+          "FOH",
+          "Rio3224-D"
+        ],
+        [
+          "Pit band",
+          "Rio3224-D2 ×2"
+        ],
+        [
+          "Amp room",
+          "Rio1608-D2"
+        ],
+        [
+          "All I/O",
+          "Dante @ 96k, redundant"
+        ]
+      ],
+      "warns": [],
+      "notes": []
+    },
+    "PA & monitors": {
+      "rows": [
+        [
+          "Mains / center",
+          "L-Acoustics ARC A15 ×4"
+        ],
+        [
+          "Subs",
+          "KS21 ×4"
+        ],
+        [
+          "Front fills",
+          "5xt ×10"
+        ],
+        [
+          "Amps",
+          "LA4X / LA2Xi bank, AVB-fed"
+        ],
+        [
+          "System drive",
+          "AuviTran AVBx7"
+        ],
+        [
+          "Band monitoring",
+          "A&H ME-1 personal mixers (24) via ME-U hub"
+        ]
+      ],
+      "warns": [],
+      "notes": []
+    },
+    "Playback": {
+      "rows": [
+        [
+          "QLab",
+          "dedicated Mac, QLab 5, Dante"
+        ],
+        [
+          "VST Rack",
+          "dedicated Mac"
+        ],
+        [
+          "Virtual soundcheck",
+          "Nuendo PC, full multitrack"
+        ]
+      ],
+      "warns": [],
+      "notes": []
+    }
+  },
+  "Hormel": {
+    "_d": "Second stage · 48 kHz · CL5",
+    "Console": {
+      "rows": [
+        [
+          "Console",
+          "Yamaha CL5 · 48 kHz"
+        ],
+        [
+          "iPad mixing",
+          "CL StageMix"
+        ]
+      ],
+      "warns": [],
+      "notes": []
+    },
+    "Stage I/O": {
+      "rows": [
+        [
+          "Stage boxes",
+          "Rio3224-D ×2 (Band + FOH), Dante redundant"
+        ]
+      ],
+      "warns": [],
+      "notes": []
+    },
+    "PA & monitors": {
+      "rows": [
+        [
+          "Amplification",
+          "L-Acoustics LA4X ×4 (house bank)"
+        ],
+        [
+          "Subs",
+          "SB18 ×2"
+        ],
+        [
+          "Band monitoring",
+          "ME-1 via ME-U hub (shared stock)"
+        ]
+      ],
+      "warns": [],
+      "notes": []
+    },
+    "Playback": {
+      "rows": [
+        [
+          "QLab audio",
+          "Mac Mini — QLab 4.7"
+        ],
+        [
+          "QLab video",
+          "separate Mac Pro — QLab 5"
+        ],
+        [
+          "Show control",
+          "MIDI (MSC) to lighting"
+        ]
+      ],
+      "warns": [],
+      "notes": [
+        "Two QLab machines, two versions — build audio for 4.7, video for 5."
+      ]
+    }
+  },
+  "Hardes": {
+    "_d": "Cabaret space · CL5",
+    "System": {
+      "rows": [
+        [
+          "Console",
+          "Yamaha CL5"
+        ],
+        [
+          "Stage I/O",
+          "Rio3224-D + TIO1608-D"
+        ],
+        [
+          "Wireless",
+          "Sennheiser: SK5000 ×3 · 5212 packs ×13 · EM 3732 ×6"
+        ],
+        [
+          "Comms",
+          "wired Clear-Com partyline"
+        ],
+        [
+          "Playback",
+          "Mac Mini (QLab)"
+        ],
+        [
+          "Network",
+          "self-contained"
+        ]
+      ],
+      "warns": [],
+      "notes": []
+    }
+  },
+  "RF & Comms": {
+    "_d": "Shared systems",
+    "Wireless mics": {
+      "rows": [
+        [
+          "System",
+          "Shure Axient Digital · AD4Q ×13 = 52 channels"
+        ],
+        [
+          "Bodypacks",
+          "ADX1M ×52 (LEMO)"
+        ],
+        [
+          "Handhelds",
+          "ADX2 ×4"
+        ],
+        [
+          "Lavs",
+          "Countryman B6 (tan/cocoa) · DPA 4099 kit w/ clips"
+        ],
+        [
+          "Coordination",
+          "AXT600 + Wireless Workbench"
+        ]
+      ],
+      "warns": [],
+      "notes": []
+    },
+    "Comms": {
+      "rows": [
+        [
+          "System",
+          "Clear-Com Arcadia (both main venues)"
+        ],
+        [
+          "Wired",
+          "HelixNet panels + keypanels"
+        ],
+        [
+          "Wireless",
+          "FreeSpeak II beltpacks (46)"
+        ]
+      ],
+      "warns": [],
+      "notes": []
+    }
+  },
+  "Network": {
+    "_d": "Getting connected",
+    "For visiting designers": {
+      "rows": [
+        [
+          "Control network",
+          "gets you WWB · console remote · comms programming"
+        ],
+        [
+          "Dante network",
+          "for Dante Controller — ask for a drop"
+        ],
+        [
+          "Your laptop",
+          "a reserved static IP is waiting — ask on arrival"
+        ]
+      ],
+      "warns": [],
+      "notes": [
+        "Static IPs only, no DHCP. Please check with audio staff before plugging into any rack switch — ports are zoned."
+      ]
+    }
+  },
+  "Video (shared pool)": {
+    "_d": "Projectors float between spaces",
+    "Projectors": {
+      "rows": [
+        [
+          "Christie Crimson WU31",
+          "31,500 lm · WUXGA"
+        ],
+        [
+          "Christie DWU-2400JS ×2",
+          "23,750 lm laser"
+        ],
+        [
+          "Christie DWU-1800JS",
+          "17,800 lm laser"
+        ],
+        [
+          "Christie DWU-880A-GS",
+          "9,500 lm laser"
+        ],
+        [
+          "Small format",
+          "Epson G5950 · InFocus ×3"
+        ],
+        [
+          "Lenses",
+          "Jazz zoom/short/UST · Crimson UST · ILS1"
+        ]
+      ],
+      "warns": [],
+      "notes": [
+        "No projector has a fixed home — advance your throw/placement needs early."
+      ]
+    },
+    "Infrastructure": {
+      "rows": [
+        [
+          "Routing",
+          "Blackmagic 40×40 SDI Videohub (Stephenson)"
+        ],
+        [
+          "Conversion",
+          "BM HDMI↔SDI converters (28)"
+        ],
+        [
+          "Monitors",
+          "BM 5-inch ×17 · 7-inch ×1 — in practice Stephenson gear"
+        ],
+        [
+          "Cameras",
+          "Sony HXR-MC2500 ×5 · Marshall CV346"
+        ]
+      ],
+      "warns": [],
+      "notes": []
+    }
+  }
+}

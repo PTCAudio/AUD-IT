@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+audit_suite.db
+audit_suite.db-wal
+audit_suite.db-shm
