@@ -11,7 +11,8 @@ import os
 import json
 import html as html_lib
 from flask import (Flask, request, jsonify, render_template,
-                   redirect, url_for, session, send_file, Response)
+                   redirect, url_for, session, send_file, Response, send_from_directory,
+                   abort)
 from dotenv import load_dotenv
 import models
 import auth
@@ -197,6 +198,22 @@ def home_page():
     user = auth.current_user()
     is_admin = bool(user and user.get('role') == 'admin')
     return render_template('home.html', is_admin=is_admin)
+
+# ══════════════════════════════════
+# DOCUMENTS (riders, system guides, network diagrams, budget/incident PDFs)
+# Served behind login from docs/ — never a public static path.
+# ══════════════════════════════════
+
+DOCS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
+
+@app.route('/docs/<path:filepath>')
+@login_required
+def docs_file(filepath):
+    # send_from_directory already blocks path traversal (rejects '..' etc.)
+    full_path = os.path.join(DOCS_DIR, filepath)
+    if not os.path.isfile(full_path):
+        abort(404)
+    return send_from_directory(DOCS_DIR, filepath)
 
 # ══════════════════════════════════
 # STANDALONE TOOLS (ported from local single-file HTML apps)
