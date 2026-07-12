@@ -11,7 +11,7 @@ import os
 import json
 import html as html_lib
 from flask import (Flask, request, jsonify, render_template,
-                   redirect, url_for, session, send_file)
+                   redirect, url_for, session, send_file, Response)
 from dotenv import load_dotenv
 import models
 import auth
@@ -203,23 +203,37 @@ def home_page():
 # Served behind login, not as static assets, so they're not publicly reachable.
 # ══════════════════════════════════
 
-TOOL_TEMPLATES = {
-    'inventory': 'tools/inventory.html',
-    'quotebuilder': 'tools/quotebuilder.html',
-    'season-calendar': 'tools/season-calendar.html',
-    'lens-throw-calculator': 'tools/lens-throw-calculator.html',
-    'cl5-patch-generator': 'tools/cl5-patch-generator.html',
+TOOL_FILES = {
+    'inventory': 'inventory.html',
+    'quotebuilder': 'quotebuilder.html',
+    'season-calendar': 'season-calendar.html',
+    'lens-throw-calculator': 'lens-throw-calculator.html',
+    'cl5-patch-generator': 'cl5-patch-generator.html',
 }
+# Only inventory.html actually needs Jinja (for the IS_ADMIN flag).
+TOOLS_NEEDING_JINJA = {'inventory'}
 
 @app.route('/tools/<name>')
 @login_required
 def tools_page(name):
-    template = TOOL_TEMPLATES.get(name)
-    if not template:
+    filename = TOOL_FILES.get(name)
+    if not filename:
         return render_template('token_invalid.html', reason='tool not found'), 404
-    user = auth.current_user()
-    is_admin = bool(user and user.get('role') == 'admin')
-    return render_template(template, is_admin=is_admin)
+
+    if name in TOOLS_NEEDING_JINJA:
+        user = auth.current_user()
+        is_admin = bool(user and user.get('role') == 'admin')
+        return render_template(f'tools/{filename}', is_admin=is_admin)
+
+    # These are static single-file apps with no template variables — serve
+    # raw, bypassing Jinja entirely. Minified CSS in files like this often
+    # contains a media-query close brace immediately followed by an ID
+    # selector, e.g. "}{#layout{...}", which Jinja misreads as an
+    # unterminated {# comment #} block and 500s on. Not worth the risk when
+    # nothing here actually needs templating.
+    path = os.path.join(app.root_path, 'templates', 'tools', filename)
+    with open(path, encoding='utf-8') as f:
+        return Response(f.read(), mimetype='text/html')
 
 @app.route('/admin/users')
 @admin_required
