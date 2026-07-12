@@ -21,9 +21,23 @@ def get_db():
     return db
 
 
+def _migrate_old_inventory_schema_if_needed(db):
+    """The original inventory_items table was a placeholder shape that no
+    route ever wrote to (confirmed: nothing in app.py calls get_all_items/
+    create_item/etc.) — it doesn't match what the real Inventory tool
+    actually stores. Safe to drop and let the real schema below recreate
+    it fresh, with zero data-loss risk. Detected by checking for a column
+    ('cat'-adjacent 'subcategory') that only exists in the new shape."""
+    cols = [r['name'] for r in db.execute("PRAGMA table_info(inventory_items)").fetchall()]
+    if cols and 'subcategory' not in cols:
+        db.execute('DROP TABLE IF EXISTS inventory_items')
+        db.commit()
+
+
 def init_db():
     """Create all tables if they don't exist."""
     db = get_db()
+    _migrate_old_inventory_schema_if_needed(db)
     db.executescript('''
         -- ══════════════════════════════════
         -- SHARED
@@ -47,23 +61,56 @@ def init_db():
 
         -- ══════════════════════════════════
         -- INVENTORY
+        -- Schema mirrors the real fields the Inventory tool actually uses
+        -- (verified against templates/tools/inventory.html's saveItem()),
+        -- not the earlier placeholder shape — that version was never
+        -- written to by any route, so no migration/data-loss risk here.
+        -- The tool itself still runs on localStorage; this table is DB-side
+        -- prep for a future cutover, plus soft-delete support.
         -- ══════════════════════════════════
         CREATE TABLE IF NOT EXISTS inventory_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            qty INTEGER NOT NULL DEFAULT 1,
+            line INTEGER DEFAULT 0,
+            qty INTEGER NOT NULL DEFAULT 0,
             make TEXT NOT NULL DEFAULT '',
             model TEXT NOT NULL DEFAULT '',
             description TEXT DEFAULT '',
             category TEXT DEFAULT '',
-            status TEXT NOT NULL DEFAULT 'Available',
+            subcategory TEXT DEFAULT '',
+            cost REAL DEFAULT 0,
+            serial TEXT DEFAULT '',
+            ip TEXT DEFAULT '',
             location TEXT DEFAULT '',
-            unit_cost REAL DEFAULT 0,
-            notes TEXT DEFAULT '',
-            image TEXT DEFAULT '',
-            service_url TEXT DEFAULT '',
-            show_allocations TEXT DEFAULT '{}',
+            audit_notes TEXT DEFAULT '',
+            units_json TEXT DEFAULT '{}',
+            unit_details_json TEXT DEFAULT '{}',
+            deleted_at TEXT DEFAULT '',
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
+        );
+
+        -- Per-show allocation of an inventory item (qty + notes), one row
+        -- per item/show pair. show_id references shows.id but isn't
+        -- declared as a hard FK since shows can be deleted independently.
+        CREATE TABLE IF NOT EXISTS inventory_item_shows (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+            show_id TEXT NOT NULL,
+            qty INTEGER DEFAULT 0,
+            notes TEXT DEFAULT '',
+            UNIQUE(item_id, show_id)
+        );
+
+        -- Per-space (Stephenson/Hormel/Hardes) allocation of an inventory
+        -- item. Spaces are a small fixed set defined client-side (SPACES in
+        -- inventory.html), not their own DB table.
+        CREATE TABLE IF NOT EXISTS inventory_item_spaces (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+            space_id TEXT NOT NULL,
+            qty INTEGER DEFAULT 0,
+            notes TEXT DEFAULT '',
+            UNIQUE(item_id, space_id)
         );
 
         -- ══════════════════════════════════
@@ -246,6 +293,10 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_kb_section ON kb_pages(section);
         CREATE INDEX IF NOT EXISTS idx_venues_mode ON venues(mode);
         CREATE INDEX IF NOT EXISTS idx_venue_systems_venue ON venue_systems(venue_id);
+        CREATE INDEX IF NOT EXISTS idx_inv_deleted ON inventory_items(deleted_at);
+        CREATE INDEX IF NOT EXISTS idx_inv_category ON inventory_items(category);
+        CREATE INDEX IF NOT EXISTS idx_inv_item_shows_item ON inventory_item_shows(item_id);
+        CREATE INDEX IF NOT EXISTS idx_inv_item_spaces_item ON inventory_item_spaces(item_id);
     ''')
     db.commit()
     db.close()
@@ -668,35 +719,68 @@ def delete_venue_system(system_id):
 
 # ══════════════════════════════════
 # INVENTORY CRUD
+# Field names mirror templates/tools/inventory.html's saveItem() exactly
+# (desc/cat/subcat/cost/serial/ip/loc/auditNotes, units/details keyed by
+# SK=['available','inuse','broken','repair','retired','unknown'], plus
+# separate per-show and per-space allocation tables). This is DB-side prep
+# only — the live tool still reads/writes localStorage; nothing here is
+# wired to a route yet.
 # ══════════════════════════════════
 
-def get_all_items():
+def _row_to_item(row):
+    d = dict(row)
+    d['units'] = json.loads(d.pop('units_json') or '{}')
+    d['unit_details'] = json.loads(d.pop('unit_details_json') or '{}')
+    return d
+
+
+def list_items(include_deleted=False):
     db = get_db()
-    rows = db.execute('SELECT * FROM inventory_items ORDER BY id').fetchall()
+    if include_deleted:
+        rows = db.execute('SELECT * FROM inventory_items ORDER BY line, id').fetchall()
+    else:
+        rows = db.execute("SELECT * FROM inventory_items WHERE deleted_at='' ORDER BY line, id").fetchall()
     db.close()
-    return [dict(r) for r in rows]
+    return [_row_to_item(r) for r in rows]
 
 
-def get_item(item_id):
+def list_deleted_items():
+    """For a future 'Recently Deleted' recovery view."""
+    db = get_db()
+    rows = db.execute("SELECT * FROM inventory_items WHERE deleted_at!='' ORDER BY deleted_at DESC").fetchall()
+    db.close()
+    return [_row_to_item(r) for r in rows]
+
+
+def get_item(item_id, include_deleted=True):
     db = get_db()
     row = db.execute('SELECT * FROM inventory_items WHERE id=?', (item_id,)).fetchone()
     db.close()
-    return dict(row) if row else None
+    if not row:
+        return None
+    if not include_deleted and row['deleted_at']:
+        return None
+    return _row_to_item(row)
 
 
 def create_item(data):
     db = get_db()
-    db.execute('''INSERT INTO inventory_items
-        (qty, make, model, description, category, status, location, unit_cost, notes, image, service_url, show_allocations)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
-        (data.get('qty', 1), data.get('make', ''), data.get('model', ''),
-         data.get('description', ''), data.get('category', ''),
-         data.get('status', 'Available'), data.get('location', ''),
-         data.get('unit_cost', 0), data.get('notes', ''),
-         data.get('image', ''), data.get('service_url', ''),
-         json.dumps(data.get('show_allocations', {}))))
+    cur = db.execute('''INSERT INTO inventory_items
+        (line, qty, make, model, description, category, subcategory, cost,
+         serial, ip, location, audit_notes, units_json, unit_details_json)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+        (data.get('line', 0), data.get('qty', 0), data.get('make', ''), data.get('model', ''),
+         data.get('description', data.get('desc', '')), data.get('category', data.get('cat', '')),
+         data.get('subcategory', data.get('subcat', '')), data.get('cost', 0) or 0,
+         data.get('serial', ''), data.get('ip', ''), data.get('location', data.get('loc', '')),
+         data.get('audit_notes', data.get('auditNotes', '')),
+         json.dumps(data.get('units', {})), json.dumps(data.get('unit_details', data.get('details', {})))))
     db.commit()
-    item_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+    item_id = cur.lastrowid
+    if 'show_allocations' in data:
+        set_item_shows(item_id, data['show_allocations'])
+    if 'space_allocations' in data:
+        set_item_spaces(item_id, data['space_allocations'])
     db.close()
     return item_id
 
@@ -705,25 +789,103 @@ def update_item(item_id, data):
     db = get_db()
     fields = []
     values = []
-    for key in ['qty', 'make', 'model', 'description', 'category', 'status',
-                'location', 'unit_cost', 'notes', 'image', 'service_url']:
-        if key in data:
-            fields.append(f'{key}=?')
-            values.append(data[key])
-    if 'show_allocations' in data:
-        fields.append('show_allocations=?')
-        values.append(json.dumps(data['show_allocations']))
+    field_map = {
+        'line': 'line', 'qty': 'qty', 'make': 'make', 'model': 'model',
+        'description': 'description', 'desc': 'description',
+        'category': 'category', 'cat': 'category',
+        'subcategory': 'subcategory', 'subcat': 'subcategory',
+        'cost': 'cost', 'serial': 'serial', 'ip': 'ip',
+        'location': 'location', 'loc': 'location',
+        'audit_notes': 'audit_notes', 'auditNotes': 'audit_notes',
+    }
+    for js_key, db_key in field_map.items():
+        if js_key in data:
+            fields.append(f'{db_key}=?')
+            values.append(data[js_key])
+    if 'units' in data:
+        fields.append('units_json=?')
+        values.append(json.dumps(data['units']))
+    if 'unit_details' in data or 'details' in data:
+        fields.append('unit_details_json=?')
+        values.append(json.dumps(data.get('unit_details', data.get('details', {}))))
     if fields:
         fields.append("updated_at=datetime('now')")
         values.append(item_id)
         db.execute(f'UPDATE inventory_items SET {",".join(fields)} WHERE id=?', values)
         db.commit()
     db.close()
+    if 'show_allocations' in data:
+        set_item_shows(item_id, data['show_allocations'])
+    if 'space_allocations' in data:
+        set_item_spaces(item_id, data['space_allocations'])
 
 
-def delete_item(item_id):
+def soft_delete_item(item_id):
+    """Mark an item deleted without removing it, so it can be restored."""
     db = get_db()
+    db.execute("UPDATE inventory_items SET deleted_at=datetime('now') WHERE id=?", (item_id,))
+    db.commit()
+    db.close()
+
+
+def restore_item(item_id):
+    """Undo a soft-delete."""
+    db = get_db()
+    db.execute("UPDATE inventory_items SET deleted_at='' WHERE id=?", (item_id,))
+    db.commit()
+    db.close()
+
+
+def purge_item(item_id):
+    """Permanent hard delete — only for actually clearing out old soft-deleted rows."""
+    db = get_db()
+    db.execute('DELETE FROM inventory_item_shows WHERE item_id=?', (item_id,))
+    db.execute('DELETE FROM inventory_item_spaces WHERE item_id=?', (item_id,))
     db.execute('DELETE FROM inventory_items WHERE id=?', (item_id,))
+    db.commit()
+    db.close()
+
+
+def get_item_shows(item_id):
+    db = get_db()
+    rows = db.execute('SELECT show_id, qty, notes FROM inventory_item_shows WHERE item_id=?', (item_id,)).fetchall()
+    db.close()
+    return {r['show_id']: {'qty': r['qty'], 'notes': r['notes']} for r in rows}
+
+
+def set_item_shows(item_id, show_map):
+    """Replace all per-show allocations for an item with the given
+    {show_id: {'qty':int,'notes':str}} map."""
+    db = get_db()
+    db.execute('DELETE FROM inventory_item_shows WHERE item_id=?', (item_id,))
+    for show_id, v in (show_map or {}).items():
+        qty = v.get('qty', 0) if isinstance(v, dict) else v
+        notes = v.get('notes', '') if isinstance(v, dict) else ''
+        if qty or notes:
+            db.execute('INSERT INTO inventory_item_shows (item_id, show_id, qty, notes) VALUES (?,?,?,?)',
+                       (item_id, show_id, qty, notes))
+    db.commit()
+    db.close()
+
+
+def get_item_spaces(item_id):
+    db = get_db()
+    rows = db.execute('SELECT space_id, qty, notes FROM inventory_item_spaces WHERE item_id=?', (item_id,)).fetchall()
+    db.close()
+    return {r['space_id']: {'qty': r['qty'], 'notes': r['notes']} for r in rows}
+
+
+def set_item_spaces(item_id, space_map):
+    """Replace all per-space allocations for an item with the given
+    {space_id: {'qty':int,'notes':str}} map."""
+    db = get_db()
+    db.execute('DELETE FROM inventory_item_spaces WHERE item_id=?', (item_id,))
+    for space_id, v in (space_map or {}).items():
+        qty = v.get('qty', 0) if isinstance(v, dict) else v
+        notes = v.get('notes', '') if isinstance(v, dict) else ''
+        if qty or notes:
+            db.execute('INSERT INTO inventory_item_spaces (item_id, space_id, qty, notes) VALUES (?,?,?,?)',
+                       (item_id, space_id, qty, notes))
     db.commit()
     db.close()
 
@@ -1058,14 +1220,10 @@ def get_last_modified():
 
 def export_all():
     """Export all data as a dict for JSON backup."""
-    items = get_all_items()
-    # Parse show_allocations back to dict
+    items = list_items(include_deleted=True)
     for item in items:
-        if isinstance(item.get('show_allocations'), str):
-            try:
-                item['show_allocations'] = json.loads(item['show_allocations'])
-            except:
-                item['show_allocations'] = {}
+        item['show_allocations'] = get_item_shows(item['id'])
+        item['space_allocations'] = get_item_spaces(item['id'])
 
     journal = get_all_journal()
     for entry in journal:
@@ -1088,31 +1246,45 @@ def export_all():
 
 
 def import_inventory(data):
-    """Import inventory items from legacy JSON backup."""
+    """Import inventory items from a JSON backup (either this app's own
+    /api/backup export, or the Inventory tool's legacy localStorage export
+    shape — field names are matched defensively across both)."""
     db = get_db()
     # Clear existing
+    db.execute('DELETE FROM inventory_item_shows')
+    db.execute('DELETE FROM inventory_item_spaces')
     db.execute('DELETE FROM inventory_items')
     db.execute('DELETE FROM shows')
     db.execute('DELETE FROM categories')
+    db.commit()
+    db.close()
 
-    # Import items
-    items = data.get('items', [])
+    # Import items (uses create_item so show/space allocations get inserted
+    # into their own tables via the normal helper functions)
+    items = data.get('items', data.get('inventory', []))
     for item in items:
-        alloc = item.get('showAllocations', item.get('show_allocations', {}))
-        db.execute('''INSERT INTO inventory_items
-            (qty, make, model, description, category, status, location, unit_cost, notes, image, service_url, show_allocations)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
-            (item.get('qty', 1), item.get('make', ''), item.get('model', ''),
-             item.get('desc', item.get('description', '')),
-             item.get('cat', item.get('category', '')),
-             item.get('status', 'Available'),
-             item.get('loc', item.get('location', '')),
-             item.get('cost', item.get('unit_cost', 0)),
-             item.get('notes', ''),
-             item.get('img', item.get('image', '')),
-             item.get('svc', item.get('service_url', '')),
-             json.dumps(alloc if isinstance(alloc, dict) else {})))
+        show_alloc = item.get('showQty') or item.get('showAllocations') or item.get('show_allocations') or {}
+        space_alloc = item.get('spaceQty') or item.get('spaceAllocations') or item.get('space_allocations') or {}
+        create_item({
+            'line': item.get('line', 0),
+            'qty': item.get('qty', 0),
+            'make': item.get('make', ''),
+            'model': item.get('model', ''),
+            'desc': item.get('desc', item.get('description', '')),
+            'cat': item.get('cat', item.get('category', '')),
+            'subcat': item.get('subcat', item.get('subcategory', '')),
+            'cost': item.get('cost', 0) or 0,
+            'serial': item.get('serial', ''),
+            'ip': item.get('ip', ''),
+            'loc': item.get('loc', item.get('location', '')),
+            'auditNotes': item.get('auditNotes', item.get('audit_notes', '')),
+            'units': item.get('units', {}),
+            'details': item.get('details', item.get('unit_details', {})),
+            'show_allocations': show_alloc if isinstance(show_alloc, dict) else {},
+            'space_allocations': space_alloc if isinstance(space_alloc, dict) else {},
+        })
 
+    db = get_db()
     # Import shows
     shows = data.get('shows', [])
     for show in shows:
