@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CL5 Patch Change Generator — PTC Audio</title>
+<style>
+  :root{
+    --red:#E82C2A;
+    --black:#0a0a0a;
+    --ink:#eee;
+    --paper:#1c1c1c;
+    --grey:#111111;
+    --dim:#999;
+    --border:#333;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--grey);color:var(--ink)}
+  header{background:var(--black);color:#fff;padding:18px 28px;display:flex;align-items:baseline;gap:14px;border-bottom:4px solid var(--red)}
+  header .mark{background:var(--red);color:#fff;font-weight:800;padding:4px 10px;letter-spacing:1px;font-size:15px}
+  header h1{font-size:19px;margin:0;font-weight:600}
+  header .sub{color:#aaa;font-size:12.5px;margin-left:auto}
+  main{max-width:880px;margin:26px auto;padding:0 20px;display:grid;gap:18px}
+  .card{background:var(--paper);border:1px solid var(--border);border-radius:10px;padding:20px 22px}
+  .card h2{margin:0 0 14px;font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--red)}
+  .row{display:flex;flex-wrap:wrap;gap:18px}
+  .field{display:flex;flex-direction:column;gap:5px;min-width:150px;flex:1}
+  .field label{font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+  select,input[type=text]{font-size:16px;padding:9px 10px;border:1.5px solid var(--border);border-radius:7px;background:#262626;color:var(--ink)}
+  select:focus,input:focus{outline:none;border-color:var(--red)}
+  .out{font-family:var(--mono);font-size:15px;background:var(--black);color:#fff;padding:13px 14px;border-radius:8px;display:flex;align-items:center;gap:10px;word-break:break-all}
+  .out.qlab{background:#181818;color:var(--ink);border:2px solid var(--red)}
+  .out .lbl{font-family:inherit;font-size:10.5px;color:var(--red);font-weight:700;letter-spacing:1px;white-space:nowrap}
+  .out code{flex:1}
+  button{font-size:13px;font-weight:700;padding:8px 14px;border:none;border-radius:7px;cursor:pointer;background:var(--red);color:#fff;white-space:nowrap}
+  button.ghost{background:transparent;color:var(--red);border:1.5px solid var(--red)}
+  button:active{transform:scale(.97)}
+  .plain{font-size:14px;color:var(--dim);margin:8px 0 0}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--border)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim)}
+  td code{font-family:var(--mono);font-size:13px}
+  .del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px;padding:2px 6px}
+  .del:hover{color:var(--red)}
+  .notes p{margin:6px 0;font-size:14px;line-height:1.5}
+  .notes b{color:var(--ink)}
+  .swatches{display:flex;gap:8px;flex-wrap:wrap;padding:4px 0}
+  .sw{width:38px;height:38px;border-radius:8px;border:2.5px solid transparent;cursor:pointer;position:relative;padding:0}
+  .sw.sel{border-color:#fff;box-shadow:0 0 0 2px var(--black) inset}
+  .sw span{position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--dim);white-space:nowrap}
+  .sw.off{background:repeating-linear-gradient(45deg,#333,#333 4px,#222 4px,#222 8px)}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--black);color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;border-left:4px solid var(--red)}
+  .toast.show{opacity:1}
+  footer{text-align:center;color:var(--dim);font-size:12px;padding:10px 0 30px}
+</style>
+</head>
+<body>
+<header>
+  <span class="mark">PTC</span>
+  <h1>CL5 Patch Change Generator</h1>
+  <span class="sub">QLab &rarr; MIDI SysEx &rarr; Yamaha CL5 &middot; input patch</span>
+</header>
+<main>
+
+  <div class="card">
+    <h2>Build the cue</h2>
+    <div class="row">
+      <div class="field" style="max-width:170px">
+        <label for="param">Parameter</label>
+        <select id="param">
+          <option value="patch">Input patch</option>
+          <option value="color">Channel color</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="ch">Input channel (1&ndash;72)</label>
+        <select id="ch"></select>
+      </div>
+      <div class="field" style="flex:2" id="patchField">
+        <label for="patch">Patch source</label>
+        <select id="patch"></select>
+      </div>
+      <div class="field" style="flex:2;display:none" id="colorField">
+        <label>Color</label>
+        <div id="swatches" class="swatches"></div>
+      </div>
+      <div class="field" style="max-width:130px">
+        <label for="dev">Device no.</label>
+        <select id="dev"></select>
+      </div>
+    </div>
+    <p class="plain" id="describe"></p>
+  </div>
+
+  <div class="card">
+    <h2>Output</h2>
+    <div class="out qlab">
+      <span class="lbl">QLAB SYSEX</span><code id="qlabHex"></code>
+      <button onclick="copyText('qlabHex','QLab string copied')">Copy</button>
+    </div>
+    <p class="plain">Paste into a QLab MIDI cue set to <b>SysEx</b> &mdash; QLab adds the F0/F7 wrapper itself.</p>
+    <div class="out" style="margin-top:12px">
+      <span class="lbl">FULL SYSEX</span><code id="fullHex"></code>
+      <button class="ghost" style="border-color:#555;color:#ccc" onclick="copyText('fullHex','Full SysEx copied')">Copy</button>
+    </div>
+    <p class="plain" style="margin-top:14px">
+      <button class="ghost" onclick="addToList()">+ Add to cue sheet</button>
+      &nbsp; <b>Enter</b> = copy QLab string &middot; <b>&#8984;/Ctrl+Enter</b> = add to cue sheet
+    </p>
+  </div>
+
+  <div class="card" id="listCard" style="display:none">
+    <h2>Cue sheet</h2>
+    <table id="list"><thead><tr><th>#</th><th>Repatch</th><th>QLab string</th><th></th></tr></thead><tbody></tbody></table>
+    <p class="plain">
+      <button onclick="copyAll()">Copy all strings</button>
+      <button class="ghost" onclick="exportSheet()">Download as text file</button>
+    </p>
+  </div>
+
+  <div class="card notes">
+    <h2>CL5 setup (one-time)</h2>
+    <p>On the console: <b>SETUP &rarr; MIDI/GPI &rarr; MIDI</b></p>
+    <p>&bull; Set MIDI mode to <b>NRPN</b></p>
+    <p>&bull; Set <b>Parameter Change &rarr; Rx</b> so the desk accepts incoming changes</p>
+    <p>&bull; Device number here must match the console's MIDI device/channel setting (default 1 &rarr; "10" byte)</p>
+    <p style="color:var(--dim)">Message anatomy: <code style="font-family:var(--mono)">43 1n 3E 19 01 &lt;element&times;2&gt; &lt;index&times;2&gt; &lt;ch&times;2&gt; &lt;data&times;5&gt;</code> &mdash; Yamaha CL parameter change. Element <b>01 14</b> = input patch, <b>01 1E</b> (index 00 01) = channel color.</p>
+    <p style="color:var(--dim)">Color numbers follow the CL Editor picker order (Blue=0 &hellip; Off=8). Blue/Orange are field-confirmed by other CL users; sanity-check the rest against your desk the first time you use them.</p>
+  </div>
+
+</main>
+<footer>Phoenix Theatre Company &middot; Audio Dept &middot; based on "CL5 NRPN patch generator v2.xls"</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+const PATCHES={0:"NONE",1:"DANTE1",2:"DANTE2",3:"DANTE3",4:"DANTE4",5:"DANTE5",6:"DANTE6",7:"DANTE7",8:"DANTE8",9:"DANTE9",10:"DANTE10",11:"DANTE11",12:"DANTE12",13:"DANTE13",14:"DANTE14",15:"DANTE15",16:"DANTE16",17:"DANTE17",18:"DANTE18",19:"DANTE19",20:"DANTE20",21:"DANTE21",22:"DANTE22",23:"DANTE23",24:"DANTE24",25:"DANTE25",26:"DANTE26",27:"DANTE27",28:"DANTE28",29:"DANTE29",30:"DANTE30",31:"DANTE31",32:"DANTE32",33:"DANTE33",34:"DANTE34",35:"DANTE35",36:"DANTE36",37:"DANTE37",38:"DANTE38",39:"DANTE39",40:"DANTE40",41:"DANTE41",42:"DANTE42",43:"DANTE43",44:"DANTE44",45:"DANTE45",46:"DANTE46",47:"DANTE47",48:"DANTE48",49:"DANTE49",50:"DANTE50",51:"DANTE51",52:"DANTE52",53:"DANTE53",54:"DANTE54",55:"DANTE55",56:"DANTE56",57:"DANTE57",58:"DANTE58",59:"DANTE59",60:"DANTE60",61:"DANTE61",62:"DANTE62",63:"DANTE63",64:"DANTE64",65:"OMNI1",66:"OMNI2",67:"OMNI3",68:"OMNI4",69:"OMNI5",70:"OMNI6",71:"OMNI7",72:"OMNI8",73:"PB OUT L",74:"PB OUT R",75:"SLOT1 1",76:"SLOT1 2",77:"SLOT1 3",78:"SLOT1 4",79:"SLOT1 5",80:"SLOT1 6",81:"SLOT1 7",82:"SLOT1 8",83:"SLOT1 9",84:"SLOT1 10",85:"SLOT1 11",86:"SLOT1 12",87:"SLOT1 13",88:"SLOT1 14",89:"SLOT1 15",90:"SLOT1 16",91:"SLOT2 1",92:"SLOT2 2",93:"SLOT2 3",94:"SLOT2 4",95:"SLOT2 5",96:"SLOT2 6",97:"SLOT2 7",98:"SLOT2 8",99:"SLOT2 9",100:"SLOT2 10",101:"SLOT2 11",102:"SLOT2 12",103:"SLOT2 13",104:"SLOT2 14",105:"SLOT2 15",106:"SLOT2 16",107:"SLOT3 1",108:"SLOT3 2",109:"SLOT3 3",110:"SLOT3 4",111:"SLOT3 5",112:"SLOT3 6",113:"SLOT3 7",114:"SLOT3 8",115:"SLOT3 9",116:"SLOT3 10",117:"SLOT3 11",118:"SLOT3 12",119:"SLOT3 13",120:"SLOT3 14",121:"SLOT3 15",122:"SLOT3 16"};
+const GROUPS=[["Dante",1,64],["Omni (analog)",65,72],["Playback",73,74],["Slot 1",75,90],["Slot 2",91,106],["Slot 3",107,122],["None",0,0]];
+const COLORS=["Blue","Orange","Yellow","Purple","Cyan","Magenta","Red","Green","Off"];
+const HEXCOL=["#2f6fed","#f5871f","#f2d21f","#8e44e8","#1fc4e8","#e84fc4","#e82c2a","#33c24d",""];
+const chSel=document.getElementById('ch'),pSel=document.getElementById('patch'),dSel=document.getElementById('dev'),
+      prmSel=document.getElementById('param');
+let colorVal=0;
+for(let i=1;i<=72;i++)chSel.add(new Option('CH '+i,i));
+GROUPS.forEach(([g,a,b])=>{const og=document.createElement('optgroup');og.label=g;
+  for(let i=a;i<=b;i++)og.appendChild(new Option(PATCHES[i]+'  ('+i+')',i));pSel.appendChild(og);});
+const swBox=document.getElementById('swatches');
+COLORS.forEach((c,i)=>{
+  const b=document.createElement('button');
+  b.type='button';b.className='sw'+(i===8?' off':'');b.title=c+' ('+i+')';
+  if(i<8)b.style.background=HEXCOL[i];
+  b.innerHTML='<span>'+c+'</span>';
+  b.onclick=()=>{colorVal=i;[...swBox.children].forEach((x,j)=>x.classList.toggle('sel',j===i));build();};
+  swBox.appendChild(b);
+});
+swBox.children[0].classList.add('sel');
+for(let i=1;i<=16;i++)dSel.add(new Option(i,i-1));
+chSel.value=1;pSel.value=1;dSel.value=0;
+
+const h=v=>v.toString(16).toUpperCase().padStart(2,'0');
+// Yamaha CL parameter change: F0 43 1n 3E 19 01 [el_h el_l] [idx_h idx_l] [ch_h ch_l] [5 data] F7
+const PARAMS={
+  patch:{el:[0x01,0x14],idx:[0x00,0x00],val:()=>+pSel.value,desc:()=>'patches input CH '+chSel.value+' to '+PATCHES[+pSel.value],short:()=>'CH '+chSel.value+' → '+PATCHES[+pSel.value]},
+  color:{el:[0x01,0x1E],idx:[0x00,0x01],val:()=>colorVal,desc:()=>'sets CH '+chSel.value+' color to '+COLORS[colorVal],short:()=>'CH '+chSel.value+' color → '+COLORS[colorVal]}
+};
+function build(){
+  const P=PARAMS[prmSel.value], ch=chSel.value-1, v=P.val(), dev=0x10|(+dSel.value);
+  document.getElementById('patchField').style.display=prmSel.value==='patch'?'':'none';
+  document.getElementById('colorField').style.display=prmSel.value==='color'?'':'none';
+  const b=[0xF0,0x43,dev,0x3E,0x19,0x01,...P.el,...P.idx,
+           (ch>>7)&0x7F,ch&0x7F,
+           0x00,0x00,0x00,(v>>7)&0x7F,v&0x7F,0xF7];
+  document.getElementById('fullHex').textContent=b.map(h).join(' ');
+  document.getElementById('qlabHex').textContent=b.slice(1,-1).map(h).join(' ');
+  document.getElementById('describe').textContent=
+    'This cue '+P.desc()+(+dSel.value?' (device '+(+dSel.value+1)+')':'')+'.';
+}
+[chSel,pSel,dSel,prmSel].forEach(e=>e.addEventListener('input',build));build();
+
+const rows=[];
+function addToList(){
+  rows.push({desc:PARAMS[prmSel.value].short(),q:document.getElementById('qlabHex').textContent});
+  render();
+}
+function render(){
+  document.getElementById('listCard').style.display=rows.length?'':'none';
+  const tb=document.querySelector('#list tbody');tb.innerHTML='';
+  rows.forEach((r,i)=>{const tr=document.createElement('tr');
+    tr.innerHTML='<td>'+(i+1)+'</td><td>'+r.desc+'</td><td><code>'+r.q+'</code></td>'+
+    '<td><button class="del" onclick="rows.splice('+i+',1);render()">&times;</button></td>';tb.appendChild(tr);});
+}
+function copyText(id,msg){navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>toast(msg));}
+function copyAll(){navigator.clipboard.writeText(rows.map((r,i)=>(i+1)+'. '+r.desc+'\t'+r.q).join('\n')).then(()=>toast('Cue sheet copied'));}
+function exportSheet(){
+  const txt='PTC Audio — CL5 patch change cue sheet\nGenerated '+new Date().toLocaleString()+'\n\n'+
+    rows.map((r,i)=>(i+1)+'. '+r.desc+'\n   QLab SysEx: '+r.q).join('\n\n')+'\n';
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));
+  a.download='CL5_patch_cues.txt';a.click();
+}
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  e.preventDefault();
+  if(e.metaKey||e.ctrlKey){addToList();toast('Added to cue sheet');}
+  else copyText('qlabHex','QLab string copied');
+});
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1400);}
+</script>
+</body>
+</html>

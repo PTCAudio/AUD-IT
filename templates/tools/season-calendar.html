@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PTC 26-27 Season Calendar</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+  :root { --bg:#0c0c0f; --surface:#16161a; --surface2:#1e1e24; --border:#2a2a32; --text:#e0e0e6; --text-dim:#8888a0; --accent:#ff6b35; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  .header { padding:24px 32px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .header h1 { font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; color:var(--accent); letter-spacing:-0.5px; }
+  .header .subtitle { font-size:13px; color:var(--text-dim); }
+  .controls { padding:12px 32px; display:flex; gap:8px; flex-wrap:wrap; border-bottom:1px solid var(--border); align-items:center; }
+  .controls label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text-dim); margin-right:4px; }
+  .filter-btn { padding:4px 10px; border:1px solid var(--border); border-radius:4px; background:transparent; color:var(--text-dim); font-size:12px; font-family:'DM Sans',sans-serif; cursor:pointer; transition:all 0.15s; }
+  .filter-btn:hover { border-color:var(--text-dim); color:var(--text); }
+  .filter-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(255,107,53,0.08); }
+  .show-chip { padding:4px 10px; border-radius:4px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid; transition:all 0.15s; opacity:0.4; }
+  .show-chip.active { opacity:1; }
+  .show-chip:hover { opacity:0.85; }
+  .view-toggle { margin-left:auto; display:flex; gap:4px; }
+  .content { padding:16px 32px 48px; }
+  .year-divider { font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--accent); padding:20px 0 4px; border-bottom:2px solid var(--accent); margin-bottom:12px; opacity:0.7; }
+  .year-divider:first-child { padding-top:0; }
+  .month-group { margin-bottom:24px; }
+  .month-label { font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:var(--text); padding:8px 0; border-bottom:1px solid var(--border); margin-bottom:8px; position:sticky; top:0; background:var(--bg); z-index:10; }
+  .month-label .ml-year { color:var(--text-dim); font-weight:400; margin-left:6px; font-size:12px; }
+  .event-row { display:grid; grid-template-columns:80px 1fr; gap:12px; padding:5px 0; border-bottom:1px solid rgba(42,42,50,0.4); align-items:start; }
+  .event-date { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:var(--text-dim); padding-top:2px; }
+  .event-date .ed-dow { font-size:10px; font-weight:400; color:rgba(136,136,160,0.6); }
+  .event-items { display:flex; flex-direction:column; gap:3px; }
+  .event-item { display:inline-flex; align-items:baseline; gap:8px; font-size:13px; line-height:1.4; }
+  .event-show-tag { font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; padding:1px 6px; border-radius:3px; white-space:nowrap; flex-shrink:0; }
+  .event-desc { color:var(--text); }
+  .dept-tag { font-size:10px; font-weight:600; padding:1px 5px; border-radius:2px; background:rgba(255,255,255,0.06); color:var(--text-dim); margin-left:4px; }
+  .event-row.past-event { opacity:0.35; }
+  .event-row.today-event { background:rgba(255,107,53,0.06); border-left:3px solid var(--accent); padding-left:8px; }
+  .cal-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+  .cal-month-card { background:var(--surface); border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+  .cal-month-header { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; padding:8px 12px; background:var(--surface2); color:var(--accent); border-bottom:1px solid var(--border); }
+  .cal-month-body { padding:8px 12px; }
+  .cal-day { display:grid; grid-template-columns:28px 1fr; gap:6px; padding:3px 0; border-bottom:1px solid rgba(42,42,50,0.3); font-size:12px; }
+  .cal-day-num { font-family:'JetBrains Mono',monospace; font-weight:600; color:var(--text-dim); }
+  .cal-day-events { display:flex; flex-direction:column; gap:2px; }
+  .cal-evt { display:flex; gap:4px; align-items:baseline; }
+  .cal-evt-tag { font-family:'JetBrains Mono',monospace; font-size:9px; font-weight:700; padding:0 4px; border-radius:2px; white-space:nowrap; }
+  .cal-evt-text { font-size:11px; color:var(--text); line-height:1.3; }
+  .cal-month-card.past-month { opacity:0.45; }
+  .empty-state { text-align:center; padding:48px; color:var(--text-dim); font-size:14px; }
+  @media(max-width:600px) { .header,.controls,.content { padding-left:16px; padding-right:16px; } .event-row { grid-template-columns:60px 1fr; gap:8px; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>PTC 26–27 SEASON</h1>
+  <span class="subtitle">Important Dates — All Productions</span>
+</div>
+<div class="controls" id="controls"></div>
+<div class="content" id="content"></div>
+<script>
+const SHOWS = [
+  {id:"lesmis",name:"Les Misérables",short:"LMS",color:"#94a3b8",bg:"rgba(148,163,184,0.12)"},
+  {id:"murder",name:"Murder for Two",short:"M42",color:"#c084fc",bg:"rgba(192,132,252,0.12)"},
+  {id:"suffs",name:"Suffs",short:"SUF",color:"#a78bfa",bg:"rgba(167,139,250,0.12)"},
+  {id:"gala",name:"Gala",short:"GLA",color:"#fbbf24",bg:"rgba(251,191,36,0.12)"},
+  {id:"poppins",name:"Mary Poppins",short:"POP",color:"#6bcb77",bg:"rgba(107,203,119,0.12)"},
+  {id:"nwf",name:"New Works Fest",short:"NWF",color:"#d4d4d8",bg:"rgba(212,212,216,0.12)"},
+  {id:"churchill",name:"Churchill/Roosevelt",short:"CHR",color:"#4ecdc4",bg:"rgba(78,205,196,0.12)"},
+  {id:"unlocked",name:"Unlocked",short:"UNL",color:"#22d3ee",bg:"rgba(34,211,238,0.12)"},
+  {id:"spamalot",name:"Spamalot",short:"SPM",color:"#f97316",bg:"rgba(249,115,22,0.12)"},
+  {id:"sweeney",name:"Sweeney Todd",short:"SWT",color:"#ef4444",bg:"rgba(239,68,68,0.12)"},
+  {id:"stagemother",name:"Stage Mother",short:"STM",color:"#38bdf8",bg:"rgba(56,189,248,0.12)"},
+  {id:"camp",name:"Camp",short:"CMP",color:"#86efac",bg:"rgba(134,239,172,0.12)"},
+  {id:"kimbo",name:"Kimberly A Kimbo",short:"KIM",color:"#ffd93d",bg:"rgba(255,217,61,0.12)"},
+  {id:"blonde",name:"Legally Blonde",short:"LGB",color:"#ff69b4",bg:"rgba(255,105,180,0.12)"},
+  {id:"fantasticks",name:"Fantasticks",short:"FAN",color:"#ff6b6b",bg:"rgba(255,107,107,0.12)"},
+  {id:"tba_s",name:"TBA Stephenson",short:"TBA-S",color:"#737373",bg:"rgba(115,115,115,0.12)"},
+  {id:"tba_h",name:"TBA Hormel",short:"TBA-H",color:"#525252",bg:"rgba(82,82,82,0.12)"},
+];
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_IDX={};MONTHS.forEach((m,i)=>MONTH_IDX[m]=i);
+const TODAY=new Date();
+const TODAY_KEY=TODAY.getFullYear()*10000+(TODAY.getMonth()+1)*100+TODAY.getDate();
+
+function parseDept(desc){
+  const d=desc.toLowerCase(),tags=[];
+  if(/\bscenic\b/.test(d))tags.push("scenic");
+  if(/\bcostume/.test(d))tags.push("costumes");
+  if(/\bprop/.test(d))tags.push("props");
+  if(/\blight/.test(d))tags.push("lighting");
+  if(/\bsound\b|\bconsole\b|\bqlab\b/.test(d))tags.push("sound");
+  if(/\baudio\b/.test(d))tags.push("audio");
+  if(/\bvideo\b/.test(d))tags.push("video");
+  if(/\bmakeup\b/.test(d))tags.push("makeup");
+  if(/\bhair\b|\bwig/.test(d))tags.push("hair/wigs");
+  if(/\bsm\b/.test(d)&&/prep|take/i.test(d))tags.push("sm");
+  if(/rehearsal|tech|dress|preview|open|clos|designer run|band|sitz|wandel|meet|strike|load.in|focus|spacing|gala|camp|new works/i.test(d))tags.push("production");
+  if(!tags.length)tags.push("production");
+  return tags;
+}
+
+const EVENTS=[];
+function add(showId,year,data){
+  data.forEach(e=>{
+    EVENTS.push({show:showId,year,month:e.month,day:e.day,dayEnd:e.dayEnd||null,desc:e.desc,depts:parseDept(e.desc),sortKey:year*10000+(MONTH_IDX[e.month]+1)*100+e.day});
+  });
+}
+
+// ── LES MISÉRABLES ── Jul 7–12 tech week updated 2026-07-07 per Karla Frederick's
+// "Tech schedule Change Les Mis" email (12:45pm) — overall tech week (Jul 8-12) and
+// Jul 17 opening unchanged; day-by-day detail replaced below. A more detailed schedule
+// from "Sam" was promised but not yet received.
+add("lesmis",2026,[
+  {month:"Jan",day:15,desc:"Scenic/Costume: Prelim Design Conversation"},
+  {month:"Feb",day:11,desc:"Scenic: Prelim ground plan/Skeleton drawings/Scene by Scene Due; Director/Choreo: Cast breakdown"},
+  {month:"Mar",day:4,desc:"Scenic/Props: Final ground plan/Skeleton drawings/Scene by Scene Due"},
+  {month:"Mar",day:6,desc:"Props: Prelim prop list approval due"},
+  {month:"Mar",day:18,desc:"Scenic/Props: Prelim drafting package due"},
+  {month:"Apr",day:1,desc:"Scenic: Final build drawings & paint elevations due; Props: Final furniture drawings & paint elevations due"},
+  {month:"May",day:11,desc:"Lighting: Prelim light plot due; Makeup/Hair/Wigs: Design Concepts/Prelim Plot Due"},
+  {month:"May",day:25,desc:"Lighting: Final plot due"},
+  {month:"Jun",day:1,desc:"Costume: Rental Package Arrive"},
+  {month:"Jun",day:8,desc:"SM Prep Week Starts; Sound: Console Schedule/cue list/qlab file Due"},
+  {month:"Jun",day:15,desc:"Scenic/Lighting: Strike & load in starts"},
+  {month:"Jun",day:16,desc:"Rehearsals Begin"},
+  {month:"Jun",day:22,desc:"Sound: Console File Due"},
+  {month:"Jun",day:23,desc:"PR Photos 11:00–1:00"},
+  {month:"Jun",day:24,dayEnd:26,desc:"LX rental equipment onsite"},
+  {month:"Jun",day:27,desc:"Sound: Design Script due"},
+  {month:"Jun",day:28,desc:"Designer Run; Costumes/Makeup: Final actor pieces list and makeup plots due"},
+  {month:"Jun",day:30,desc:"Lighting Focus/Designer Run"},
+  {month:"Jul",day:1,desc:"Lighting Focus/Designer Run"},
+  {month:"Jul",day:2,desc:"Designer Run"},
+  {month:"Jul",day:3,desc:"1st band rehearsal 7–10pm"},
+  {month:"Jul",day:5,desc:"Designer Run / 2nd band rehearsal 7–10pm"},
+  {month:"Jul",day:6,desc:"3rd band rehearsal 7–10pm"},
+  {month:"Jul",day:7,desc:"Sweep/mop 6:00pm; Cast on stage 7:00pm for spacing (safety walk-thru first); Hair/Wigs: Final Plot/Reference Photos Due — tech schedule change per Karla Frederick, 2026-07-07 (was SM Takeover 10:00)"},
+  {month:"Jul",day:8,desc:"Sweep/mop 5:00pm; Cast on stage 6:00pm — TECH STARTS; actors rung out top of tech once in costume — tech schedule change per Karla Frederick, 2026-07-07"},
+  {month:"Jul",day:9,desc:"10 of 12: sweep/mop 10:00am for an 11:00am start, ends 11:00pm — tech schedule change per Karla Frederick, 2026-07-07"},
+  {month:"Jul",day:10,desc:"10 of 12: sweep/mop 10:00am for an 11:00am start, ends 11:00pm — tech schedule change per Karla Frederick, 2026-07-07"},
+  {month:"Jul",day:11,desc:"Sitz 2:00pm–10:00pm — tech schedule change per Karla Frederick, 2026-07-07 (was part of the 8-of-10 tech block)"},
+  {month:"Jul",day:12,desc:"10 of 12: sweep/mop 10:00am for an 11:00am start, ends 11:00pm — tech schedule change per Karla Frederick, 2026-07-07 (First Dress w/ orchestra was previously slated here; not confirmed under the new plan, pending detailed schedule from Sam)"},
+  {month:"Jul",day:14,desc:"Final Dress"},
+  {month:"Jul",day:15,desc:"Preview; Wigs: Maintenance Photos and Information Due"},
+  {month:"Jul",day:16,desc:"2nd Preview"},
+  {month:"Jul",day:17,desc:"OPEN; Costumes/Hair/Wigs/Makeup: All Understudy Materials due by 5pm"},
+  {month:"Oct",day:18,desc:"CLOSE"},
+]);
+
+// ── MURDER FOR TWO ── Opens Aug 28, 2026
+add("murder",2026,[
+  {month:"Jun",day:1,desc:"Scenic: Prelim ground plan/Skeleton drawings Due"},
+  {month:"Jun",day:15,desc:"Scenic/Props: Final ground plan Due; Costumes: Prelim costume plot due/sketches"},
+  {month:"Jun",day:17,desc:"Props: Prelim prop list approval due"},
+  {month:"Jun",day:29,desc:"Scenic/Props: Prelim drafting package due; Costumes: Final Design Due"},
+  {month:"Jul",day:13,desc:"Scenic/Props: Final build drawings due; Video: Prelim video system design due; Sound: Prelim cue list due; Lighting: Prelim light plot due"},
+  {month:"Jul",day:27,desc:"Video: Final video system design due; Lighting: Final plot due; Makeup/Hair/Wigs: Design Concepts Due; Sound: console schedule/cue list/qlab file Due; SM Prep Week Starts"},
+  {month:"Aug",day:3,desc:"Scenic/Lighting: Strike & load in starts"},
+  {month:"Aug",day:4,desc:"Rehearsals Begin; Video: Prelim video content due"},
+  {month:"Aug",day:10,desc:"Sound: Console file Due"},
+  {month:"Aug",day:15,desc:"Sound: Design Script Due"},
+  {month:"Aug",day:16,desc:"Designer Run; Costumes/Makeup: Final actor pieces list due"},
+  {month:"Aug",day:18,desc:"Lighting: Focus; Hair/Wigs: Final Plot Due; Video: Final video content due; Designer Run"},
+  {month:"Aug",day:19,desc:"SM takeover/Spacing on stage"},
+  {month:"Aug",day:20,desc:"Rehearsal on stage/Sitz"},
+  {month:"Aug",day:21,dayEnd:23,desc:"TECH (3) 8 of 10s"},
+  {month:"Aug",day:25,desc:"Final Dress"},
+  {month:"Aug",day:26,desc:"Preview"},
+  {month:"Aug",day:27,desc:"2nd Preview"},
+  {month:"Aug",day:28,desc:"OPEN"},
+  {month:"Sep",day:20,desc:"CLOSE"},
+]);
+
+// ── SUFFS ── Opens Oct 16, 2026
+add("suffs",2026,[
+  {month:"Jun",day:3,desc:"Scenic: Prelim ground plan/Skeleton drawings Due; Director/Choreo: Cast breakdown"},
+  {month:"Jun",day:17,desc:"Scenic/Props: Final ground plan/Skeleton drawings Due"},
+  {month:"Jun",day:19,desc:"Props: Prelim prop list approval due"},
+  {month:"Jul",day:6,desc:"Costumes: Prelim costume plot due/sketches"},
+  {month:"Jul",day:15,desc:"Scenic/Props: Prelim drafting package due"},
+  {month:"Jul",day:27,desc:"Costumes: Final Design, Materials & Rough plot Due"},
+  {month:"Jul",day:29,desc:"Scenic: Final build drawings due; Props: Final furniture drawings due"},
+  {month:"Aug",day:3,desc:"Lighting: Prelim light plot due; Sound: Prelim cue list due/prelim design paperwork"},
+  {month:"Aug",day:31,desc:"Lighting: Final plot due; Makeup/Hair/Wigs: Design Concepts Due"},
+  {month:"Sep",day:14,desc:"SM Prep Week Starts; Sound: Console schedule/cue list/qlab file Due"},
+  {month:"Sep",day:21,desc:"Scenic/Lighting: Strike & load in starts"},
+  {month:"Sep",day:22,desc:"Rehearsal START"},
+  {month:"Sep",day:28,desc:"Sound: Console File Due"},
+  {month:"Oct",day:3,desc:"Sound: Design Script Due"},
+  {month:"Oct",day:4,desc:"Designer Run/1st band rehearsal/Band Load in; Costumes/Makeup: Final actor pieces list due"},
+  {month:"Oct",day:5,desc:"2nd band rehearsal"},
+  {month:"Oct",day:6,desc:"Lighting Focus/Designer Run"},
+  {month:"Oct",day:7,desc:"SM Take Over/On-Stage Spacing/Audio Load In; Hair/Wigs: Final Plot Due"},
+  {month:"Oct",day:8,desc:"Audio Deck Load In/Sitz/Wandelprobe"},
+  {month:"Oct",day:9,dayEnd:11,desc:"TECH"},
+  {month:"Oct",day:13,desc:"Final Dress"},
+  {month:"Oct",day:14,desc:"Preview"},
+  {month:"Oct",day:15,desc:"2nd Preview"},
+  {month:"Oct",day:16,desc:"OPEN"},
+  {month:"Nov",day:29,desc:"CLOSE"},
+]);
+
+// ── GALA ──
+add("gala",2026,[
+  {month:"Oct",day:27,desc:"Gala Rehearsal START"},
+  {month:"Nov",day:4,desc:"Gala Spacing/Sitz"},
+  {month:"Nov",day:5,desc:"Gala TECH"},
+  {month:"Nov",day:6,desc:"GALA"},
+]);
+
+// ── MARY POPPINS ── Opens Nov 20, 2026
+add("poppins",2026,[
+  {month:"Aug",day:31,desc:"Sound: cue list due and prelim design paperwork; Lighting: Prelim light plot due"},
+  {month:"Sep",day:18,desc:"Director/Choreo: Cast breakdown Scene-by-scene"},
+  {month:"Sep",day:22,desc:"Props: Prop list approval due"},
+  {month:"Sep",day:25,desc:"Costumes: Prelim costume plot due"},
+  {month:"Sep",day:28,desc:"Lighting: Final plot due; Costumes: Rental package arrival; Makeup/Hair/Wigs: Design Concepts Due"},
+  {month:"Oct",day:19,desc:"SM Prep Week; Sound: Console Schedule/cue list/qlab file Due; Scenic/Props/Lighting: Rentals arrive & load in starts"},
+  {month:"Oct",day:27,desc:"Rehearsal START / Meet & Greet"},
+  {month:"Oct",day:29,dayEnd:30,desc:"Lighting Focus"},
+  {month:"Nov",day:2,desc:"Sound: Console File Due"},
+  {month:"Nov",day:7,desc:"Sound: Design Script due; ZFX load in"},
+  {month:"Nov",day:8,desc:"Designer Run/1st band rehearsal/Band Load in; Costumes/Makeup: Final actor pieces list due"},
+  {month:"Nov",day:9,desc:"2nd band rehearsal"},
+  {month:"Nov",day:10,desc:"Designer Run"},
+  {month:"Nov",day:11,desc:"SM Take Over/On-Stage Spacing/Audio Load In; Hair/Wigs: Final Plot Due"},
+  {month:"Nov",day:12,desc:"Sitz/Wandelprobe"},
+  {month:"Nov",day:13,dayEnd:15,desc:"TECH"},
+  {month:"Nov",day:17,desc:"Final Dress"},
+  {month:"Nov",day:18,desc:"Preview"},
+  {month:"Nov",day:19,desc:"2nd Preview"},
+  {month:"Nov",day:20,desc:"OPEN"},
+]);
+add("poppins",2027,[{month:"Jan",day:3,desc:"CLOSE"}]);
+
+// ── NEW WORKS FEST ──
+add("nwf",2026,[
+  {month:"Nov",day:30,desc:"New Works Fest START"},
+  {month:"Dec",day:20,desc:"New Works Fest CLOSE"},
+]);
+
+// ── CHURCHILL/ROOSEVELT ── Opens Jan 15, 2027
+add("churchill",2026,[
+  {month:"May",day:27,desc:"Scenic: Prelim ground plan/Skeleton drawings/Scene by Scene Due"},
+  {month:"Jun",day:10,desc:"Costumes: Prelim costume plot due/sketches; Scenic/Props: Final ground plan Due; Props: Prelim prop list approval due"},
+  {month:"Jun",day:24,desc:"Scenic/Props: Prelim drafting package due; Costumes: Final Design, Materials & Rough plot Due"},
+  {month:"Jul",day:8,desc:"Scenic: Final build drawings & paint elevations due; Props: Final furniture drawings due"},
+  {month:"Aug",day:17,desc:"Lighting: Final plot due; Makeup/Hair/Wigs: Design Concepts Due"},
+  {month:"Aug",day:31,desc:"Scenic/Lighting: Load in starts"},
+  {month:"Dec",day:7,desc:"SM Prep Week Starts"},
+  {month:"Dec",day:15,desc:"Rehearsal START"},
+]);
+add("churchill",2027,[
+  {month:"Jan",day:3,desc:"Designer Run; Costumes/Makeup: Final actor pieces list due"},
+  {month:"Jan",day:5,desc:"Lighting Focus/Designer Run"},
+  {month:"Jan",day:6,desc:"SM Take Over/On-Stage Spacing/Audio Load In; Hair/Wigs: Final Plot Due"},
+  {month:"Jan",day:7,desc:"TECH"},
+  {month:"Jan",day:8,desc:"Final Dress"},
+  {month:"Jan",day:9,desc:"Preview"},
+  {month:"Jan",day:15,desc:"OPEN"},
+  {month:"Mar",day:28,desc:"CLOSE (TBA extension thru May 30)"},
+]);
+
+// ── UNLOCKED ── Soft Open Jan 29, 2027
+add("unlocked",2026,[
+  {month:"May",day:20,desc:"Scenic: Prelim ground plan/Skeleton drawings Due; Director/Choreo: Cast breakdown"},
+  {month:"Jun",day:3,desc:"Scenic/Props: Final ground plan/Skeleton drawings Due"},
+  {month:"Jun",day:24,desc:"Scenic/Props: Prelim drafting package due; Costumes: Final Design Due"},
+  {month:"Jul",day:17,desc:"Props: Prelim prop list approval due"},
+  {month:"Jul",day:29,desc:"Scenic: Final build drawings due; Props: Final furniture drawings due"},
+  {month:"Aug",day:5,desc:"Lighting: Prelim light plot due"},
+  {month:"Aug",day:26,desc:"Lighting: Final plot due"},
+  {month:"Sep",day:28,desc:"Costumes: Prelim costume plot due/sketches"},
+  {month:"Nov",day:23,desc:"Sound: Prelim cue list due/prelim design paperwork"},
+  {month:"Dec",day:2,desc:"Makeup/Hair/Wigs: Design Concepts Due"},
+  {month:"Dec",day:21,desc:"SM Prep Week Starts; Sound: Console schedule/cue list/qlab file Due"},
+  {month:"Dec",day:28,desc:"Rehearsal START"},
+]);
+add("unlocked",2027,[
+  {month:"Jan",day:4,desc:"Scenic/Lighting: Strike & load in starts; Sound: Console file Due"},
+  {month:"Jan",day:16,desc:"Sound: Design script Due"},
+  {month:"Jan",day:17,desc:"Designer Run/1st band rehearsal; Costumes/Makeup: Final actor pieces list due"},
+  {month:"Jan",day:17,dayEnd:18,desc:"Lighting Focus"},
+  {month:"Jan",day:18,desc:"2nd band rehearsal"},
+  {month:"Jan",day:19,desc:"Designer Run"},
+  {month:"Jan",day:20,desc:"SM Take Over/On-Stage Spacing/Audio Load In; Hair/Wigs: Final Plot Due"},
+  {month:"Jan",day:21,desc:"Sitz/Wandelprobe"},
+  {month:"Jan",day:22,dayEnd:24,desc:"TECH"},
+  {month:"Jan",day:27,desc:"Final Dress"},
+  {month:"Jan",day:28,desc:"Preview"},
+  {month:"Jan",day:29,desc:"SOFT OPEN"},
+  {month:"Feb",day:5,desc:"Press OPEN"},
+  {month:"Feb",day:21,desc:"CLOSE"},
+]);
+
+// ── SPAMALOT ── Opens Feb 19, 2027
+add("spamalot",2026,[
+  {month:"Oct",day:5,desc:"Scenic: Prelim ground plan/Skeleton drawings Due"},
+  {month:"Oct",day:26,desc:"Scenic/Props: Final ground plan/Skeleton drawings Due"},
+  {month:"Oct",day:28,desc:"Props: Prelim prop list approval due"},
+  {month:"Nov",day:2,desc:"Costumes: Prelim costume plot due"},
+  {month:"Nov",day:9,desc:"Scenic/Props: Prelim drafting package due"},
+  {month:"Nov",day:23,desc:"Scenic: Final build drawings due; Props: Final furniture drawings due"},
+  {month:"Dec",day:21,desc:"Sound: Prelim cue list/design paperwork Due; Lighting: Prelim light plot due; Makeup/Hair/Wigs: Design Concepts Due"},
+]);
+add("spamalot",2027,[
+  {month:"Jan",day:4,desc:"Costume: Rental Package arrival; Props: Rental package arrival"},
+  {month:"Jan",day:11,desc:"Lighting: Final plot due"},
+  {month:"Jan",day:18,desc:"SM Prep Week Starts; Sound: Console schedule/cue list/qlab file Due"},
+  {month:"Jan",day:25,desc:"Rehearsal START; Scenic/Lighting: Load in starts"},
+  {month:"Feb",day:1,desc:"Sound: Console File Due"},
+  {month:"Feb",day:6,desc:"Sound: Design Script Due"},
+  {month:"Feb",day:7,desc:"Designer Run/1st band rehearsal/Band Load in; Costumes/Makeup: Final actor pieces list due"},
+  {month:"Feb",day:8,desc:"2nd band rehearsal"},
+  {month:"Feb",day:9,desc:"Lighting Focus/Designer Run"},
+  {month:"Feb",day:10,desc:"SM Take Over/On-Stage Spacing/Audio Load In; Hair/Wigs: Final Plot Due"},
+  {month:"Feb",day:11,desc:"Sitz/Wandelprobe"},
+  {month:"Feb",day:12,dayEnd:14,desc:"TECH"},
+  {month:"Feb",day:16,desc:"Final Dress"},
+  {month:"Feb",day:17,desc:"Preview"},
+  {month:"Feb",day:18,desc:"2nd Preview"},
+  {month:"Feb",day:19,desc:"OPEN"},
+  {month:"May",day:16,desc:"CLOSE (TBA Extension thru May 23)"},
+]);
+
+// ── SWEENEY TODD ── Opens Mar 19, 2027
+add("sweeney",2027,[
+  {month:"Jan",day:4,desc:"Lighting: Prelim light plot due"},
+  {month:"Jan",day:13,desc:"Costumes: Prelim costume plot due"},
+  {month:"Jan",day:15,desc:"Props: Prelim prop list approval due; Scenic: Final ground plan"},
+  {month:"Jan",day:25,desc:"Costumes: Rental package arrival"},
+  {month:"Feb",day:1,desc:"Lighting: Final plot due; Makeup/Hair/Wigs: Design Concepts Due"},
+  {month:"Feb",day:8,desc:"Scenic/Props: Rental package arrival"},
+  {month:"Feb",day:15,desc:"SM Prep Week Starts; Sound: Console schedule/cue list/qlab file Due"},
+  {month:"Feb",day:22,desc:"Scenic/Lighting: Strike & load in starts"},
+  {month:"Feb",day:23,desc:"Rehearsal START"},
+  {month:"Feb",day:24,desc:"Audio load in"},
+  {month:"Mar",day:1,desc:"Sound: Console file due"},
+  {month:"Mar",day:6,desc:"Sound: Design script Due"},
+  {month:"Mar",day:7,desc:"Designer run/1st band rehearsal"},
+  {month:"Mar",day:7,dayEnd:8,desc:"Lighting: Focus"},
+  {month:"Mar",day:8,desc:"2nd band rehearsal"},
+  {month:"Mar",day:9,desc:"Designer Run"},
+  {month:"Mar",day:10,desc:"SM Take over/Spacing; Hair/Wigs: Final Plot Due; Costumes/Makeup: Final actor pieces list due"},
+  {month:"Mar",day:11,desc:"Sitz/Wandelprobe"},
+  {month:"Mar",day:12,dayEnd:14,desc:"TECH"},
+  {month:"Mar",day:16,desc:"Final Dress"},
+  {month:"Mar",day:17,desc:"Preview"},
+  {month:"Mar",day:19,desc:"OPEN"},
+  {month:"Apr",day:18,desc:"CLOSE"},
+]);
+
+// ── STAGE MOTHER ── Opens May 23, 2027
+add("stagemother",2026,[
+  {month:"Oct",day:5,desc:"Scenic: Prelim ground plan/Skeleton drawings Due"},
+  {month:"Oct",day:19,desc:"Costumes: Prelim costume plot due/sketches"},
+  {month:"Nov",day:9,desc:"Scenic/Props: Final ground plan/Skeleton drawings Due"},
+  {month:"Nov",day:13,desc:"Props: Prelim prop list approval due"},
+  {month:"Dec",day:2,desc:"Scenic/Props: Prelim drafting package due"},
+  {month:"Dec",day:16,desc:"Lighting: Prelim light plot due"},
+]);
+add("stagemother",2027,[
+  {month:"Jan",day:6,desc:"Scenic: Final build drawings due; Props: Final furniture drawings due; Costumes: Final Design Due; Video: Prelim video system design due"},
+  {month:"Jan",day:18,desc:"Lighting: Final plot due; Makeup/Hair/Wigs: Design Concepts Due"},
+  {month:"Mar",day:3,desc:"Video: Final video system design due; Sound: Prelim cue list due/prelim design paperwork"},
+  {month:"Apr",day:12,desc:"Sound: Console schedule/cue list/qlab file due; SM Prep Week Starts"},
+  {month:"Apr",day:19,desc:"Scenic/Lighting: Strike & load in starts"},
+  {month:"Apr",day:20,desc:"Rehearsal START"},
+  {month:"Apr",day:26,desc:"Sound: Console file due; Audio Load in/Video load in; Video: Prelim video content due"},
+  {month:"May",day:6,desc:"Sound: Design script due"},
+  {month:"May",day:7,desc:"Designer Run; Costumes/Makeup: Final actor pieces list due"},
+  {month:"May",day:7,dayEnd:8,desc:"Lighting Focus"},
+  {month:"May",day:9,desc:"Designer Run/1st band rehearsal; Video: Final video content due"},
+  {month:"May",day:10,desc:"2nd band rehearsal"},
+  {month:"May",day:11,desc:"SM Take Over/Spacing; Hair/Wigs: Final Plot Due"},
+  {month:"May",day:12,dayEnd:16,desc:"TECH"},
+  {month:"May",day:15,desc:"Sitz/Wandelprobe"},
+  {month:"May",day:18,desc:"Final Dress"},
+  {month:"May",day:19,desc:"Preview"},
+  {month:"May",day:23,desc:"OPEN"},
+  {month:"Jun",day:20,desc:"CLOSE (TBA extension thru Jun 27)"},
+]);
+
+// ── CAMP ──
+add("camp",2027,[{month:"May",day:31,desc:"Camp START"}]);
+
+// ── KIMBERLY A KIMBO ── Opens Jun 18, 2027
+add("kimbo",2027,[
+  {month:"Feb",day:1,desc:"Scenic: Prelim ground plan/Skeleton drawings Due; Director/Choreo: Cast breakdown"},
+  {month:"Feb",day:22,desc:"Scenic/Props: Final ground plan/Skeleton drawings Due"},
+  {month:"Feb",day:24,desc:"Props: Prelim prop list approval due"},
+  {month:"Mar",day:8,desc:"Scenic/Props: Prelim drafting package due"},
+  {month:"Mar",day:10,desc:"Costumes: Prelim costume plot due/sketches"},
+  {month:"Mar",day:22,desc:"Scenic: Final build drawings due; Props: Final furniture drawings due"},
+  {month:"Mar",day:31,desc:"Costumes: Final Design, Materials & Rough plot Due"},
+  {month:"Apr",day:12,desc:"Sound: cue list due and prelim design paperwork; Lighting: Prelim light plot due"},
+  {month:"May",day:3,desc:"Lighting: Final plot due; Makeup/Hair/Wigs: Design Concepts Due"},
+  {month:"May",day:17,desc:"SM Prep Week Starts; Sound: Console Schedule/cue list/qlab file Due"},
+  {month:"May",day:24,desc:"Scenic/Lighting: Strike & load in starts"},
+  {month:"May",day:25,desc:"Rehearsal START"},
+  {month:"May",day:31,desc:"Sound: Console File Due"},
+  {month:"Jun",day:5,desc:"Sound: Design Script due"},
+  {month:"Jun",day:6,desc:"Designer Run/1st band rehearsal/Band Load in; Costumes/Makeup: Final actor pieces list due"},
+  {month:"Jun",day:7,desc:"2nd band rehearsal"},
+  {month:"Jun",day:8,desc:"Lighting Focus/Designer Run"},
+  {month:"Jun",day:9,desc:"SM Take Over/Spacing/Audio Load In; Hair/Wigs: Final Plot Due"},
+  {month:"Jun",day:10,desc:"Sitz/Wandelprobe"},
+  {month:"Jun",day:11,dayEnd:13,desc:"TECH"},
+  {month:"Jun",day:15,desc:"Final Dress"},
+  {month:"Jun",day:16,desc:"Preview"},
+  {month:"Jun",day:18,desc:"OPEN"},
+  {month:"Jul",day:18,desc:"CLOSE"},
+]);
+
+// ── LEGALLY BLONDE ── Opens Jul 16, 2027
+add("blonde",2027,[
+  {month:"Mar",day:17,desc:"Costumes: Prelim costume plot due/sketches"},
+  {month:"Mar",day:19,desc:"Props: Prelim prop list approval due; Scenic: Final ground plan Due"},
+  {month:"Apr",day:14,desc:"Costumes: Final Design, Materials & Rough plot Due"},
+  {month:"May",day:3,desc:"Lighting: Prelim light plot due; Makeup/Hair/Wigs: Design Concepts Due; Sound: prelim cue list/design due"},
+  {month:"May",day:31,desc:"Lighting: Final plot due"},
+  {month:"Jun",day:7,desc:"Scenic: Rental package arrive"},
+  {month:"Jun",day:14,desc:"SM Prep Week Starts; Sound: Console Schedule/cue list/qlab file Due"},
+  {month:"Jun",day:21,desc:"Scenic/Lighting: Strike & load in starts"},
+  {month:"Jun",day:22,desc:"Rehearsal START"},
+  {month:"Jun",day:28,desc:"Sound: Console File Due"},
+  {month:"Jul",day:2,dayEnd:3,desc:"Lighting: Focus"},
+  {month:"Jul",day:3,desc:"Sound: Design Script due"},
+  {month:"Jul",day:4,desc:"Designer Run/1st band rehearsal/Band Load in; Costumes/Makeup: Final actor pieces list due"},
+  {month:"Jul",day:5,desc:"2nd band rehearsal"},
+  {month:"Jul",day:6,desc:"Designer Run"},
+  {month:"Jul",day:7,desc:"SM Take Over/Spacing/Audio Load In; Hair/Wigs: Final Plot Due"},
+  {month:"Jul",day:8,desc:"Sitz/Wandelprobe"},
+  {month:"Jul",day:9,dayEnd:11,desc:"TECH"},
+  {month:"Jul",day:13,desc:"Final Dress"},
+  {month:"Jul",day:14,desc:"Preview"},
+  {month:"Jul",day:16,desc:"OPEN"},
+  {month:"Aug",day:22,desc:"CLOSE"},
+]);
+
+// ── FANTASTICKS ── Opens Aug 13, 2027
+add("fantasticks",2027,[
+  {month:"Apr",day:5,desc:"Scenic: Prelim ground plan/Skeleton drawings Due; Director/Choreo: Cast breakdown"},
+  {month:"Apr",day:26,desc:"Scenic/Props: Final ground plan/Skeleton drawings Due"},
+  {month:"Apr",day:28,desc:"Props: Prelim prop list approval due"},
+  {month:"May",day:10,desc:"Scenic/Props: Prelim drafting package due"},
+  {month:"May",day:24,desc:"Scenic: Final build drawings due; Props: Final furniture drawings due"},
+  {month:"Jun",day:14,desc:"Lighting: Prelim light plot due; Makeup/Hair/Wigs: Design Concepts Due"},
+  {month:"Jun",day:26,desc:"Costume: Rental Package Arrive"},
+  {month:"Jun",day:28,desc:"Lighting: Final plot due"},
+  {month:"Jul",day:12,desc:"SM Prep Week Starts; Sound: Console Schedule/cue list/qlab file Due"},
+  {month:"Jul",day:19,desc:"Scenic/Lighting: Strike & load in starts"},
+  {month:"Jul",day:20,desc:"Rehearsal START"},
+  {month:"Jul",day:26,desc:"Sound: Console File Due"},
+  {month:"Jul",day:31,desc:"Sound: Design Script due"},
+  {month:"Aug",day:1,desc:"Designer Run/1st band rehearsal/Band Load in; Costumes/Makeup: Final actor pieces list due"},
+  {month:"Aug",day:2,desc:"2nd band rehearsal"},
+  {month:"Aug",day:3,desc:"Lighting Focus/Designer Run"},
+  {month:"Aug",day:4,desc:"SM Take Over/Spacing/Audio Load In; Hair/Wigs: Final Plot Due"},
+  {month:"Aug",day:5,desc:"Sitz/Wandelprobe"},
+  {month:"Aug",day:6,dayEnd:8,desc:"TECH"},
+  {month:"Aug",day:10,desc:"Final Dress"},
+  {month:"Aug",day:11,desc:"Preview"},
+  {month:"Aug",day:13,desc:"OPEN"},
+  {month:"Sep",day:19,desc:"CLOSE"},
+]);
+
+// ── TBA STEPHENSON SHOW ──
+add("tba_s",2027,[
+  {month:"Aug",day:24,desc:"Rehearsal START (approx)"},
+  {month:"Sep",day:10,dayEnd:12,desc:"TECH"},
+  {month:"Sep",day:14,desc:"Final Dress"},
+  {month:"Sep",day:15,desc:"Preview"},
+  {month:"Sep",day:17,desc:"OPEN"},
+]);
+
+// ── TBA HORMEL SHOW ──
+add("tba_h",2027,[
+  {month:"Sep",day:20,desc:"Rehearsal START"},
+]);
+
+EVENTS.sort((a,b)=>a.sortKey-b.sortKey);
+
+let activeShows=new Set();
+let activeDepts=new Set(["all"]);
+let viewMode="timeline";
+
+function getShowInfo(id){return SHOWS.find(s=>s.id===id);}
+
+function filterEvents(){
+  return EVENTS.filter(e=>{
+    if(!activeShows.has(e.show))return false;
+    if(!activeDepts.has("all")){
+      return e.depts.some(d=>{
+        if(activeDepts.has("audio")&&(d==="audio"||d==="sound"))return true;
+        if(activeDepts.has("sound")&&(d==="audio"||d==="sound"))return true;
+        return activeDepts.has(d);
+      });
+    }
+    return true;
+  });
+}
+
+function getDow(year,month,day){
+  const d=new Date(year,MONTH_IDX[month],day);
+  return["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+}
+
+function renderControls(){
+  const c=document.getElementById("controls");
+  let html='<label>Shows</label>';
+  SHOWS.forEach(s=>{
+    const active=activeShows.has(s.id)?"active":"";
+    html+=`<span class="show-chip ${active}" style="color:${s.color};border-color:${s.color};background:${active?s.bg:'transparent'}" onclick="toggleShow('${s.id}')">${s.short}</span>`;
+  });
+  html+='<span style="width:12px"></span><label>Dept</label>';
+  const dl={all:"All",audio:"Audio",lighting:"LX",scenic:"Scenic",costumes:"Cost",props:"Props",video:"Video","hair/wigs":"H/W",sm:"SM",production:"Prod"};
+  Object.entries(dl).forEach(([k,v])=>{
+    html+=`<button class="filter-btn ${activeDepts.has(k)?'active':''}" onclick="setDept('${k}')">${v}</button>`;
+  });
+  html+='<span class="view-toggle">';
+  html+=`<button class="filter-btn ${viewMode==='timeline'?'active':''}" onclick="setView('timeline')">Timeline</button>`;
+  html+=`<button class="filter-btn ${viewMode==='grid'?'active':''}" onclick="setView('grid')">Grid</button>`;
+  html+='</span>';
+  c.innerHTML=html;
+}
+
+function toggleShow(id){if(activeShows.has(id))activeShows.delete(id);else activeShows.add(id);render();}
+function setDept(d){
+  if(d==="all"){activeDepts=new Set(["all"]);}
+  else{
+    activeDepts.delete("all");
+    if(activeDepts.has(d))activeDepts.delete(d);else activeDepts.add(d);
+    if(activeDepts.size===0)activeDepts=new Set(["all"]);
+  }
+  render();
+}
+function setView(v){viewMode=v;render();}
+
+function renderTimeline(events){
+  if(!events.length)return'<div class="empty-state">No events match filters</div>';
+  let html='',lastYear=null,lastYM=null;
+  events.forEach(e=>{
+    const ymKey=e.year+"-"+e.month;
+    if(e.year!==lastYear){lastYear=e.year;html+=`<div class="year-divider">${e.year}</div>`;}
+    if(ymKey!==lastYM){if(lastYM)html+='</div>';lastYM=ymKey;html+=`<div class="month-group"><div class="month-label">${e.month}<span class="ml-year">${e.year}</span></div>`;}
+    const dk=e.dayEnd?`${e.day}–${e.dayEnd}`:`${e.day}`;
+    const dow=getDow(e.year,e.month,e.day);
+    const evKey=e.year*10000+(MONTH_IDX[e.month]+1)*100+e.day;
+    let rc="event-row";
+    if(evKey<TODAY_KEY)rc+=" past-event";
+    if(evKey===TODAY_KEY)rc+=" today-event";
+    const s=getShowInfo(e.show);
+    const dt=e.depts.map(d=>`<span class="dept-tag" data-dept="${d}">${d}</span>`).join('');
+    html+=`<div class="${rc}"><div class="event-date">${dk} <span class="ed-dow">${dow}</span></div><div class="event-items"><div class="event-item"><span class="event-show-tag" style="color:${s.color};background:${s.bg}">${s.short}</span><span class="event-desc">${e.desc}</span>${dt}</div></div></div>`;
+  });
+  if(lastYM)html+='</div>';
+  return html;
+}
+
+function renderGrid(events){
+  if(!events.length)return'<div class="empty-state">No events match filters</div>';
+  const grouped={};
+  events.forEach(e=>{
+    const key=e.year+"-"+e.month;
+    if(!grouped[key])grouped[key]={year:e.year,month:e.month,days:{}};
+    const dk=e.dayEnd?`${e.day}–${e.dayEnd}`:`${e.day}`;
+    if(!grouped[key].days[dk])grouped[key].days[dk]=[];
+    grouped[key].days[dk].push(e);
+  });
+  let html='<div class="cal-grid">';
+  const keys=Object.keys(grouped).sort((a,b)=>{
+    const[ay,am]=a.split("-");const[by,bm]=b.split("-");
+    return(parseInt(ay)*12+MONTH_IDX[am])-(parseInt(by)*12+MONTH_IDX[bm]);
+  });
+  const nowYM=TODAY.getFullYear()*12+TODAY.getMonth();
+  keys.forEach(key=>{
+    const g=grouped[key];
+    const cardYM=g.year*12+MONTH_IDX[g.month];
+    const pc=cardYM<nowYM?" past-month":"";
+    html+=`<div class="cal-month-card${pc}"><div class="cal-month-header">${g.month} ${g.year}</div><div class="cal-month-body">`;
+    Object.keys(g.days).sort((a,b)=>parseInt(a)-parseInt(b)).forEach(dk=>{
+      html+=`<div class="cal-day"><div class="cal-day-num">${dk}</div><div class="cal-day-events">`;
+      g.days[dk].forEach(ev=>{
+        const s=getShowInfo(ev.show);
+        html+=`<div class="cal-evt"><span class="cal-evt-tag" style="color:${s.color};background:${s.bg}">${s.short}</span><span class="cal-evt-text">${ev.desc}</span></div>`;
+      });
+      html+='</div></div>';
+    });
+    html+='</div></div>';
+  });
+  html+='</div>';
+  return html;
+}
+
+function render(){renderControls();const events=filterEvents();document.getElementById("content").innerHTML=viewMode==="timeline"?renderTimeline(events):renderGrid(events);}
+render();
+</script>
+</body>
+</html>

@@ -191,6 +191,32 @@ def tasks():
     user = auth.current_user()
     return render_template('tasks.html', active='tasks', current_user=user)
 
+@app.route('/home')
+@login_required
+def home_page():
+    return render_template('home.html')
+
+# ══════════════════════════════════
+# STANDALONE TOOLS (ported from local single-file HTML apps)
+# Served behind login, not as static assets, so they're not publicly reachable.
+# ══════════════════════════════════
+
+TOOL_TEMPLATES = {
+    'inventory': 'tools/inventory.html',
+    'quotebuilder': 'tools/quotebuilder.html',
+    'season-calendar': 'tools/season-calendar.html',
+    'lens-throw-calculator': 'tools/lens-throw-calculator.html',
+    'cl5-patch-generator': 'tools/cl5-patch-generator.html',
+}
+
+@app.route('/tools/<name>')
+@login_required
+def tools_page(name):
+    template = TOOL_TEMPLATES.get(name)
+    if not template:
+        return render_template('token_invalid.html', reason='tool not found'), 404
+    return render_template(template)
+
 @app.route('/admin/users')
 @admin_required
 def admin_users_page():

@@ -1,0 +1,2132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PTC Audio Inventory</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Lora:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0e0e0e; --surface:#161616; --panel:#1e1e1e;
+  --border:#2e2e2e; --border2:#3e3e3e;
+  --text:#e8e4e0; --muted:#888078; --white:#f8f4f0;
+  --red:#c8102e; --red-dim:#8a0a1e; --red-light:#e8394f; --red-bg:rgba(200,16,46,0.06);
+  --c-avail:#27ae60; --c-inuse:#2980b9; --c-broken:#c0392b;
+  --c-repair:#e67e22; --c-retired:#666058; --c-unknown:#8b6914;
+  --mono:'DM Mono',monospace; --serif:'Lora',Georgia,serif; --display:'Bebas Neue',sans-serif;
+  --sp-stephenson:#c8102e; --sp-stephenson-dim:#8a0a1e;
+  --sp-hormel:#2980b9; --sp-hormel-dim:#1a5276;
+  --sp-hardes:#8e44ad; --sp-hardes-dim:#6c3483;
+  --sp-unassigned:#666058; --sp-unassigned-dim:#4a4640;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--serif);font-size:14px;min-height:100vh}
+.mono{font-family:var(--mono)}
+.lbl{font-family:var(--mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted)}
+/* BUTTONS */
+.btn{font-family:var(--mono);font-size:11px;letter-spacing:0.05em;padding:0 14px;height:32px;border:1px solid var(--border2);border-radius:3px;background:transparent;color:var(--text);cursor:pointer;transition:all 0.15s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--red-dim);color:var(--red)}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn-p{background:var(--red);color:#fff;border-color:var(--red);font-weight:500}
+.btn-p:hover{background:var(--red-light);border-color:var(--red-light);color:#fff}
+.btn-d{color:var(--c-broken);border-color:rgba(192,57,43,.4)}
+.btn-d:hover{background:rgba(192,57,43,.1)}
+/* HEADER */
+#hdr{background:#0e0e0e;border-bottom:3px solid var(--red);padding:0 28px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.brand{display:flex;align-items:center;gap:12px}
+.brand img{height:42px;width:auto;filter:invert(1)}
+.brand-title{font-family:var(--display);font-size:22px;letter-spacing:.1em;color:var(--white);line-height:1}
+.brand-sub{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--red);text-transform:uppercase}
+.hdr-btns{display:flex;gap:8px;align-items:center}
+/* LAYOUT */
+#app{max-width:1540px;margin:0 auto;padding:20px 28px}
+/* GANTT */
+#prog-wrap{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:16px 20px;margin-bottom:18px}
+.g-hdr{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap}
+.g-title{font-family:var(--display);font-size:16px;letter-spacing:.08em;color:var(--white)}
+.g-sub{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.g-legend{display:flex;gap:14px;font-family:var(--mono);font-size:10px;color:var(--muted);align-items:center;flex-wrap:wrap}
+.g-legend span{display:inline-flex;align-items:center;gap:5px}
+.g-legend .sw{width:18px;height:4px;border-radius:2px}
+.g-legend .dot{width:7px;height:7px;border-radius:50%}
+.g-empty{font-family:var(--mono);font-size:11px;color:var(--muted);font-style:italic;padding:14px 0;text-align:center}
+.g-grid{position:relative;width:100%}
+.g-months{position:relative;height:18px;border-bottom:1px solid var(--border);margin-bottom:6px}
+.g-month{position:absolute;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;transform:translateX(4px);top:2px}
+.g-month-line{position:absolute;top:0;bottom:0;border-left:1px solid var(--border);opacity:.6}
+.g-row{position:relative;display:grid;grid-template-columns:140px 1fr;gap:10px;align-items:center;height:26px;margin-bottom:3px}
+.g-row:hover .g-bar{filter:brightness(1.15)}
+.g-row-lbl{font-family:var(--mono);font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:4px}
+.g-row-lbl.dim{color:var(--muted)}
+.g-track{position:relative;height:22px;background:rgba(30,30,30,.5);border-radius:3px;overflow:hidden;cursor:pointer;transition:background .15s}
+.g-track:hover{background:rgba(40,40,40,.7)}
+.g-bar{position:absolute;top:3px;bottom:3px;background:linear-gradient(90deg,var(--red-dim),var(--red));border-radius:2px;transition:filter .15s;display:flex;align-items:center;padding:0 6px;overflow:hidden;min-width:4px}
+.g-bar-lbl{font-family:var(--mono);font-size:10px;color:#fff;font-weight:500;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.g-open{position:absolute;top:2px;bottom:2px;width:2px;background:#f8f4f0;box-shadow:0 0 3px rgba(248,244,240,.6);z-index:3;transform:translateX(-1px);pointer-events:none}
+.g-today{position:absolute;top:0;bottom:0;width:2px;background:#58d68d;box-shadow:0 0 6px rgba(88,214,141,.6);z-index:5;pointer-events:none;transform:translateX(-1px)}
+.g-today-lbl{position:absolute;top:-14px;font-family:var(--mono);font-size:9px;color:#58d68d;letter-spacing:.1em;text-transform:uppercase;transform:translateX(-50%);white-space:nowrap;z-index:5;pointer-events:none;background:var(--surface);padding:0 4px}
+.g-row-nodate{opacity:.35}
+.g-row-nodate .g-track{cursor:default}
+.g-nodate-msg{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:10px;color:var(--muted);font-style:italic}
+/* STATS */
+#stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+.stat{background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--red-dim);padding:11px 14px;border-radius:2px;cursor:pointer;transition:border-top-color .15s}
+.stat:hover{border-top-color:var(--red)}
+.stat-val{font-family:var(--display);font-size:24px;letter-spacing:.04em;color:var(--white)}
+.sv-g{color:#58d68d}.sv-b{color:#5dade2}.sv-r{color:#e74c3c}.sv-o{color:#eb984e}
+/* TOOLBAR */
+#toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1px solid var(--border);padding:10px 14px;border-radius:4px;margin-bottom:14px}
+#toolbar input,#toolbar select{font-family:var(--mono);font-size:12px;height:32px;padding:0 10px;border:1px solid var(--border2);border-radius:3px;background:var(--panel);color:var(--text);outline:none;transition:border-color .15s}
+#toolbar input{flex:1;min-width:160px}
+#toolbar input::placeholder{color:var(--muted)}
+#toolbar input:focus,#toolbar select:focus{border-color:var(--red-dim)}
+#toolbar select option{background:var(--panel)}
+.t-sep{width:1px;height:24px;background:var(--border);margin:0 2px}
+.pills{display:flex;gap:5px;flex-wrap:wrap}
+.pill{font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);color:var(--muted);cursor:pointer;transition:all .15s}
+.p-all{border-color:var(--red);color:var(--red);background:rgba(200,16,46,.08)}
+.p-inuse{border-color:#5dade2;color:#5dade2;background:rgba(52,152,219,.08)}
+.p-broken{border-color:#e74c3c;color:#e74c3c;background:rgba(231,76,60,.08)}
+.p-repair{border-color:#eb984e;color:#eb984e;background:rgba(230,126,34,.08)}
+/* TABLE */
+.tbl-wrap{border:1px solid var(--border);border-radius:4px;overflow-x:auto;background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:960px}
+thead th{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);padding:9px 10px;text-align:left;background:var(--panel);border-bottom:1px solid var(--border);white-space:nowrap}
+thead th.srt{cursor:pointer;user-select:none}
+thead th.srt:hover{color:var(--red)}
+thead th.srt-on{color:var(--red)}
+.s-arr{opacity:.3;font-size:10px;margin-left:3px}
+thead th.srt-on .s-arr{opacity:1}
+tbody tr{border-bottom:1px solid rgba(46,46,46,.7);transition:background .1s;cursor:pointer}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:rgba(200,16,46,.03)}
+tr.r-broken{border-left:3px solid rgba(231,76,60,.55)}
+tr.r-repair{border-left:3px solid rgba(230,126,34,.55)}
+td{padding:7px 10px;vertical-align:middle}
+.td-n{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--white)}
+.td-mk{font-weight:600;color:var(--white)}
+.td-mo{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.td-cl{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.td-dim{color:var(--muted);font-size:11.5px}
+.td-it{color:var(--muted);font-size:11.5px;font-style:italic}
+/* CATEGORY BADGES */
+.cat{display:inline-block;font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:2px;white-space:nowrap}
+.c-mic{background:rgba(52,152,219,.12);color:#5dade2;border:1px solid rgba(52,152,219,.25)}
+.c-wls{background:rgba(142,68,173,.12);color:#a569bd;border:1px solid rgba(142,68,173,.25)}
+.c-mon{background:rgba(39,174,96,.12);color:#58d68d;border:1px solid rgba(39,174,96,.25)}
+.c-mix{background:rgba(212,168,67,.12);color:#c8961a;border:1px solid rgba(146,96,10,.3)}
+.c-com{background:rgba(230,126,34,.12);color:#eb984e;border:1px solid rgba(230,126,34,.25)}
+.c-amp{background:rgba(192,57,43,.12);color:#e74c3c;border:1px solid rgba(192,57,43,.25)}
+.c-sys{background:rgba(106,102,96,.15);color:#9e9a92;border:1px solid rgba(106,102,96,.25)}
+.c-oth{background:rgba(106,102,96,.08);color:var(--muted);border:1px solid var(--border)}
+.c-vid{background:rgba(20,184,166,.12);color:#2dd4bf;border:1px solid rgba(20,184,166,.25)}
+/* STATUS CHIPS */
+.schip{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:2px;white-space:nowrap}
+.schip-wrap{display:inline-flex;align-items:center;gap:5px;flex-wrap:nowrap}
+.swarn{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:8px;font-family:var(--mono);font-size:9px;font-weight:600;color:#fff;cursor:help}
+.ch-ok{background:rgba(39,174,96,.1);color:#58d68d;border:1px solid rgba(39,174,96,.2)}
+.ch-us{background:rgba(52,152,219,.1);color:#5dade2;border:1px solid rgba(52,152,219,.2)}
+.ch-br{background:rgba(231,76,60,.1);color:#e74c3c;border:1px solid rgba(231,76,60,.2)}
+.ch-rp{background:rgba(230,126,34,.1);color:#eb984e;border:1px solid rgba(230,126,34,.2)}
+.ch-uk{background:rgba(212,168,67,.1);color:#c8961a;border:1px solid rgba(146,96,10,.25)}
+.ch-no{background:rgba(58,58,66,.4);color:var(--muted);border:1px solid var(--border2)}
+.sdot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+/* UNIT BAR */
+.ubar-w{display:flex;flex-direction:column;gap:3px;min-width:160px}
+.ubar{display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;background:var(--border)}
+.useg{height:100%}
+.ulbls{display:flex;gap:5px;flex-wrap:wrap}
+.ulbl{font-family:var(--mono);font-size:10px;display:inline-flex;align-items:center;gap:3px}
+.uldot{width:4px;height:4px;border-radius:50%;flex-shrink:0}
+/* ROW ACTIONS */
+.r-acts{display:flex;gap:3px;opacity:0;transition:opacity .12s}
+tr:hover .r-acts{opacity:1}
+.ic-btn{width:24px;height:24px;border:1px solid transparent;border-radius:3px;background:none;cursor:pointer;color:var(--muted);font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .12s}
+.ic-btn:hover{background:var(--panel);border-color:var(--border2);color:var(--text)}
+.ic-btn.del:hover{color:var(--c-broken);border-color:rgba(192,57,43,.4)}
+.empty{text-align:center;padding:50px 20px;color:var(--muted);font-style:italic}
+/* PAGINATION */
+.pagi{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.pagi-btns{display:flex;gap:6px}
+/* OVERLAY */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity .2s}
+.ov.open{opacity:1;pointer-events:all}
+/* MODAL */
+.modal{background:var(--surface);border:1px solid var(--border2);border-top:3px solid var(--red);border-radius:4px;padding:26px 30px;width:min(700px,96vw);max-height:92vh;overflow-y:auto;transform:translateY(10px);transition:transform .2s}
+.ov.open .modal{transform:translateY(0)}
+.m-title{font-family:var(--display);font-size:20px;letter-spacing:.1em;color:var(--white);margin-bottom:3px}
+.m-sub{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:18px}
+/* FORM */
+.fg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg.full{grid-column:1/-1}
+.fg label{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+.fg input,.fg select,.fg textarea{font-family:var(--mono);font-size:12px;padding:8px 10px;border:1px solid var(--border2);border-radius:3px;background:var(--panel);color:var(--text);outline:none;transition:border-color .15s}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--red)}
+.fg textarea{resize:vertical;min-height:60px}
+.fg select option{background:var(--panel)}
+.f-div{grid-column:1/-1;margin-top:6px;padding-top:14px;border-top:1px solid var(--border)}
+.f-div .lbl{color:var(--red);display:block;margin-bottom:10px}
+/* STATUS ROWS */
+.srows{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.srow{display:grid;grid-template-columns:120px 64px 1fr;align-items:center;gap:8px;padding:7px 11px;background:var(--panel);border:1px solid var(--border);border-radius:3px;border-left:3px solid transparent}
+.srow-av{border-left-color:var(--c-avail)}.srow-iu{border-left-color:var(--c-inuse)}
+.srow-br{border-left-color:var(--c-broken)}.srow-rp{border-left-color:var(--c-repair)}
+.srow-rt{border-left-color:var(--c-retired)}.srow-uk{border-left-color:var(--c-unknown)}
+.srow-lbl{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px}
+.srow-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.srow input[type=number]{width:64px;font-family:var(--mono);font-size:13px;padding:5px 8px;border:1px solid var(--border2);border-radius:3px;background:var(--bg);color:var(--white);text-align:center;outline:none}
+.srow input[type=number]:focus{border-color:var(--red)}
+.srow input[type=text]{font-family:var(--mono);font-size:11px;padding:5px 9px;border:1px solid var(--border2);border-radius:3px;background:var(--bg);color:var(--text);outline:none;width:100%}
+.srow input[type=text]:focus{border-color:var(--red)}
+.srow input[type=text]::placeholder{color:var(--muted)}
+.qty-chk{font-family:var(--mono);font-size:11px;margin-top:6px;padding:6px 10px;border-radius:3px;display:none}
+.qc-ok{display:flex;align-items:center;gap:6px;background:rgba(39,174,96,.08);color:#58d68d;border:1px solid rgba(39,174,96,.2)}
+.qc-warn{display:flex;align-items:center;gap:6px;background:rgba(231,76,60,.08);color:#e74c3c;border:1px solid rgba(231,76,60,.2)}
+.aud-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+/* GEAR IMAGE */
+.gear-img{display:none;margin-bottom:18px;border:1px solid var(--border);border-radius:4px;overflow:hidden;background:var(--panel)}
+.gear-img.vis{display:block}
+.gi-body{display:flex;align-items:center;justify-content:center;min-height:160px;max-height:220px;overflow:hidden}
+.gi-body img{max-width:100%;max-height:220px;object-fit:contain;padding:8px;display:block}
+.gi-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:rgba(0,0,0,.4);border-top:1px solid var(--border)}
+.gi-lbl{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.gi-nav{display:flex;gap:6px;align-items:center}
+.gi-nav button{font-family:var(--mono);font-size:11px;padding:2px 10px;border:1px solid var(--border2);border-radius:3px;background:transparent;color:var(--text);cursor:pointer}
+.gi-nav button:hover{border-color:var(--red);color:var(--red)}
+.gi-nav span{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.gi-msg{padding:20px;text-align:center;font-family:var(--mono);font-size:11px}
+.gi-msg .dim{color:var(--muted);margin-bottom:10px}
+.gi-msg a{font-size:11px;color:var(--red);text-decoration:none;border:1px solid var(--red);padding:5px 14px;border-radius:3px;display:inline-block;margin:3px}
+/* SERVICE LINKS */
+.svc{display:none;margin-top:12px;padding:12px 14px;background:var(--red-bg);border:1px solid rgba(200,16,46,.2);border-left:3px solid var(--red);border-radius:3px}
+.svc.vis{display:block}
+.svc .lbl{color:var(--red);display:block;margin-bottom:8px}
+.svc-row{display:flex;flex-wrap:wrap;gap:6px}
+.svc-row a{font-family:var(--mono);font-size:11px;color:var(--red);text-decoration:none;border:1px solid rgba(200,16,46,.35);padding:4px 12px;border-radius:3px;transition:all .15s}
+.svc-row a:hover{background:rgba(200,16,46,.1)}
+.m-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+/* PRINT MODAL */
+.pov{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:300;opacity:0;pointer-events:none;transition:opacity .2s}
+.pov.open{opacity:1;pointer-events:all}
+.pmodal{background:var(--surface);border:1px solid var(--border2);border-top:3px solid var(--red);border-radius:4px;padding:28px 32px;width:min(620px,96vw);max-height:90vh;overflow-y:auto;transform:translateY(10px);transition:transform .2s}
+.pov.open .pmodal{transform:translateY(0)}
+.pm-title{font-family:var(--display);font-size:20px;letter-spacing:.1em;color:var(--white);margin-bottom:3px}
+.pm-sub{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px}
+.p-scope{font-family:var(--mono);font-size:13px;height:38px;padding:0 12px;border:1px solid var(--border2);border-radius:4px;background:var(--panel);color:var(--white);outline:none;width:100%;cursor:pointer}
+.p-scope:focus{border-color:var(--red)}
+.lbl-opt{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-left:6px;font-weight:400}
+.seg{display:flex;gap:0;border:1px solid var(--border2);border-radius:4px;overflow:hidden;width:fit-content}
+.seg-b{font-family:var(--mono);font-size:12px;letter-spacing:.03em;color:var(--muted);background:var(--panel);border:none;padding:8px 18px;cursor:pointer;transition:all .12s}
+.seg-b:not(:last-child){border-right:1px solid var(--border2)}
+.seg-b.on{background:var(--red);color:var(--white)}
+.seg-b:not(.on):hover{color:var(--text)}
+.p-hint{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.5;margin-top:9px}
+.p-sect{margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+.p-sect .lbl{color:var(--red);display:block;margin-bottom:10px}
+.cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px}
+.cat-cb{display:flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--text);transition:border-color .15s}
+.cat-cb.on{border-color:var(--red-dim);background:var(--red-bg)}
+.cat-cb input{accent-color:var(--red);width:13px;height:13px;cursor:pointer;flex-shrink:0}
+.st-checks{display:flex;flex-wrap:wrap;gap:6px}
+.st-ck{display:flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--text)}
+.st-ck input{accent-color:var(--red);width:13px;height:13px;cursor:pointer}
+.sdot-s{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.p-opts{display:flex;flex-direction:column;gap:8px}
+.p-opt{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--text)}
+.p-opt input{accent-color:var(--red);width:13px;height:13px;cursor:pointer}
+.p-fg{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.p-fg label{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+.p-fg input,.p-fg textarea{font-family:var(--mono);font-size:12px;padding:8px 10px;border:1px solid var(--border2);border-radius:3px;background:var(--panel);color:var(--text);outline:none;width:100%}
+.p-fg textarea{resize:vertical;min-height:56px}
+.p-fg input:focus,.p-fg textarea:focus{border-color:var(--red)}
+.p-sel-btns{display:flex;gap:8px;margin-bottom:10px}
+.p-count{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px}
+.p-count span{color:var(--red);font-weight:500}
+/* PRINT DOC */
+#pr{display:none;background:#fff;font-family:Georgia,serif;color:#111}
+#pr.on{display:block}
+@media print{
+  body>*:not(#pr){display:none!important}
+  #pr{display:block!important;position:absolute;top:0;left:0;width:100%;background:#fff}
+  @page{margin:15mm;size:A4 portrait}
+}
+.pr-hdr{display:flex;align-items:center;gap:20px;padding-bottom:14px;border-bottom:3px solid #c8102e;margin-bottom:20px}
+.pr-hdr img{height:56px;width:auto}
+.pr-org{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:#c8102e;font-family:'Courier New',monospace;font-weight:700;margin-bottom:3px}
+.pr-ttl{font-size:24px;font-weight:700;color:#c8102e;margin-bottom:2px}
+.pr-meta{display:flex;gap:14px;flex-wrap:wrap;font-size:10px;color:#888;font-family:'Courier New',monospace}
+.pr-note{margin:12px 0 20px;padding:10px 14px;border-left:3px solid #c8102e;font-size:11.5px;color:#444;background:#f8f8f8;font-style:italic;line-height:1.6}
+.pr-sec{margin-bottom:26px;break-inside:avoid}
+.pr-cat{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-bottom:2px solid #c8102e;padding-bottom:5px;margin-bottom:10px;color:#c8102e}
+.pr-cat span{font-size:9px;color:#999;font-family:'Courier New',monospace;margin-left:8px;font-weight:400}
+.pr-vh{font-size:17px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#1a1a1a;background:#f3f3f3;border-left:4px solid #c8102e;padding:7px 12px;margin:0 0 14px;break-after:avoid}
+.pr-vh span{font-size:10px;color:#888;font-family:'Courier New',monospace;margin-left:10px;font-weight:400;letter-spacing:.05em}
+.pr-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.pr-tbl th{text-align:left;font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:#888;padding:5px 8px;border-bottom:1px solid #ddd;font-family:'Courier New',monospace;font-weight:400}
+.pr-tbl td{padding:5px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top;line-height:1.4}
+.pr-tbl tr:nth-child(even) td{background:#fafafa}
+.pr-mk{font-weight:700}.pr-dc{color:#555;font-size:10.5px}
+.ps{font-size:9px;font-family:'Courier New',monospace;padding:1px 5px;border-radius:2px}
+.ps-ok{background:#e8f8ee;color:#1a7a3c}.ps-us{background:#e8f0fa;color:#1a4a8a}
+.ps-br{background:#fae8e8;color:#8a1a1a}.ps-rp{background:#faf0e8;color:#8a4a1a}
+.ps-uk{background:#fefce8;color:#7a5a0a}.ps-no{background:#f0f0f0;color:#888}
+.pr-bd{font-size:9.5px;color:#666;font-family:'Courier New',monospace}
+.pr-ft{margin-top:24px;padding-top:10px;border-top:2px solid #c8102e;display:flex;justify-content:space-between;font-size:9px;color:#999;font-family:'Courier New',monospace}
+/* PRODUCTIONS SECTION */
+.prod-row{display:grid;grid-template-columns:160px 64px 1fr auto;align-items:center;gap:8px;padding:7px 11px;background:var(--panel);border:1px solid var(--border);border-radius:3px;border-left:3px solid var(--red-dim);margin-bottom:5px}
+.space-row{display:grid;grid-template-columns:160px 64px 1fr;align-items:center;gap:8px;padding:7px 11px;background:var(--panel);border:1px solid var(--border);border-radius:3px;border-left:3px solid #2dd4bf;margin-bottom:5px}
+.prod-row-lbl{font-family:var(--mono);font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prod-row input[type=number]{width:64px;font-family:var(--mono);font-size:13px;padding:5px 8px;border:1px solid var(--border2);border-radius:3px;background:var(--bg);color:var(--white);text-align:center;outline:none}
+.prod-row input[type=number]:focus{border-color:var(--red)}
+.prod-row input[type=text]{font-family:var(--mono);font-size:11px;padding:5px 9px;border:1px solid var(--border2);border-radius:3px;background:var(--bg);color:var(--text);outline:none;width:100%}
+.prod-row input[type=text]:focus{border-color:var(--red)}
+.prod-row input[type=text]::placeholder{color:var(--muted)}
+.prod-conflict{font-family:var(--mono);font-size:10px;color:#eb984e;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.srow-iu-computed{background:rgba(52,152,219,.04)!important}
+.srow-iu-computed input[type=number]{color:#5dade2;font-weight:600;background:var(--panel)!important;cursor:default}
+.inuse-sigma{font-family:var(--mono);font-size:9px;color:#5dade2;opacity:.7;letter-spacing:.1em;margin-left:4px}
+.prod-empty{font-family:var(--mono);font-size:11px;color:var(--muted);font-style:italic;padding:8px 0}
+/* MANAGE SHOWS MODAL */
+.shows-ov{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:400;opacity:0;pointer-events:none;transition:opacity .2s}
+.shows-ov.open{opacity:1;pointer-events:all}
+.shows-modal{background:var(--surface);border:1px solid var(--border2);border-top:3px solid var(--red);border-radius:4px;padding:26px 30px;width:min(880px,96vw);max-height:90vh;overflow-y:auto;transform:translateY(10px);transition:transform .2s}
+.shows-ov.open .shows-modal{transform:translateY(0)}
+.season-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 0;margin:14px 0 8px;border-bottom:1px solid var(--border)}
+.season-lbl{font-family:var(--display);font-size:14px;letter-spacing:.1em;color:var(--red)}
+.season-toggle{font-family:var(--mono);font-size:10px;padding:3px 10px;border:1px solid var(--border2);border-radius:3px;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.season-toggle.on{border-color:var(--red-dim);color:var(--red);background:var(--red-bg)}
+.season-toggle:hover{border-color:var(--red-dim);color:var(--red)}
+.show-row{display:grid;grid-template-columns:160px 110px 110px 110px 110px 28px;align-items:center;gap:8px;padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:3px;margin-bottom:5px}
+.show-row.inactive{opacity:.45}
+.show-row-name{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600}
+.sp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.15)}
+.show-row input[type=date]{font-family:var(--mono);font-size:11px;padding:4px 7px;border:1px solid var(--border2);border-radius:3px;background:var(--bg);color:var(--text);outline:none;width:100%;color-scheme:dark}
+.show-row input[type=date]:focus{border-color:var(--red)}
+.show-row select{font-family:var(--mono);font-size:11px;padding:4px 5px;border:1px solid var(--border2);border-radius:3px;background:var(--bg);color:var(--text);outline:none;width:100%;color-scheme:dark}
+.show-row select:focus{border-color:var(--red)}
+.show-row select option{background:var(--panel)}
+.show-del{width:24px;height:24px;border:1px solid transparent;border-radius:3px;background:none;cursor:pointer;color:var(--muted);font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .12s}
+.show-del:hover{color:var(--c-broken);border-color:rgba(192,57,43,.4)}
+.shows-col-hdrs{display:grid;grid-template-columns:160px 110px 110px 110px 110px 28px;gap:8px;padding:0 10px;margin-bottom:4px}
+.shows-col-hdrs span{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+.add-show-row{display:flex;gap:8px;margin-top:10px;align-items:center}
+.add-show-row input{font-family:var(--mono);font-size:12px;padding:7px 10px;border:1px solid var(--border2);border-radius:3px;background:var(--panel);color:var(--text);outline:none;flex:1}
+.add-show-row input:focus{border-color:var(--red)}
+.add-show-row select{font-family:var(--mono);font-size:12px;padding:7px 10px;border:1px solid var(--border2);border-radius:3px;background:var(--panel);color:var(--text);outline:none}
+.conflict-badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:2px;background:rgba(230,126,34,.1);color:#eb984e;border:1px solid rgba(230,126,34,.25);cursor:pointer}
+/* TOAST */
+#toast{position:fixed;bottom:22px;right:22px;background:var(--panel);border:1px solid var(--red-dim);border-left:3px solid var(--red);padding:10px 16px;border-radius:3px;font-family:var(--mono);font-size:11px;color:var(--text);opacity:0;transform:translateY(6px);transition:all .22s;z-index:400;pointer-events:none}
+#toast.show{opacity:1;transform:translateY(0)}
+@media(max-width:768px){
+  #app{padding:12px 14px}#hdr{padding:0 14px}
+  #stats{grid-template-columns:repeat(3,1fr)}
+  .fg-grid,.aud-grid{grid-template-columns:1fr}
+  .brand-sub{display:none}
+}
+</style>
+</head>
+<body>
+<header id="hdr">
+  <div class="brand">
+    <img src="data:image/png;base64,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" alt="Phoenix Theatre Company">
+    <div>
+      <div class="brand-title">Audio Inventory</div>
+      <div class="brand-sub">The Phoenix Theatre Company</div>
+    </div>
+  </div>
+  <div class="hdr-btns">
+    <input type="file" id="jsonInput" accept=".json" style="display:none" onchange="handleJsonImport(event)">
+    <button class="btn" onclick="exportCSV()">↓ Export CSV</button>
+    <button class="btn" onclick="exportJSON()" title="Full backup including show/space allocations">↓ Backup JSON</button>
+    <button class="btn" onclick="document.getElementById('jsonInput').click()" title="Restore from JSON backup">↑ Restore JSON</button>
+    <button class="btn" onclick="openPrint()">⎙ Print / PDF</button>
+    <button class="btn btn-p" onclick="openAdd()">+ Add Item</button>
+  </div>
+</header>
+<div id="app">
+  <div id="prog-wrap"></div>
+  <div id="stats"></div>
+  <div id="toolbar">
+    <input type="text" id="srch" placeholder="Search make, model, description…" oninput="S.page=0;render()">
+    <select id="catF"><option value="">All Categories</option></select>
+    <select id="locF"><option value="">All Locations</option></select>
+    <select id="showF" onchange="setShowFilter(this.value)">
+      <option value="">All Shows / Spaces</option>
+    </select>
+    <button class="btn" onclick="openManageShows()" title="Manage Productions">🎭 Shows</button>
+    <div class="t-sep"></div>
+    <div class="pills">
+      <span class="pill p-all"      data-f="all"       onclick="setF('all')">All</span>
+      <span class="pill"            data-f="inuse"     onclick="setF('inuse')">In Use</span>
+      <span class="pill"            data-f="broken"    onclick="setF('broken')">Broken</span>
+      <span class="pill"            data-f="repair"    onclick="setF('repair')">Repair</span>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th class="srt" id="th-line"     onclick="setSort('line')"    ># <span class="s-arr">↕</span></th>
+        <th class="srt" id="th-qty"      onclick="setSort('qty')"     >Qty <span class="s-arr">↕</span></th>
+        <th class="srt" id="th-make"     onclick="setSort('make')"    >Make <span class="s-arr">↕</span></th>
+        <th class="srt" id="th-model"    onclick="setSort('model')"   >Model <span class="s-arr">↕</span></th>
+        <th>Description</th>
+        <th class="srt" id="th-cat"      onclick="setSort('cat')"     >Category <span class="s-arr">↕</span></th>
+        <th class="srt" id="th-status"   onclick="setSort('status')"  >Status <span class="s-arr">↕</span></th>
+        <th>Unit Breakdown</th>
+        <th>IP Address</th>
+        <th class="srt" id="th-loc"      onclick="setSort('loc')"     >Home Location <span class="s-arr">↕</span></th>
+        <th>Notes</th><th></th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div id="empty" class="empty" style="display:none">No items match your filters.</div>
+  </div>
+  <div class="pagi">
+    <span id="pageInfo" class="mono"></span>
+    <div class="pagi-btns" id="pagiButtons"></div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="ov" id="editOv" onclick="if(event.target===this)closeEdit()">
+<div class="modal">
+  <div class="m-title" id="eTitle">Edit Item</div>
+  <div class="m-sub"   id="eSub"></div>
+  <div class="gear-img" id="gImg"><div class="gi-body" id="gBody"></div><div class="gi-bar"><span class="gi-lbl" id="gLbl"></span><div class="gi-nav"><button onclick="gPrev()">←</button><span id="gCnt"></span><button onclick="gNext()">→</button></div></div></div>
+  <div class="fg-grid">
+    <div class="fg"><label>Line #</label><input id="f-line" type="number" placeholder="Auto"></div>
+    <div class="fg"><label>Total Qty *</label><input id="f-qty" type="number" min="1" placeholder="e.g. 10" oninput="onQtyChange()"></div>
+    <div class="fg"><label>Make *</label><input id="f-make" placeholder="e.g. Shure"></div>
+    <div class="fg"><label>Model *</label><input id="f-model" placeholder="e.g. SM57"></div>
+    <div class="fg full"><label>Description</label><input id="f-desc" placeholder="e.g. Dynamic Instrument Mic, Cardioid"></div>
+    <div class="fg">
+      <label>Category <button type="button" onclick="openManageCats()" style="font-family:var(--mono);font-size:9px;padding:1px 6px;border:1px solid var(--border2);border-radius:2px;background:transparent;color:var(--muted);cursor:pointer;margin-left:6px" title="Add / edit categories">edit</button></label>
+      <select id="f-cat"><option value="">Select…</option></select>
+    </div>
+    <div class="fg"><label>Sub-Category</label><input id="f-subcat" placeholder="e.g. Dynamic, Active…"></div>
+    <div class="fg"><label>Cost ($)</label><input id="f-cost" type="number" placeholder="e.g. 100"></div>
+    <div class="fg"><label>Serial #</label><input id="f-serial" placeholder="If over $900"></div>
+    <div class="fg"><label>IP Address(es)</label><input id="f-ip" placeholder="e.g. 10.18.16.40–.42"></div>
+    <div class="fg full"><label>Home Location</label><input id="f-loc" placeholder="e.g. Storage, Stephenson Booth…"></div>
+    <div class="f-div">
+      <span class="lbl">Unit Status — totals <span id="qtyHint">total qty</span></span>
+      <div class="srows">
+        <div class="srow srow-av srow-iu-computed"><div class="srow-lbl"><span class="srow-dot" style="background:var(--c-avail)"></span>Available<span class="inuse-sigma">Σ auto</span></div><input type="number" id="s-available" min="0" value="0" readonly tabindex="-1"><input type="text" id="d-available" placeholder="Auto-calculated" readonly tabindex="-1" style="color:var(--muted)"></div>
+        <div class="srow srow-iu srow-iu-computed"><div class="srow-lbl"><span class="srow-dot" style="background:var(--c-inuse)"></span>In Use<span class="inuse-sigma">Σ shows</span></div><input type="number" id="s-inuse" min="0" value="0" readonly tabindex="-1"><input type="text" id="d-inuse" placeholder="Auto-calculated from show assignments" readonly tabindex="-1" style="color:var(--muted)"></div>
+        <div class="srow srow-br"><div class="srow-lbl"><span class="srow-dot" style="background:var(--c-broken)"></span>Broken</div><input type="number" id="s-broken" min="0" value="0" oninput="onSI('broken')"><input type="text" id="d-broken" placeholder="e.g. 1 bent connector"></div>
+        <div class="srow srow-rp"><div class="srow-lbl"><span class="srow-dot" style="background:var(--c-repair)"></span>Out for Repair</div><input type="number" id="s-repair" min="0" value="0" oninput="onSI('repair')"><input type="text" id="d-repair" placeholder="e.g. Sent to Vintage King 3/15"></div>
+        <div class="srow srow-rt"><div class="srow-lbl"><span class="srow-dot" style="background:var(--c-retired)"></span>Retired / Gone</div><input type="number" id="s-retired" min="0" value="0" oninput="onSI('retired')"><input type="text" id="d-retired" placeholder="e.g. 1 stolen, 1 sold"></div>
+        <div class="srow srow-uk"><div class="srow-lbl"><span class="srow-dot" style="background:var(--c-unknown)"></span>Unknown</div><input type="number" id="s-unknown" min="0" value="0" oninput="onSI('unknown')"><input type="text" id="d-unknown" placeholder="e.g. not found during audit"></div>
+      </div>
+      <div class="qty-chk" id="qChk"></div>
+    </div>
+    <div class="f-div"><span class="lbl">Notes</span></div>
+  </div>
+  <div class="aud-grid">
+    <div class="fg full"><label>Notes</label><textarea id="f-notes" placeholder="Condition, location details, next steps…"></textarea></div>
+  </div>
+  <div class="f-div" id="prodSection">
+    <span class="lbl" style="color:var(--red)">Productions <span id="prodConflictBadge" style="display:none" class="conflict-badge" title="Allocation conflict">⚠ conflict</span></span>
+    <div id="prodRows" style="margin-top:10px"></div>
+  </div>
+  <div class="f-div" id="spaceSection">
+    <span class="lbl" style="color:var(--red)">Spaces</span>
+    <div id="spaceRows" style="margin-top:10px"></div>
+  </div>
+  <div class="svc" id="svc"><span class="lbl" id="svcLbl">Service &amp; Repair</span><div class="svc-row" id="svcRow"></div></div>
+  <div class="m-acts">
+    <button class="btn btn-d" id="delBtn" onclick="deleteItem()" style="display:none;margin-right:auto">Delete permanently</button>
+    <button class="btn" onclick="closeEdit()">Cancel</button>
+    <button class="btn btn-p" onclick="saveItem()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- MANAGE CATEGORIES MODAL -->
+<div class="shows-ov" id="catsOv" onclick="if(event.target===this)closeManageCats()">
+<div class="shows-modal" style="width:min(480px,96vw)">
+  <div class="m-title">Categories</div>
+  <div class="m-sub">Add, rename, or remove categories. Changes apply immediately.</div>
+  <div id="catsBody" style="margin-top:14px"></div>
+  <div class="add-show-row" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+    <input id="newCatName" placeholder="New category name…" onkeydown="if(event.key==='Enter')addCat()" style="font-family:var(--mono);font-size:12px;padding:7px 10px;border:1px solid var(--border2);border-radius:3px;background:var(--panel);color:var(--text);outline:none;flex:1">
+    <button class="btn btn-p" onclick="addCat()">+ Add</button>
+  </div>
+  <div class="m-acts">
+    <button class="btn btn-p" onclick="closeManageCats()">Done</button>
+  </div>
+</div>
+</div>
+
+<!-- PRINT MODAL -->
+<div class="pov" id="printOv" onclick="if(event.target===this)closePrint()">
+<div class="pmodal">
+  <div class="pm-title">Print / Export</div>
+  <div class="pm-sub">Pick what to print — your browser's print dialog saves it as PDF.</div>
+
+  <div class="p-sect">
+    <span class="lbl">What to print</span>
+    <select id="po-scope" class="p-scope" onchange="onScopeChange()"></select>
+  </div>
+
+  <div class="p-sect">
+    <span class="lbl">Layout</span>
+    <div class="seg" id="po-layout">
+      <button type="button" class="seg-b on" data-v="clean" onclick="setLayout('clean')">Clean list</button>
+      <button type="button" class="seg-b" data-v="full" onclick="setLayout('full')">Full detail</button>
+    </div>
+    <div class="p-hint" id="layoutHint"></div>
+  </div>
+
+  <div class="p-sect">
+    <span class="lbl">Categories</span>
+    <div class="p-sel-btns"><button class="btn" onclick="selAllCats(true)">All</button><button class="btn" onclick="selAllCats(false)">None</button></div>
+    <div class="cat-grid" id="catGrid"></div>
+  </div>
+
+  <div class="p-sect">
+    <span class="lbl">Filter by make / model <span class="lbl-opt">optional</span></span>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="p-fg" style="flex:1;min-width:140px;margin-top:0">
+        <label>Make (e.g. Shure)</label>
+        <input type="text" id="po-make" placeholder="Leave blank for all" oninput="updatePrintCount()">
+      </div>
+      <div class="p-fg" style="flex:1;min-width:140px;margin-top:0">
+        <label>Model / keyword (e.g. SM57)</label>
+        <input type="text" id="po-model" placeholder="Leave blank for all" oninput="updatePrintCount()">
+      </div>
+    </div>
+  </div>
+
+  <div class="p-sect">
+    <span class="lbl">Labels <span class="lbl-opt">optional</span></span>
+    <div class="p-fg"><label>Title</label><input id="po-title" placeholder="Auto-named from your selection"></div>
+    <div class="p-fg"><label>Note on the printout</label><textarea id="po-note" placeholder="e.g. Contact Matthew with questions."></textarea></div>
+  </div>
+
+  <div class="p-count" id="pCount"></div>
+  <div class="m-acts">
+    <button class="btn" onclick="closePrint()">Cancel</button>
+    <button class="btn btn-p" onclick="doPrint()">Print / Save as PDF →</button>
+  </div>
+</div>
+</div>
+
+<!-- MANAGE SHOWS MODAL -->
+<div class="shows-ov" id="showsOv" onclick="if(event.target===this)closeManageShows()">
+<div class="shows-modal">
+  <div class="m-title">Productions</div>
+  <div class="m-sub">Manage show schedule and seasons. Load-in through close defines the conflict window.</div>
+  <div id="showsBody"></div>
+  <div class="add-show-row" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+    <input id="newShowName" placeholder="Show name…" onkeydown="if(event.key==='Enter')addShow()">
+    <select id="newShowSeason">
+      <option value="25-26">25–26</option>
+      <option value="26-27">26–27</option>
+    </select>
+    <button class="btn btn-p" onclick="addShow()">+ Add</button>
+  </div>
+  <div class="m-acts">
+    <button class="btn btn-p" onclick="saveShowsAndClose()">Save & Close</button>
+  </div>
+</div>
+</div>
+
+<div id="pr"></div>
+<div id="toast"></div>
+<script>
+
+const SEED=[
+[1,10,'Shure','565SD','Dynamic Switchable Vocal Mic, Cardioid, Chrome','Microphone','Dynamic',100,'','Storage'],
+[2,10,'Shure','SM57','Dynamic Instrument Mic, Cardioid','Microphone','Dynamic',100,'','Storage'],
+[3,6,'Behringer','XM8500','Dynamic Switchable Vocal Mic, Cardioid','Microphone','Dynamic',50,'','Storage'],
+[4,3,'Shure','SM58','Dynamic Vocal Mic, Cardioid','Microphone','Dynamic',100,'','Storage'],
+[5,2,'AKG','D700','Dynamic Vocal Mic, Cardioid','Microphone','Dynamic',85,'','Storage'],
+[6,2,'GLS','ES-57','Dynamic Instrument Mic, Cardioid','Microphone','Dynamic',25,'','Storage'],
+[7,1,'Shure','545SD','Dynamic Switchable Instrument Mic','Microphone','Dynamic',100,'','Storage'],
+[8,1,'Sennheiser','e816','Dynamic Switchable Vocal Mic','Microphone','Dynamic',100,'','Storage'],
+[9,1,'Fender','P51','Dynamic Switchable Vocal Mic','Microphone','Dynamic','','','Storage'],
+[10,9,'Shure','SM55','Supercardioid Dynamic Vocal Mic','Microphone','Dynamic',250,'','Storage'],
+[11,2,'Countryman','ISOMAX II-C','Cardioid Instrument Mic, Clip-On','Microphone','Condenser',325,'','Storage'],
+[12,2,'EV','CS15E','Cardioid Instrument Mic','Microphone','Condenser',250,'','Storage'],
+[13,4,'Crown','PCC160','Cardioid Boundary Floor Mic','Microphone','Condenser',400,'','Storage'],
+[14,1,'Shure','KSM 109','Cardioid Instrument Mic','Microphone','Condenser',100,'','Storage'],
+[15,1,'AKG','C451E','Cardioid Instrument Mic','Microphone','Condenser',600,'','Storage'],
+[16,5,'Shure','Mx185','Cardioid Lavalier Mic','Microphone','Condenser',250,'','Storage'],
+[17,6,'Shure','KSM137','Cardioid Instrument Mic','Microphone','Condenser',350,'','Storage'],
+[18,6,'Sennheiser','MKH-50','Super-Cardioid Instrument Mic','Microphone','Condenser',1200,'','Storage'],
+[19,4,'Sennheiser','MD-441','Super-Cardioid Instrument Mic, Dynamic','Microphone','Condenser',1000,'','Storage'],
+[20,4,'Sennheiser','e609','','Microphone','Condenser',100,'','Storage'],
+[21,4,'AKG','C414','Switchable Condenser, Side-Address','Microphone','Condenser',1000,'','Storage'],
+[22,1,'Sennheiser','MKE 600','Super-Cardioid Shotgun Mic','Microphone','Condenser','','','Storage'],
+[23,2,'Sennheiser','e904','Clip-on Drum Mic','Microphone','Dynamic',180,'','Storage'],
+[24,8,'Sennheiser','e604','Clip-on Drum Mic','Microphone','Dynamic',150,'','Storage'],
+[25,2,'Shure','Beta 91A','Cardioid Boundary Floor Mic','Microphone','Condenser',250,'','Storage'],
+[26,1,'Shure','Beta 52A','Supercardioid Kick Drum Mic','Microphone','Condenser',200,'','Storage'],
+[27,6,'Shure','WL93','Omnidirectional Lav Mic, Black','Microphone','Condenser',90,'','Storage Shelf'],
+[29,5,'Radial','J48','Active Direct Box','Direct Box','Active',230,'','Storage'],
+[30,2,'Countryman','Type 85','Active Direct Box','Direct Box','Active',150,'','Storage'],
+[31,1,'Avalon','U5','Active Direct Box, Tube','Direct Box','Tube',870,'','Storage'],
+[33,2,'Whirlwind','IMP2','Passive Direct Box','Direct Box','Passive','','','Storage'],
+[34,2,'Livewire','SPDI','Passive Direct Box','Direct Box','Passive','','','Storage'],
+[35,2,'Horizon','Straightline','Passive Direct Box','Direct Box','Passive','','','Storage'],
+[36,2,'Mystarsound','FD1','Passive Direct Box','Direct Box','Passive','','','Storage'],
+[37,1,'Pro Co','DB1','Passive Direct Box','Direct Box','Passive','','','Storage'],
+[41,6,'QSC','K8','8" Powered Monitor','Monitor','Self-Powered','','','Ruch Room'],
+[42,2,'QSC','K10','10" Powered Monitor','Monitor','Self-Powered','','','Ruch Room'],
+[43,2,'QSC','K12','12" Powered Monitor','Monitor','Self-Powered','','','Ruch Room'],
+[44,4,'JBL','EON15','15" Powered Monitor','Monitor','Self-Powered','','','Ruch Room'],
+[45,2,'Yamaha','MSR250','8" Powered Monitor','Monitor','Self-Powered','','','Storage'],
+[46,2,'Meyer','UPM-1P','Powered Speaker','Fill Speaker','Self-Powered','','','Storage'],
+[47,2,'Yamaha','S112IV','','Monitor','','','','Ruch Room'],
+[48,7,'Meyer','MM-4XP','4" Fill Speaker','Fill Speaker','Self-Powered','','','Storage'],
+[49,2,'EAW','JF80','Dual 5" Speaker','Fill Speaker','Self-Powered','','','Storage'],
+[50,1,'Behringer','Eurolive','Powered Monitor','Personal Monitor','Self-Powered','','','Storage'],
+[51,1,'Mackie','SRM150','Powered Monitor','Personal Monitor','Self-Powered','','','Storage'],
+[52,1,'Galaxy','PA5X140','Powered Monitor','Personal Monitor','Self-Powered','','','Storage'],
+[53,7,'Galaxy','Microspot','Powered Monitor','Personal Monitor','Self-Powered','','','Storage'],
+[55,1,'Behringer','X32','Small Format Mixer','Mixer','Digital','','','Storage'],
+[56,1,'Yamaha','O1V','Small Format Mixer','Mixer','Digital','','','Storage'],
+[57,4,'Yamaha','MG206c','Small Format Mixer','Mixer','Analog','','','Storage'],
+[58,1,'Midas','Venice 240','Small Format Mixer','Mixer','Analog','','','Hardes'],
+[59,1,'Allen and Heath','GLD 80','Small Format Mixer','Mixer','Digital','','','Hardes'],
+[60,1,'Behringer','XENYX502','Small Format Mixer','Mixer','','','','Storage'],
+[61,1,'Presonus','AudioBox 44VSL','Interface','Interface','','','','Storage'],
+[62,2,'Yamaha','MG60X','Small Format Mixer','Mixer','Analog','','','Storage'],
+[63,1,'AVID','Mbox','MIDI Interface','Interface','Digital','','','Storage'],
+[66,52,'Shure','ADX1M','Miniature Bodypack Transmitter','Wireless','','','','Storage'],
+[67,13,'Shure','AD4Q','4-Channel Axient Receiver','Wireless','','','','Stephenson RF Rack'],
+[68,4,'Shure','Adx2','Handheld Wireless TX','Wireless','','','','Stephenson RF Rack'],
+[69,1,'Countryman','B3R','Omni Lav 1/8", Brown','Microphone','','238','','Storage Shelf'],
+[70,6,'Countryman','B3R','Omni Lav 1/8", Beige','Microphone','','238','','Storage Shelf'],
+[71,4,'Countryman','B3R','Omni Lav 1/8", Tan','Microphone','','238','','Storage Shelf'],
+[72,21,'Countryman','B6','Omni Lav to LEMO, Beige','Microphone','','','','Storage'],
+[73,16,'Countryman','B6','Omni Lav to LEMO, Tan','Microphone','','','','Storage'],
+[74,14,'Countryman','B6','Omni Lav to LEMO, Cocoa','Microphone','','','','Storage'],
+[75,6,'Countryman','B6','Omni Lav to LEMO, Black','Microphone','','','','Storage'],
+[77,1,'Sennheiser','MK1-4','Omni Subminiature Lav, Beige','Wired Microphone','Condenser','','','Storage Shelf'],
+[78,2,'Sennheiser','MK2-4','Omni Subminiature Lav, Black','Wired Microphone','Condenser','','','Storage Shelf'],
+[80,9,'Point Source','','Omni Lav to TA4F','Microphone','','','',''],
+[83,2,'Crown','CE-1000','Power Amp','Power Amplifier','System','','','Stephenson Booth'],
+[84,1,'Pyle','PTA-1000','Power Amp','Power Amplifier','System','','','Stephenson Booth'],
+[85,4,"L'acoustic",'LA4X','Power Amp','Power Amplifier','System','','','Stephenson Booth'],
+[86,3,'Crown','CTS600','Power Amp – BOH Page / FOH Mix to Lobby','Power Amplifier','System','','','Stephenson Booth'],
+[88,1,'Meyer','Gallileo 616','Speaker Processor','System','System','','','Stephenson Booth'],
+[89,1,'TP-link','TLSG10160','Network Switch','System','System','','','Stephenson Booth'],
+[90,4,'Williams','PPA 135','Hearing Assist Transmitter','System','Comm','','','Stephenson Booth'],
+[91,1,'Clearcom','SB704','Clearcom Base Station','Hardwired Comm','Communications','','','Stephenson Booth'],
+[93,1,'Allen and Heath','Me-u hub','Personal Monitoring System','System','','','','Online via IP'],
+[94,1,'Yamaha','Rio3224D','Digital Snake Box','Output','','','','Stephenson FOH Rack'],
+[95,16,'Allen and Heath','Me-1','Personal Mixer','Mixer','','','','Storage/Ruch Room'],
+[97,2,'Clearcom','HME DX210','Wireless Comm Base Station','Hardwired Comm','Comm','','','Stephenson/BSR'],
+[98,1,'Clearcom','MS-440','4-Channel Main Comm Station','Hardwired Comm','Comm','','','Hormel Booth'],
+[99,1,'RF Venue','4 Zone Combiner','Antenna Combiner','System','System','','','Stephenson BS Rack'],
+[100,1,'Shure','AXT600','RF Spectrum Manager','System','System','','','Stephenson BS Rack'],
+[101,2,'Shure','UA845UWB','Antenna Distro','System','System','','','Stephenson FOH Rack'],
+[102,5,'Cisco','SG300-20','Network Switch','System','System','','','Stephenson BS Rack'],
+[103,1,'Apogee','Big Ben C777','External Wordclock','System','System','','','Stephenson FOH Rack'],
+[104,1,'Focusrite','RA8R','','System','System','','','Stephenson FOH Rack'],
+[106,1,'Scarlett','18i20','Audio Interface','Interface','System','','','Stephenson FOH Rack'],
+[107,1,'TC Electronic','M6000 MKII','Effect Processor','External Effect Processor','System','','','Stephenson FOH Rack'],
+[108,1,'Midi Solutions','F8','Footswitch Controller','System','MIDI','','','Stephenson FOH Rack'],
+[109,1,'Yamaha','PW800W','Power Supply','System','System','','','Stephenson FOH Rack'],
+[110,2,'Yamaha','CL5','Mixing Console','Mixer','System','','','Hormel Console'],
+[112,2,'Yamaha','IMX644','Output Distribution','Output Distro','System','','','Stephenson Booth'],
+[113,1,'Rane','EXP1x','Remote Audio Expansion','System','System','','','Hormel Rack'],
+[114,1,'Rane','HAL1x','Expandable Multiprocessor','System','System','','','Hormel Rack'],
+[116,6,'Clearcom','PTRS601','Wireless Comm','Communications','','','','All Over Campus'],
+[117,11,'Clearcom','PT501','Wireless Comm','Communications','','','','All Over Campus'],
+[118,2,'Clearcom','PTCCMET','Wireless Comm','Communications','','','','All Over Campus'],
+[119,2,'Clearcom','PTBP1','Wireless Comm','Communications','','','','All Over Campus'],
+[121,5,'Clearcom','PTCC40','Wireless Comm','Communications','','','','All Over Campus'],
+[122,2,'Clearcom','PTPH88','Wireless Comm','Communications','','','','All Over Campus'],
+[123,5,'Clearcom','PTDT108','Wireless Comm','Communications','','','','All Over Campus'],
+[124,3,'Clearcom','PTHS','Wireless Comm','Communications','','','','All Over Campus'],
+[126,8,'Clearcom','PTBP200','Wireless Comm','Communications','','','','All Over Campus'],
+[127,2,'Clearcom','PTBP210','Wireless Comm','Communications','','','','All Over Campus'],
+[128,4,'Clearcom','PTHS15','Wireless Comm','Communications','','','','All Over Campus'],
+[129,7,'Clearcom','PTHS16','Wireless Comm','Communications','','','','All Over Campus'],
+[130,1,'Clearcom','Arcadia','Arcadia Central Station','Communications','','','','Top of Roadcase MS'],
+[131,16,'Dressler','PTQLS','Cue Light System','Cue Lights','Comm','','','Stephenson Booth'],
+[132,12,'NuLogic','PTNDQL','Cue Light System','Cue Lights','Comm','','','Hormel Booth'],
+[134,2,'DBX','1066','Compressor/Limiter/Gate','External Effect Processor','','','','Hormel Booth'],
+[136,1,'Denon','DN-C635','Professional CD Player','Music Equip','System','','','Hormel Rack'],
+[143,4,"L'acoustic","ARC's",'Passive Speakers – Mains/Center','Monitor','Stephenson System','','','Stephenson'],
+[144,2,"L'acoustic",'SB18','Subwoofer','Monitor','Stephenson System','','','Stephenson Grid?'],
+[145,4,"L'acoustic",'8xti','Compact Loudspeaker – House Delay','Monitor','Stephenson System','','','Stephenson'],
+[146,5,"L'acoustic",'5xt','Ultra-compact Coaxial – Front Fill','Monitor','Stephenson System','','','Stephenson'],
+[147,4,'JBL','Control 1','Bookshelf Loudspeakers','Monitor','Self-Powered',175,'','Storage Shelf'],
+[152,20,'Sennheiser','5012 bodypacks','Wireless Transmitters','Wireless','','','','Hardes Back Hallway'],
+[153,3,'Sennheiser','SK5000 Handheld','Wireless Handhelds','Wireless','','','','Hardes Back Hallway'],
+[154,13,'Sennheiser','5212 bodypacks','Wireless Transmitters','Wireless','','','','Hardes Back Hallway'],
+[155,10,'Sennheiser','D-6000','Wireless Transmitters','Wireless','','','','Hardes Back Hallway'],
+[157,10,'Sennheiser','EM 3032','Wireless Receiver','Wireless','','','','Hardes Back Hallway'],
+[158,6,'Sennheiser','EM 3732','Wireless Receiver','Wireless','','','','Hardes Back Hallway'],
+[159,5,'Sennheiser','EM 6000','Wireless Receiver','Wireless','','','','Hardes Back Hallway'],
+[161,2,'AKG','Perception','Small Wireless System','Wireless','','','',''],
+[162,1,'Line 6','XD-V35L','Wireless Lavalier System','Wireless','','','','Storage Shelf'],
+[164,2,'Motu','Ultralite MK3','Audio Interface','Interface','','','','Storage Shelf'],
+[172,2,'Dell','Windows 7 PC','CPU','System','','','',''],
+[173,2,'Apple','Mac Mini (Old)','CPU','System','','','','Stephenson FOH Rack'],
+[174,2,'Dell','Windows 10 PC','CPU','System','','','',''],
+[175,2,'Apple','M1 Mac Mini','CPU','System','','','',''],
+
+// VLAN 16 - ClearCom / HXii Communications (from network map 2026)
+[200,1,'ClearCom','Arcadia Base Station','Arcadia Central Station AES67 - Primary','Communications','IP Intercom','','','Top of Roadcase MS'],
+[201,1,'ClearCom','Arcadia Base Station (Backup)','Arcadia Central Station AES67 - Backup','Communications','IP Intercom','','','Top of Roadcase MS'],
+[202,3,'ClearCom','HRM-4X','4-Wire Remote Station / Main Station Panel','Communications','IP Intercom','','','Stephenson'],
+[203,6,'ClearCom','FSII-TCVR-IP-19','FreeSpeak II IP Transceiver - Beltpack Antenna','Communications','IP Intercom','','','Various'],
+[204,2,'ClearCom','2X-HKB','2-Channel Key Panel / Beltstation','Communications','IP Intercom','','','Stephenson'],
+[205,21,'ClearCom','HXii-BP Beltpack','HXii Wireless Beltpack - Pool of 21 shared across Hormel / Stevenson / BlackBox','Communications','IP Intercom','','','RF Rack / Road Case'],
+];
+
+const VLAN16_IP={
+  200:'10.18.16.30',
+  201:'10.18.16.30 (backup)',
+  202:'10.18.16.40, .41, .42',
+  203:'10.18.16.47, .48, .49, .50, .51, .75',
+  204:'10.18.16.70 (x2)',
+  205:'Dynamic – assigned per venue when deployed (VLAN 16, .100–.180 range)',
+};
+
+// ═══════════════════ CONSTANTS ═══════════════════
+const KEY = 'ptc_audio_v3';
+const SHOWS_KEY = 'ptc_shows_v1';
+const CATS_KEY = 'ptc_cats_v1';
+const PER = 35;
+
+const CATS_SEED = [
+  'Microphone','Wired Microphone','Wireless',
+  'Monitor','Fill Speaker','Personal Monitor',
+  'Mixer','Direct Box','Power Amplifier',
+  'Interface','Hardwired Comm','Communications',
+  'Cue Lights','External Effect Processor',
+  'Output Distro','System','Output','Video','Music Equip','Other'
+];
+
+const SPACES = [
+  {id:'sp1', name:'Stephenson', color:'var(--sp-stephenson)', colorDim:'var(--sp-stephenson-dim)', colorHex:'#c8102e'},
+  {id:'sp2', name:'Hormel',     color:'var(--sp-hormel)',     colorDim:'var(--sp-hormel-dim)',     colorHex:'#2980b9'},
+  {id:'sp3', name:'Hardes',     color:'var(--sp-hardes)',     colorDim:'var(--sp-hardes-dim)',     colorHex:'#8e44ad'},
+];
+
+const UNASSIGNED_SPACE = {color:'var(--sp-unassigned)', colorDim:'var(--sp-unassigned-dim)', colorHex:'#666058'};
+
+const SHOWS_SEED = [
+  {id:'s0a',name:'Come From Away',    season:'25-26', active:true,  loadIn:null, open:null, close:null, space:''},
+  {id:'s0b',name:'Daddy Long Legs',   season:'25-26', active:true,  loadIn:null, open:null, close:null, space:''},
+  {id:'s1', name:'Ever After',        season:'25-26', active:true,  loadIn:null, open:null, close:null, space:''},
+  {id:'s2', name:'Dear Evan Hansen',  season:'25-26', active:true,  loadIn:null, open:null, close:null, space:''},
+  {id:'s3', name:'Les Mis',           season:'25-26', active:true,  loadIn:null, open:null, close:null, space:''},
+  {id:'s4', name:'Murder for Two',    season:'25-26', active:true,  loadIn:null, open:null, close:null, space:''},
+  {id:'s5', name:'Suffs',             season:'26-27', active:false, loadIn:null, open:null, close:null, space:''},
+  {id:'s6', name:'Mary Poppins',      season:'26-27', active:false, loadIn:null, open:null, close:null, space:''},
+  {id:'s7', name:'Gala',              season:'26-27', active:false, loadIn:null, open:null, close:null, space:''},
+  {id:'s8', name:'New Works Fest',    season:'26-27', active:false, loadIn:null, open:null, close:null, space:''},
+  {id:'s9', name:'Churchill',         season:'26-27', active:false, loadIn:null, open:null, close:null, space:''},
+  {id:'s10',name:'Unlocked',          season:'26-27', active:false, loadIn:null, open:null, close:null, space:''},
+  {id:'s11',name:'Spamalot',          season:'26-27', active:false, loadIn:null, open:null, close:null, space:''},
+  {id:'s12',name:'Sweeney Todd',      season:'26-27', active:false, loadIn:null, open:null, close:null, space:''},
+  {id:'s13',name:'Stage Mother',      season:'26-27', active:false, loadIn:null, open:null, close:null, space:''},
+  {id:'s14',name:'Kimberly Akimbo',   season:'26-27', active:false, loadIn:null, open:null, close:null, space:''},
+  {id:'s15',name:'Legally Blonde',    season:'26-27', active:false, loadIn:null, open:null, close:null, space:''},
+];
+
+const CAT_CLASS = {
+  'Microphone':'c-mic','Wired Microphone':'c-mic','Wireless':'c-wls',
+  'Monitor':'c-mon','Fill Speaker':'c-mon','Personal Monitor':'c-mon',
+  'Mixer':'c-mix','Direct Box':'c-sys','Power Amplifier':'c-amp',
+  'Hardwired Comm':'c-com','Communications':'c-com','Cue Lights':'c-com',
+  'External Effect Processor':'c-sys','System':'c-sys',
+  'Interface':'c-sys','Output Distro':'c-sys','Output':'c-sys','Video':'c-vid','Music Equip':'c-oth',
+};
+
+const ST_ORDER = {broken:0,repair:1,unknown:2,inuse:3,available:4,retired:5};
+
+const MFR_LINKS = {
+  'shure':[['Service Portal','https://www.shure.com/en-US/support/service-repair'],['Support','https://www.shure.com/en-US/support/contact-us'],['Repair Form (PDF)','https://www.shure.com/damfiles/default/global/support/us/service/Repair_Correspondence_Form_PDF.pdf-55701383cebca6dd3c5a6f4e7365ed23.pdf']],
+  'sennheiser':[['Repair Portal','https://www.sennheiser.com/en-US/support/repair-service'],['Support','https://www.sennheiser.com/en-US/support']],
+  'clearcom':[['Support','https://www.clearcom.com/support/'],['RMA','https://www.clearcom.com/support/repair-and-returns/']],
+  'yamaha':[['Pro Audio Support','https://usa.yamaha.com/support/index.html'],['Repair','https://usa.yamaha.com/support/repairs.html']],
+  'qsc':[['Service & Support','https://www.qsc.com/support/'],['RMA','https://www.qsc.com/support/service-and-repair/']],
+  'meyer':[['Support','https://meyersound.com/support/'],['Service','https://meyersound.com/support/service-repair/']],
+  "l'acoustic":[['Support','https://www.l-acoustics.com/support/']],
+  'countryman':[['Support','https://www.countryman.com/support/']],
+  'akg':[['Service','https://www.akg.com/support']],
+  'crown':[['Support','https://www.crownaudio.com/en-US/support']],
+  'radial':[['Support','https://www.radialeng.com/support/']],
+  'allen and heath':[['Support','https://www.allen-heath.com/support/'],['Service','https://www.allen-heath.com/support/repairs-service/']],
+  'behringer':[['Support','https://www.behringer.com/support.html']],
+};
+
+const IMGS = {
+  'shure sm57':'https://pubs.shure.com/guide/SM57/en-US/content/images/SM57_POP.png',
+  'shure sm58':'https://pubs.shure.com/guide/SM58/en-US/content/images/SM58_POP.png',
+  'shure sm55':'https://pubs.shure.com/guide/SM55/en-US/content/images/SM55_POP.png',
+  'shure beta 52a':'https://pubs.shure.com/guide/BETA52A/en-US/content/images/BETA52A.png',
+  'shure beta 91a':'https://pubs.shure.com/guide/BETA91A/en-US/content/images/BETA91A.png',
+  'shure ksm137':'https://pubs.shure.com/guide/KSM137/en-US/content/images/KSM137.png',
+  'shure mx185':'https://pubs.shure.com/guide/MX185/en-US/content/images/MX185.png',
+  'shure wl93':'https://pubs.shure.com/guide/WL93/en-US/content/images/WL93.png',
+  'shure ad4q':'https://pubs.shure.com/guide/ad4q/en-US/content/images/AD4Q_Front.png',
+  'shure adx1m':'https://pubs.shure.com/guide/ADX1M/en-US/content/images/ADX1M.png',
+  'shure axt600':'https://pubs.shure.com/guide/AXT600/en-US/content/images/AXT600.png',
+  'sennheiser e604':'https://assets.sennheiser.com/img/11943/x1_desktop_Sennheiser_e604_square.jpg',
+  'sennheiser e609':'https://assets.sennheiser.com/img/11950/x1_desktop_Sennheiser_e609.jpg',
+  'sennheiser e904':'https://assets.sennheiser.com/img/11957/x1_desktop_Sennheiser_e904.jpg',
+  'sennheiser mkh-50':'https://assets.sennheiser.com/img/11993/x1_desktop_Sennheiser_MKH50.jpg',
+  'sennheiser md-441':'https://assets.sennheiser.com/img/11987/x1_desktop_Sennheiser_MD441.jpg',
+  'countryman b6':'https://www.countryman.com/wp-content/uploads/2019/01/B6-omni-lav-microphone.jpg',
+  'countryman b3r':'https://www.countryman.com/wp-content/uploads/2019/01/B3-omni-lav-microphone.jpg',
+  'countryman type 85':'https://www.countryman.com/wp-content/uploads/2019/01/Type-85-FET-DI.jpg',
+  'radial j48':'https://www.radialeng.com/wp-content/uploads/2021/04/J48-main.jpg',
+  'qsc k8':'https://mediadl.musictribe.com/media/ECatalog/QSC/Images/QSC_K8.2_01.jpg',
+  'qsc k10':'https://mediadl.musictribe.com/media/ECatalog/QSC/Images/QSC_K10.2_01.jpg',
+  'qsc k12':'https://mediadl.musictribe.com/media/ECatalog/QSC/Images/QSC_K12.2_01.jpg',
+  'yamaha cl5':'https://usa.yamaha.com/files/download/other_assets/5/1136015/CL5_e1.jpg',
+  'clearcom arcadia':'https://www.clearcom.com/wp-content/uploads/2020/01/Arcadia-Central-Station.jpg',
+  'clearcom hrm-4x':'https://www.clearcom.com/wp-content/uploads/2020/01/HRM-4X-Remote-Station.jpg',
+};
+
+const LOC_FIX = {
+  'Mainstage':'Stephenson','MS Booth':'Stephenson Booth',
+  'MS FOH Rack':'Stephenson FOH Rack','MS BS Rack':'Stephenson BS Rack',
+  'MS RF Rack':'Stephenson RF Rack','MS/BSR':'Stephenson/BSR',
+  'MS Grid?':'Stephenson Grid?','Mainstage System':'Stephenson System',
+};
+
+// ═══════════════════ STATE ═══════════════════
+const S = { items:[], shows:[], cats:[], page:0, filter:'all', sortCol:'line', sortDir:1, editIdx:null, showFilter:'' };
+
+// ═══════════════════ DATA HELPERS ═══════════════════
+const mkU = () => ({available:0,inuse:0,broken:0,repair:0,retired:0,unknown:0});
+const mkD = () => ({available:'',inuse:'',broken:'',repair:'',retired:'',unknown:''});
+
+function itemFromSeed(r,i){
+  return { id:Date.now()+i, line:r[0], qty:r[1], make:r[2], model:r[3], desc:r[4],
+    cat:r[5], subcat:r[6], cost:r[7], serial:r[8], loc:r[9],
+    ip:VLAN16_IP[r[0]]||'', auditNotes:'',
+    units:mkU(), details:mkD(), showQty:{}, showNotes:{}, spaceQty:{}, spaceNotes:{} };
+}
+
+function migrate(it){
+  if(!it.units)   it.units   = mkU();
+  if(!it.details) it.details = mkD();
+  if(!it.showQty)   it.showQty   = {};
+  if(!it.showNotes) it.showNotes = {};
+  if(!it.spaceQty)  it.spaceQty  = {};
+  if(!it.spaceNotes) it.spaceNotes = {};
+  if(it.ip===undefined) it.ip='';
+  if(LOC_FIX[it.loc]) it.loc=LOC_FIX[it.loc];
+  ['available','inuse','broken','repair','retired','unknown'].forEach(k=>{
+    if(it.units[k]===undefined)   it.units[k]=0;
+    if(it.details[k]===undefined) it.details[k]='';
+  });
+  return it;
+}
+
+function statusOf(it){
+  const u=it.units||{};
+  const avail=u.available||0;
+  const inuseShow=Object.values(it.showQty||{}).reduce((s,v)=>s+(v||0),0);
+  const inuseSpace=Object.values(it.spaceQty||{}).reduce((s,v)=>s+(v||0),0);
+  const inuseLegacy=u.inuse||0; // pre-show-allocation data
+  const broken=u.broken||0, repair=u.repair||0, unknown=u.unknown||0, retired=u.retired||0;
+  // Primary status reflects what you can actually grab right now:
+  if(avail>0) return 'available';
+  if(inuseShow+inuseSpace+inuseLegacy>0) return 'inuse';
+  // Nothing available and nothing allocated — the whole qty is in an issue state.
+  if(broken>0)  return 'broken';
+  if(repair>0)  return 'repair';
+  if(unknown>0) return 'unknown';
+  if(retired>0) return 'retired';
+  return 'available'; // qty=0 or edge case
+}
+
+// Return a list of attention-needed unit types (non-primary issues) for warning dots.
+function statusWarnings(it){
+  const u=it.units||{}, out=[];
+  if((u.broken ||0)>0) out.push('broken');
+  if((u.repair ||0)>0) out.push('repair');
+  if((u.unknown||0)>0) out.push('unknown');
+  // Don't dot retired — it's informational, not an issue.
+  // If the primary status IS one of these (everything broken/repair/unknown),
+  // drop it from warnings so we don't double-flag.
+  const primary=statusOf(it);
+  return out.filter(k=>k!==primary);
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ═══════════════════ PERSISTENCE ═══════════════════
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(S.items));}catch(e){} }
+function saveShows(){ try{localStorage.setItem(SHOWS_KEY,JSON.stringify(S.shows));}catch(e){} }
+function saveCats(){ try{localStorage.setItem(CATS_KEY,JSON.stringify(S.cats));}catch(e){} }
+
+function loadCats(){
+  try{
+    const raw=localStorage.getItem(CATS_KEY);
+    if(raw){ S.cats=JSON.parse(raw); }
+    else { S.cats=[...CATS_SEED]; }
+    // Merge any seed cats not already present
+    CATS_SEED.forEach(c=>{ if(!S.cats.includes(c)) S.cats.push(c); });
+  }catch(e){ S.cats=[...CATS_SEED]; }
+}
+
+function loadShows(){
+  try{
+    const raw=localStorage.getItem(SHOWS_KEY);
+    const saved=raw?JSON.parse(raw):[];
+    const tombRaw=localStorage.getItem(SHOWS_KEY+'_deleted');
+    const tombstones=new Set(tombRaw?JSON.parse(tombRaw):[]);
+    const savedMap={};
+    saved.forEach(s=>{ savedMap[s.id]=s; });
+    // Rebuild in SHOWS_SEED order, but skip any seed shows the user has deleted
+    S.shows=SHOWS_SEED
+      .filter(sh=>!tombstones.has(sh.id))
+      .map(sh=>{const merged=savedMap[sh.id]?{...sh,...savedMap[sh.id]}:{...sh}; if(merged.space===undefined) merged.space=''; return merged;});
+    // Append any user-added shows not in seed
+    saved.filter(s=>!SHOWS_SEED.find(seed=>seed.id===s.id)).forEach(s=>{if(s.space===undefined) s.space=''; S.shows.push(s);});
+  }catch(e){ S.shows=SHOWS_SEED.map(s=>({...s})); }
+}
+
+function load(){
+  loadShows();
+  loadCats();
+  try{
+    const raw=localStorage.getItem(KEY);
+    if(raw){
+      S.items=JSON.parse(raw).map(migrate);
+      // Only merge seed items if user has never imported their own data
+      const hasImported=localStorage.getItem('ptc_imported');
+      if(!hasImported){
+        const lines=new Set(S.items.map(i=>i.line));
+        let added=0;
+        SEED.forEach((r,i)=>{ if(!lines.has(r[0])){ S.items.push(itemFromSeed(r,i)); added++; } });
+        if(added) save();
+      }
+    } else {
+      S.items=SEED.map(itemFromSeed); save();
+    }
+  }catch(e){ S.items=SEED.map(itemFromSeed); }
+  buildCatSelect(); buildFilters(); render();
+}
+
+function setShowFilter(val){
+  S.showFilter=val; S.page=0; render();
+}
+
+// ═══════════════════ FILTERING & SORTING ═══════════════════
+function getFiltered(){
+  const q=document.getElementById('srch').value.toLowerCase();
+  const cat=document.getElementById('catF').value;
+  const loc=document.getElementById('locF').value;
+  const f=S.filter, col=S.sortCol, d=S.sortDir;
+  const str=k=>(k||'').toLowerCase();
+
+  let res=S.items.filter(it=>{
+    if(f!=='all'){
+      if(f==='inuse'){
+        const showSum=Object.values(it.showQty||{}).reduce((s,v)=>s+(v||0),0);
+        if(!showSum) return false;
+      }
+      if(f==='broken'   &&!(it.units.broken||0))  return false;
+      if(f==='repair'   &&!(it.units.repair||0))  return false;
+    }
+    if(cat&&it.cat!==cat) return false;
+    if(loc){
+      if(loc.startsWith('space:')){
+        const spId=loc.slice(6);
+        if(!((it.spaceQty||{})[spId]>0)) return false;
+      } else {
+        if(it.loc!==loc) return false;
+      }
+    }
+    if(S.showFilter){
+      const isSpace=SPACES.some(sp=>sp.id===S.showFilter);
+      if(isSpace){ if(!((it.spaceQty||{})[S.showFilter]>0)) return false; }
+      else        { if(!((it.showQty||{})[S.showFilter]>0))  return false; }
+    }
+    if(q&&!`${it.make} ${it.model} ${it.desc} ${it.cat} ${it.loc} ${it.auditNotes}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  if     (col==='make')     res.sort((a,b)=>d*str(a.make).localeCompare(str(b.make)));
+  else if(col==='model')    res.sort((a,b)=>d*str(a.model).localeCompare(str(b.model)));
+  else if(col==='cat')      res.sort((a,b)=>d*str(a.cat).localeCompare(str(b.cat)));
+  else if(col==='qty')      res.sort((a,b)=>d*(b.qty-a.qty));
+  else if(col==='loc')      res.sort((a,b)=>d*str(a.loc).localeCompare(str(b.loc)));
+  else if(col==='status')   res.sort((a,b)=>d*((ST_ORDER[statusOf(a)]||0)-(ST_ORDER[statusOf(b)]||0)));
+  else                      res.sort((a,b)=>d*((a.line||999)-(b.line||999)));
+  return res;
+}
+
+// ═══════════════════ RENDER ═══════════════════
+function render(){
+  const data=getFiltered();
+  const pages=Math.max(1,Math.ceil(data.length/PER));
+  // Only clamp page if it's genuinely out of range, never reset to 0 unless there's only 1 page
+  if(S.page>=pages) S.page=pages-1;
+  if(S.page<0) S.page=0;
+  const slice=data.slice(S.page*PER,(S.page+1)*PER);
+  // If slice is empty but data isn't, we got clamped — try last valid page
+  if(!slice.length && data.length) {
+    S.page=pages-1;
+    const fallback=data.slice(S.page*PER,(S.page+1)*PER);
+    renderProgress(); renderStats(); renderTable(fallback,data.length,pages);
+    return;
+  }
+  renderProgress(); renderStats(); renderTable(slice,data.length,pages);
+}
+
+function renderProgress(){ renderGantt(); }
+
+function renderGantt(){
+  const wrap=document.getElementById('prog-wrap');
+  // active shows only; partition into dated vs undated for display
+  const active=S.shows.filter(s=>s.active);
+  const dated=active.filter(s=>s.loadIn&&s.close);
+  const undated=active.filter(s=>!(s.loadIn&&s.close));
+
+  if(!active.length){
+    wrap.innerHTML=`<div class="g-hdr"><span class="g-title">Season Schedule</span></div>
+      <div class="g-empty">No active shows. Use 🎭 Shows to activate a season.</div>`;
+    return;
+  }
+  if(!dated.length){
+    wrap.innerHTML=`<div class="g-hdr"><span class="g-title">Season Schedule</span>
+      <span class="g-sub">${active.length} active show${active.length>1?'s':''} · no dates set</span></div>
+      <div class="g-empty">Set load-in/open/close dates in 🎭 Shows to see the timeline.</div>`;
+    return;
+  }
+
+  // compute chart window: min loadIn → max close, padded to month boundaries
+  const parse=d=>{const [y,m,day]=d.split('-').map(Number);return new Date(y,m-1,day);};
+  let min=parse(dated[0].loadIn), max=parse(dated[0].close);
+  dated.forEach(s=>{
+    const a=parse(s.loadIn), b=parse(s.close);
+    if(a<min) min=a; if(b>max) max=b;
+  });
+  // snap min to start of its month, max to end of its month
+  const chartStart=new Date(min.getFullYear(),min.getMonth(),1);
+  const chartEnd=new Date(max.getFullYear(),max.getMonth()+1,0);
+  const span=chartEnd-chartStart;
+  const pctOf=d=>((d-chartStart)/span)*100;
+
+  // month tick positions
+  const months=[];
+  let cur=new Date(chartStart);
+  while(cur<=chartEnd){
+    months.push(new Date(cur));
+    cur=new Date(cur.getFullYear(),cur.getMonth()+1,1);
+  }
+
+  // sort dated shows by loadIn
+  dated.sort((a,b)=>parse(a.loadIn)-parse(b.loadIn));
+
+  const today=new Date();
+  const todayInWindow=today>=chartStart&&today<=chartEnd;
+  const todayPct=todayInWindow?pctOf(today):null;
+
+  const monthHtml=months.map(m=>{
+    const p=pctOf(m);
+    const lbl=m.toLocaleString('en-US',{month:'short'})+(m.getMonth()===0||m===months[0]?` '${String(m.getFullYear()).slice(2)}`:'');
+    return `<div class="g-month-line" style="left:${p}%"></div>
+            <div class="g-month" style="left:${p}%">${lbl}</div>`;
+  }).join('');
+
+  const fmt=d=>parse(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
+  // helper: resolve bar colors from show's assigned space
+  const getBarColors=(sh)=>{
+    const sp=SPACES.find(s=>s.id===sh.space);
+    if(sp) return {grad:`linear-gradient(90deg,${sp.colorDim},${sp.color})`, hex:sp.colorHex};
+    return {grad:`linear-gradient(90deg,${UNASSIGNED_SPACE.colorDim},${UNASSIGNED_SPACE.color})`, hex:UNASSIGNED_SPACE.colorHex};
+  };
+
+  const datedRows=dated.map(sh=>{
+    const a=parse(sh.loadIn), b=parse(sh.close);
+    const left=pctOf(a), width=Math.max(0.8,pctOf(b)-pctOf(a));
+    const openMark=sh.open?`<div class="g-open" style="left:${pctOf(parse(sh.open))}%" title="Opens ${fmt(sh.open)}"></div>`:'';
+    const barLbl=width>8?`<span class="g-bar-lbl">${esc(sh.name)}</span>`:'';
+    const bc=getBarColors(sh);
+    const spaceName=SPACES.find(s=>s.id===sh.space)?.name||'Unassigned';
+    const tip=`${sh.name} (${spaceName})\nLoad-in: ${fmt(sh.loadIn)}${sh.open?`\nOpens: ${fmt(sh.open)}`:''}\nCloses: ${fmt(sh.close)}\nClick to view equipment`;
+    return `<div class="g-row">
+      <div class="g-row-lbl" title="${esc(sh.name)}"><span class="sp-dot" style="background:${bc.hex};width:6px;height:6px"></span> ${esc(sh.name)}</div>
+      <div class="g-track" onclick="ganttFilterShow('${sh.id}')" title="${esc(tip)}">
+        <div class="g-bar" style="left:${left}%;width:${width}%;background:${bc.grad}">${barLbl}</div>
+        ${openMark}
+      </div>
+    </div>`;
+  }).join('');
+
+  const undatedRows=undated.map(sh=>{
+    const bc=getBarColors(sh);
+    return `<div class="g-row g-row-nodate">
+    <div class="g-row-lbl dim" title="${esc(sh.name)}"><span class="sp-dot" style="background:${bc.hex};width:6px;height:6px"></span> ${esc(sh.name)}</div>
+    <div class="g-track"><div class="g-nodate-msg">no dates set</div></div>
+  </div>`;}).join('');
+
+  // Build space legend entries
+  const usedSpaces=new Set(active.map(s=>s.space).filter(Boolean));
+  const hasUnassigned=active.some(s=>!s.space);
+  const spaceLegend=SPACES.filter(sp=>usedSpaces.has(sp.id)).map(sp=>
+    `<span><span class="sw" style="background:linear-gradient(90deg,${sp.colorDim},${sp.color})"></span>${sp.name}</span>`
+  ).join('');
+  const unassignedLegend=hasUnassigned?`<span><span class="sw" style="background:linear-gradient(90deg,${UNASSIGNED_SPACE.colorDim},${UNASSIGNED_SPACE.color})"></span>Unassigned</span>`:'';
+
+  const todayOverlay=todayInWindow?
+    `<div class="g-today-wrap" style="position:absolute;top:0;bottom:0;left:0;right:0;display:grid;grid-template-columns:140px 1fr;gap:10px;pointer-events:none;z-index:5">
+       <div></div>
+       <div style="position:relative">
+         <div class="g-today-lbl" style="left:${todayPct}%">TODAY</div>
+         <div class="g-today" style="left:${todayPct}%"></div>
+       </div>
+     </div>`:'';
+
+  wrap.innerHTML=`
+    <div class="g-hdr">
+      <div><span class="g-title">Season Schedule</span>
+        <span class="g-sub" style="margin-left:10px">${dated.length} dated · ${undated.length} pending</span>
+      </div>
+      <div class="g-legend">
+        ${spaceLegend}${unassignedLegend}
+        <span><span class="dot" style="background:#f8f4f0"></span>Opens</span>
+        ${todayInWindow?'<span><span class="dot" style="background:#58d68d"></span>Today</span>':''}
+      </div>
+    </div>
+    <div class="g-grid">
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:10px">
+        <div></div>
+        <div class="g-months">${monthHtml}</div>
+      </div>
+      <div style="position:relative">
+        ${datedRows}
+        ${undatedRows}
+        ${todayOverlay}
+      </div>
+    </div>`;
+}
+
+function ganttFilterShow(id){
+  const sf=document.getElementById('showF');
+  if(sf){ sf.value=id; S.showFilter=id; S.page=0; render(); window.scrollTo({top:document.getElementById('toolbar').offsetTop-20,behavior:'smooth'}); }
+}
+
+function renderStats(){
+  const it=S.items, n=it.length;
+  const sumShow=i=>Object.values(i.showQty||{}).reduce((s,v)=>s+(v||0),0);
+  const iu=it.reduce((s,i)=>s+sumShow(i),0);
+  const av=it.reduce((s,i)=>s+(i.units.available||0),0);
+  const br=it.reduce((s,i)=>s+(i.units.broken||0),0);
+  const rp=it.reduce((s,i)=>s+(i.units.repair||0),0);
+  const data=[
+    ['Total Items',n,'','setF(\'all\')'],
+    ['Available',av,'sv-g','setF(\'all\')'],
+    ['In Use',iu,'sv-b','setF(\'inuse\')'],
+    ['Broken',br,'sv-r','setF(\'broken\')'],
+    ['Out for Repair',rp,'sv-o','setF(\'repair\')'],
+  ];
+  document.getElementById('stats').innerHTML=data.map(([l,val,cls,fn])=>
+    `<div class="stat" onclick="${fn}"><span class="lbl">${l}</span><div class="stat-val ${cls}">${val}</div></div>`
+  ).join('');
+}
+
+function renderTable(slice,total,pages){
+  const tbody=document.getElementById('tbody');
+  const empty=document.getElementById('empty');
+  if(!slice.length){ tbody.innerHTML=''; empty.style.display='block'; }
+  else{
+    empty.style.display='none';
+    const SEGS=[
+      {k:'available',c:'var(--c-avail)', lbl:'Avail',  lc:'#58d68d'},
+      {k:'inuse',    c:'var(--c-inuse)', lbl:'In Use', lc:'#5dade2'},
+      {k:'broken',   c:'var(--c-broken)',lbl:'Broken', lc:'#e74c3c'},
+      {k:'repair',   c:'var(--c-repair)',lbl:'Repair', lc:'#eb984e'},
+      {k:'retired',  c:'var(--c-retired)',lbl:'Retired',lc:'var(--muted)'},
+      {k:'unknown',  c:'var(--c-unknown)',lbl:'Unknown',lc:'#c8961a'},
+    ];
+    const CHIPS={
+      available:['ch-ok','var(--c-avail)','Available'],
+      inuse:    ['ch-us','var(--c-inuse)','In Use'],
+      broken:   ['ch-br','var(--c-broken)','Broken'],
+      repair:   ['ch-rp','var(--c-repair)','Out for Repair'],
+      unknown:  ['ch-uk','var(--c-unknown)','Has Unknown'],
+      retired:  ['ch-no','var(--c-retired)','Retired'],
+    };
+    const WARN_COLOR={broken:'var(--c-broken)',repair:'var(--c-repair)',unknown:'var(--c-unknown)'};
+    const WARN_LBL  ={broken:'broken',         repair:'out for repair', unknown:'unknown'};
+    tbody.innerHTML=slice.map(it=>{
+      const idx=S.items.indexOf(it), st=statusOf(it), u=it.units, qty=it.qty||0;
+      const warns=statusWarnings(it);
+      // Determine display qty based on active filters
+      const locVal=document.getElementById('locF').value;
+      const showVal=S.showFilter;
+      let displayQty=qty;
+      if(locVal&&locVal.startsWith('space:')){
+        displayQty=(it.spaceQty||{})[locVal.slice(6)]||0;
+      } else if(showVal&&!SPACES.some(sp=>sp.id===showVal)){
+        displayQty=(it.showQty||{})[showVal]||0;
+      } else if(showVal&&SPACES.some(sp=>sp.id===showVal)){
+        displayQty=(it.spaceQty||{})[showVal]||0;
+      }
+      // Row highlight only if the PRIMARY status is a problem (not just a secondary warning)
+      const rc=st==='broken'?'r-broken':st==='repair'?'r-repair':'';
+      const [cc,dc,cl]=CHIPS[st]||['ch-no','var(--muted)',st];
+      const warnDots=warns.map(k=>{
+        const n=u[k]||0;
+        return `<span class="swarn" style="background:${WARN_COLOR[k]}" title="${n} ${WARN_LBL[k]}">${n}</span>`;
+      }).join('');
+      const chip=`<span class="schip-wrap"><span class="schip ${cc}"><span class="sdot" style="background:${dc}"></span>${cl}</span>${warnDots}</span>`;
+      // Build space segments
+      const SPACE_COLORS=['#2dd4bf','#22d3ee','#38bdf8'];
+      const spaceSegs=SPACES.map((sp,i)=>{const n=(it.spaceQty||{})[sp.id]||0;const p=qty>0?Math.round(n/qty*100):0;return {n,p,c:SPACE_COLORS[i],lbl:sp.name};});
+      const allZ=SEGS.every(s=>!(u[s.k]||0))&&spaceSegs.every(s=>!s.n);
+      let bar='';
+      if(!allZ){
+        const segs=SEGS.map(s=>{const n=u[s.k]||0,p=qty>0?Math.round(n/qty*100):0;return p>0?`<div class="useg" style="width:${p}%;background:${s.c}"></div>`:''}).join('')
+          +spaceSegs.map(s=>s.p>0?`<div class="useg" style="width:${s.p}%;background:${s.c}"></div>`:'').join('');
+        const lbls=SEGS.filter(s=>(u[s.k]||0)>0).map(s=>`<span class="ulbl"><span class="uldot" style="background:${s.lc}"></span><span style="color:${s.lc};font-weight:500">${u[s.k]}</span>&nbsp;<span style="color:var(--muted)">${s.lbl}</span></span>`).join('')
+          +spaceSegs.filter(s=>s.n>0).map(s=>`<span class="ulbl"><span class="uldot" style="background:${s.c}"></span><span style="color:${s.c};font-weight:500">${s.n}</span>&nbsp;<span style="color:var(--muted)">${s.lbl}</span></span>`).join('');
+        bar=`<div class="ubar-w"><div class="ubar">${segs}</div><div class="ulbls">${lbls}</div></div>`;
+      } else {
+        bar=`<span style="font-family:var(--mono);font-size:10px;color:var(--muted);font-style:italic">not yet counted</span>`;
+      }
+      const cat=CAT_CLASS[it.cat]||'c-oth';
+      return `<tr class="${rc}" onclick="openEdit(${idx})">
+        <td class="td-n td-mo">${it.line||'—'}</td>
+        <td class="td-n">${displayQty}</td>
+        <td class="td-mk td-cl">${esc(it.make)}</td>
+        <td class="td-cl">${esc(it.model)}</td>
+        <td class="td-dim td-cl" title="${esc(it.desc)}">${esc(it.desc)}</td>
+        <td><span class="cat ${cat}">${esc(it.cat)}</span></td>
+        <td>${chip}</td>
+        <td>${bar}</td>
+        <td class="td-mo td-cl td-dim" title="${esc(it.ip)}">${esc(it.ip)}</td>
+        <td class="td-mo td-cl td-dim" title="${esc(it.loc)}">${esc(it.loc)}</td>
+        <td class="td-it td-cl" title="${esc(it.auditNotes)}">${esc(it.auditNotes)}</td>
+        <td onclick="event.stopPropagation()"><div class="r-acts">
+          <button class="ic-btn" title="Edit" onclick="openEdit(${idx})">✎</button>
+          <button class="ic-btn" title="Duplicate" onclick="duplicateItem(${idx})">⧉</button>
+          <button class="ic-btn del" title="Delete" onclick="confirmDel(${idx})">✕</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('pageInfo').textContent=`${slice.length} of ${total} shown · Page ${S.page+1} of ${pages}`;
+  document.getElementById('pagiButtons').innerHTML=
+    `<button class="btn" style="opacity:${S.page<=0?'0.3':'1'}" onclick="changePage(-1)">← Prev</button>`+
+    `<button class="btn" style="opacity:${S.page>=pages-1?'0.3':'1'}" onclick="changePage(1)">Next →</button>`;
+  updateSortHdrs();
+}
+
+// ═══════════════════ CONTROLS ═══════════════════
+function buildFilters(){
+  const cats=[...new Set(S.items.map(i=>i.cat).filter(Boolean))].sort();
+  const locs=[...new Set(S.items.map(i=>i.loc).filter(Boolean))].sort();
+  const cf=document.getElementById('catF'), lf=document.getElementById('locF'), sf=document.getElementById('showF');
+  const sc=cf.value, sl=lf.value, ss=sf.value;
+  S._building=true;
+  while(cf.options.length>1) cf.remove(1);
+  lf.innerHTML='<option value="">All Locations</option>';
+  sf.innerHTML='<option value="">All Shows / Spaces</option>';
+  cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;cf.appendChild(o);});
+  // Locations — regular home locations
+  if(locs.length){
+    const locOg=document.createElement('optgroup'); locOg.label='Home Location';
+    locs.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;locOg.appendChild(o);});
+    lf.appendChild(locOg);
+  }
+  // Spaces sub-category in location dropdown
+  const spLocOg=document.createElement('optgroup'); spLocOg.label='Spaces';
+  SPACES.forEach(sp=>{const o=document.createElement('option');o.value='space:'+sp.id;o.textContent=sp.name;spLocOg.appendChild(o);});
+  lf.appendChild(spLocOg);
+  // Group shows by season in dropdown
+  const seasons=[...new Set(S.shows.map(s=>s.season))].sort();
+  seasons.forEach(season=>{
+    const active=S.shows.filter(s=>s.season===season&&s.active);
+    if(!active.length) return;
+    const og=document.createElement('optgroup');
+    og.label=`${season} Season`;
+    active.forEach(sh=>{const o=document.createElement('option');o.value=sh.id;o.textContent=sh.name;og.appendChild(o);});
+    sf.appendChild(og);
+  });
+  // Also allow inactive shows in dropdown if they have allocations
+  const inactiveWithAlloc=S.shows.filter(s=>!s.active&&S.items.some(it=>(it.showQty||{})[s.id]>0));
+  if(inactiveWithAlloc.length){
+    const og=document.createElement('optgroup'); og.label='Other';
+    inactiveWithAlloc.forEach(sh=>{const o=document.createElement('option');o.value=sh.id;o.textContent=sh.name;og.appendChild(o);});
+    sf.appendChild(og);
+  }
+  // Add spaces optgroup
+  const spOg=document.createElement('optgroup');
+  spOg.label='Spaces';
+  SPACES.forEach(sp=>{const o=document.createElement('option');o.value=sp.id;o.textContent=sp.name;spOg.appendChild(o);});
+  sf.appendChild(spOg);
+  cf.value=sc;
+  if([...lf.options].some(o=>o.value===sl)) lf.value=sl; else lf.value='';
+  if([...sf.options].some(o=>o.value===ss)) sf.value=ss; else sf.value='';
+  S._building=false;
+}
+
+function setF(val){
+  S.filter=val; S.page=0;
+  document.querySelectorAll('.pill').forEach(p=>{
+    const f=p.dataset.f;
+    p.className='pill'+(f===val?' p-'+val:'');
+  });
+  render();
+}
+
+function setSort(col){
+  S.sortDir = S.sortCol===col ? S.sortDir*-1 : 1;
+  S.sortCol = col;
+  S.page=0; render();
+}
+
+function updateSortHdrs(){
+  document.querySelectorAll('thead th').forEach(th=>{th.classList.remove('srt-on');const a=th.querySelector('.s-arr');if(a)a.textContent='↕';});
+  const th=document.getElementById('th-'+S.sortCol);
+  if(th){th.classList.add('srt-on');const a=th.querySelector('.s-arr');if(a)a.textContent=S.sortDir===1?'↑':'↓';}
+}
+
+function changePage(d){
+  const data=getFiltered();
+  const pages=Math.max(1,Math.ceil(data.length/PER));
+  S.page=Math.max(0,Math.min(S.page+d, pages-1));
+  render();
+  window.scrollTo(0,0);
+}
+
+// ═══════════════════ EDIT MODAL ═══════════════════
+const SK=['available','inuse','broken','repair','retired','unknown'];
+
+function openAdd(){
+  S.editIdx=null;
+  document.getElementById('eTitle').textContent='Add Inventory Item';
+  document.getElementById('eSub').textContent='New item — fill in what you know';
+  document.getElementById('delBtn').style.display='none';
+  buildCatSelect();
+  clearForm();
+  document.getElementById('gImg').classList.remove('vis');
+  document.getElementById('svc').classList.remove('vis');
+  document.getElementById('editOv').classList.add('open');
+  setTimeout(()=>document.getElementById('f-make').focus(),150);
+}
+
+function openEdit(idx){
+  S.editIdx=idx;
+  const it=S.items[idx];
+  document.getElementById('eTitle').textContent=`${it.make||''} ${it.model||''}`.trim()||'Edit Item';
+  document.getElementById('eSub').textContent=`Line ${it.line||'—'}`;
+  document.getElementById('delBtn').style.display='inline-flex';
+  buildCatSelect();
+  fillForm(it);
+  document.getElementById('editOv').classList.add('open');
+  updateSvcLinks();
+  setTimeout(()=>loadGearImg(it.make||'',it.model||''),300);
+}
+
+function closeEdit(){ document.getElementById('editOv').classList.remove('open'); }
+
+function duplicateItem(idx){
+  const it=S.items[idx];
+  S.editIdx=null;
+  document.getElementById('eTitle').textContent=`Duplicate — ${it.make||''} ${it.model||''}`.trim();
+  document.getElementById('eSub').textContent='Change location and qty as needed, then save as a new item';
+  document.getElementById('delBtn').style.display='none';
+  // fill form with all values from source item
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+  set('f-line',''); // blank line so it auto-assigns next number
+  set('f-qty',it.qty); set('f-make',it.make); set('f-model',it.model);
+  set('f-desc',it.desc); set('f-cat',it.cat); set('f-subcat',it.subcat);
+  set('f-cost',it.cost); set('f-serial',''); // blank serial — different unit
+  set('f-ip',it.ip); set('f-loc',it.loc);
+  set('f-notes','');
+  document.getElementById('qtyHint').textContent=(it.qty||0)+' units';
+  // copy unit counts
+  const u=it.units||{}, d=it.details||{};
+  SK.forEach(k=>{
+    document.getElementById('s-'+k).value=u[k]||0;
+    document.getElementById('d-'+k).value=d[k]||'';
+  });
+  updateQtyChk();
+  document.getElementById('svc').classList.remove('vis');
+  document.getElementById('gImg').classList.remove('vis');
+  document.getElementById('editOv').classList.add('open');
+  renderProdRows({},{},null);
+  renderSpaceRows({},{});
+  // focus location so user immediately knows what to change
+  setTimeout(()=>document.getElementById('f-loc').focus(),150);
+}
+
+function clearForm(){
+  ['line','qty','make','model','desc','subcat','cost','serial','ip','loc','notes'].forEach(f=>{
+    const el=document.getElementById('f-'+f);if(el)el.value='';
+  });
+  document.getElementById('f-cat').value='';
+  document.getElementById('qtyHint').textContent='total qty';
+  SK.forEach(k=>{document.getElementById('s-'+k).value=0;document.getElementById('d-'+k).value='';});
+  document.getElementById('qChk').className='qty-chk';
+  renderProdRows({},{},null);
+  renderSpaceRows({},{});
+}
+
+function fillForm(it){
+  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
+  set('f-line',it.line); set('f-qty',it.qty); set('f-make',it.make); set('f-model',it.model);
+  set('f-desc',it.desc); set('f-cat',it.cat); set('f-subcat',it.subcat); set('f-cost',it.cost);
+  set('f-serial',it.serial); set('f-ip',it.ip); set('f-loc',it.loc);
+  set('f-notes',it.auditNotes);
+  document.getElementById('qtyHint').textContent=(it.qty||0)+' units';
+  const u=it.units||{}, d=it.details||{};
+  SK.forEach(k=>{document.getElementById('s-'+k).value=u[k]||0;document.getElementById('d-'+k).value=d[k]||'';});
+  // Override inuse and available — both computed
+  const computedInuse=Object.values(it.showQty||{}).reduce((s,v)=>s+(v||0),0);
+  const computedSpace=Object.values(it.spaceQty||{}).reduce((s,v)=>s+(v||0),0);
+  const computedAvail=Math.max(0,(it.qty||0)-computedInuse-computedSpace-(it.units.broken||0)-(it.units.repair||0)-(it.units.retired||0)-(it.units.unknown||0));
+  document.getElementById('s-inuse').value=computedInuse;
+  document.getElementById('s-available').value=computedAvail;
+  document.getElementById('d-inuse').value='';
+  document.getElementById('d-available').value='';
+  updateQtyChk(null);
+  // Pass old details.inuse as legacy reference note — visible until next save
+  const legacyNote=(it.details&&it.details.inuse)||'';
+  renderProdRows(it.showQty||{}, it.showNotes||{}, legacyNote);
+  renderSpaceRows(it.spaceQty||{}, it.spaceNotes||{});
+}
+
+function saveItem(){
+  const make=document.getElementById('f-make').value.trim();
+  const model=document.getElementById('f-model').value.trim();
+  const qty=parseInt(document.getElementById('f-qty').value)||0;
+  if(!make||!model||!qty){alert('Make, Model, and Quantity are required.');return;}
+  const get=k=>parseInt(document.getElementById('s-'+k).value)||0;
+  const inuseComputed=computeInUseFromForm();
+  const spaceComputed=computeSpaceTotalFromForm();
+  const manualOthers=['broken','repair','retired','unknown'].reduce((s,k)=>s+get(k),0);
+  if(inuseComputed+spaceComputed+manualOthers>qty&&!confirm(`Allocations exceed total qty of ${qty}. Save anyway?`)) return;
+  const units={}, details={};
+  SK.forEach(k=>{units[k]=get(k);details[k]=document.getElementById('d-'+k).value.trim();});
+  units.inuse=inuseComputed;
+  units.available=computeAvailableFromForm();
+  details.inuse='';
+  // collect showQty from production rows
+  const showQty={}, showNotes={};
+  S.shows.filter(s=>s.active).forEach(sh=>{
+    const qEl=document.getElementById('pq-'+sh.id);
+    const nEl=document.getElementById('pn-'+sh.id);
+    const q=qEl?parseInt(qEl.value)||0:0;
+    if(q>0||nEl?.value.trim()){
+      showQty[sh.id]=q;
+      showNotes[sh.id]=nEl?nEl.value.trim():'';
+    }
+  });
+  // collect spaceQty from space rows
+  const spaceQty={}, spaceNotes={};
+  SPACES.forEach(sp=>{
+    const qEl=document.getElementById('sq-'+sp.id);
+    const nEl=document.getElementById('sn-'+sp.id);
+    const q=qEl?parseInt(qEl.value)||0:0;
+    if(q>0||nEl?.value.trim()){
+      spaceQty[sp.id]=q;
+      spaceNotes[sp.id]=nEl?nEl.value.trim():'';
+    }
+  });
+  const maxLine=Math.max(0,...S.items.map(i=>+i.line||0));
+  const prev=S.editIdx!==null?S.items[S.editIdx]:null;
+  const item={
+    id:prev?prev.id:Date.now(),
+    line:parseInt(document.getElementById('f-line').value)||maxLine+1,
+    qty,make,model,
+    desc:document.getElementById('f-desc').value.trim(),
+    cat:document.getElementById('f-cat').value,
+    subcat:document.getElementById('f-subcat').value.trim(),
+    cost:document.getElementById('f-cost').value,
+    serial:document.getElementById('f-serial').value.trim(),
+    ip:document.getElementById('f-ip').value.trim(),
+    loc:document.getElementById('f-loc').value.trim(),
+    auditNotes:document.getElementById('f-notes').value.trim(),
+    units,details,showQty,showNotes,spaceQty,spaceNotes,
+  };
+  if(S.editIdx!==null){S.items[S.editIdx]=item;}else{S.items.push(item);}
+  save(); closeEdit(); buildFilters(); render();
+  toast(`"${make} ${model}" saved.`);
+}
+
+function deleteItem(){
+  if(S.editIdx===null) return;
+  const it=S.items[S.editIdx];
+  if(!confirm(`Permanently delete "${it.make} ${it.model}"?\n\nTip: use Retired status to keep history.`)) return;
+  S.items.splice(S.editIdx,1);
+  save(); buildFilters(); closeEdit(); render(); toast('Item deleted.');
+}
+
+function confirmDel(idx){
+  const it=S.items[idx];
+  if(!confirm(`Permanently delete "${it.make} ${it.model}"?\n\nTip: use Edit → Retired units to keep history.`)) return;
+  S.items.splice(idx,1); save(); buildFilters(); render(); toast('Item deleted.');
+}
+
+// ═══════════════════ UNIT STATUS INPUT ═══════════════════
+function onQtyChange(){
+  const qty=parseInt(document.getElementById('f-qty').value)||0;
+  document.getElementById('qtyHint').textContent=qty>0?qty+' units':'total qty';
+  updateAvailableDisplay();
+  checkProdConflicts();
+}
+
+function computeInUseFromForm(){
+  return S.shows.filter(s=>s.active).reduce((sum,sh)=>{
+    const el=document.getElementById('pq-'+sh.id);
+    return sum+(el?parseInt(el.value)||0:0);
+  },0);
+}
+
+function computeSpaceTotalFromForm(){
+  return SPACES.reduce((sum,sp)=>{
+    const el=document.getElementById('sq-'+sp.id);
+    return sum+(el?parseInt(el.value)||0:0);
+  },0);
+}
+
+function computeAvailableFromForm(){
+  const qty=parseInt(document.getElementById('f-qty').value)||0;
+  const inuse=computeInUseFromForm();
+  const spaceTotal=computeSpaceTotalFromForm();
+  const get=k=>parseInt(document.getElementById('s-'+k).value)||0;
+  const others=['broken','repair','retired','unknown'].reduce((s,k)=>s+get(k),0);
+  return Math.max(0,qty-inuse-spaceTotal-others);
+}
+
+function updateAvailableDisplay(){
+  document.getElementById('s-available').value=computeAvailableFromForm();
+  updateQtyChk();
+}
+
+function onSI(changed){
+  updateAvailableDisplay();
+  updateSvcLinks();
+}
+
+function onProdQtyChange(){
+  document.getElementById('s-inuse').value=computeInUseFromForm();
+  updateAvailableDisplay();
+  checkProdConflicts();
+}
+
+function onSpaceQtyChange(){
+  updateAvailableDisplay();
+}
+
+function updateQtyChk(){
+  const qty=parseInt(document.getElementById('f-qty').value)||0;
+  const el=document.getElementById('qChk');
+  if(!qty){el.className='qty-chk';return;}
+  const get=k=>parseInt(document.getElementById('s-'+k).value)||0;
+  const manual=['broken','repair','retired','unknown'].reduce((s,k)=>s+get(k),0);
+  const inuse=computeInUseFromForm();
+  const space=computeSpaceTotalFromForm();
+  const avail=computeAvailableFromForm();
+  const total=manual+inuse+space+avail;
+  if(total===qty){
+    el.className='qty-chk qc-ok'; el.textContent=`✓ All ${qty} units accounted for`;
+  } else if(total>qty){
+    el.className='qty-chk qc-warn'; el.textContent=`Over-allocated by ${total-qty} — reduce show, space, or status counts`;
+  } else {
+    el.className='qty-chk qc-ok'; el.textContent=`${qty-total} unit${qty-total>1?'s':''} unallocated (floating)`;
+  }
+}
+
+// ═══════════════════ SERVICE LINKS ═══════════════════
+function updateSvcLinks(){
+  const br=parseInt(document.getElementById('s-broken').value)||0;
+  const rp=parseInt(document.getElementById('s-repair').value)||0;
+  const panel=document.getElementById('svc');
+  if(!br&&!rp){panel.classList.remove('vis');return;}
+  const make=(document.getElementById('f-make').value||'').toLowerCase().trim();
+  const model=(document.getElementById('f-model').value||'').trim();
+  let links=null;
+  for(const [k,v] of Object.entries(MFR_LINKS)){
+    if(make.includes(k)||(make.split(' ')[0]&&k.startsWith(make.split(' ')[0]))){links=v;break;}
+  }
+  document.getElementById('svcLbl').textContent=`Service & Repair — ${document.getElementById('f-make').value} ${model}`;
+  const row=document.getElementById('svcRow');
+  if(links){
+    row.innerHTML=links.map(([t,u])=>`<a href="${u}" target="_blank" rel="noopener">${t} →</a>`).join('');
+  } else {
+    const q=encodeURIComponent(document.getElementById('f-make').value+' '+model);
+    row.innerHTML=`<a href="https://www.sweetwater.com/store/search.php?s=${q}" target="_blank">Sweetwater →</a><a href="https://www.google.com/search?q=${q}+service+repair" target="_blank">Google Search →</a>`;
+  }
+  panel.classList.add('vis');
+}
+
+// ═══════════════════ GEAR IMAGE ═══════════════════
+let gImgs=[], gIdx=0;
+
+function loadGearImg(make,model){
+  const panel=document.getElementById('gImg'), body=document.getElementById('gBody');
+  if(!make&&!model){panel.classList.remove('vis');return;}
+  const key=`${make} ${model}`.toLowerCase().trim();
+  let url=null;
+  for(const [k,v] of Object.entries(IMGS)){
+    if(key.includes(k)||k.includes(key.split(' ').slice(0,2).join(' '))){url=v;break;}
+  }
+  if(url){
+    gImgs=[url]; gIdx=0; panel.classList.add('vis'); showGImg();
+  } else {
+    const sw=encodeURIComponent(`${make} ${model}`);
+    const q=encodeURIComponent(`${make} ${model} audio equipment`);
+    body.innerHTML=`<div class="gi-msg"><div class="dim">No local image for <strong>${make} ${model}</strong></div><a href="https://www.sweetwater.com/store/search.php?s=${sw}" target="_blank">Sweetwater →</a><a href="https://www.bhphotovideo.com/c/search?Ntt=${sw}" target="_blank">B&amp;H →</a><a href="https://www.google.com/search?tbm=isch&q=${q}" target="_blank">Google Images →</a></div>`;
+    document.getElementById('gLbl').textContent='no local image';
+    document.getElementById('gCnt').textContent='';
+    panel.classList.add('vis');
+  }
+}
+
+function showGImg(){
+  const url=gImgs[gIdx];
+  document.getElementById('gCnt').textContent=gImgs.length>1?`${gIdx+1}/${gImgs.length}`:'';
+  document.getElementById('gLbl').textContent='product image';
+  document.getElementById('gBody').innerHTML=`<img src="${url}" alt="gear" onerror="gImgErr(this)" crossorigin="anonymous">`;
+}
+
+function gImgErr(img){
+  gImgs.splice(gIdx,1);
+  if(gImgs.length){gIdx=Math.min(gIdx,gImgs.length-1);showGImg();}
+  else{document.getElementById('gBody').innerHTML='<div class="gi-msg"><div class="dim">Image failed to load</div></div>';}
+}
+
+function gPrev(){if(gImgs.length<2)return;gIdx=(gIdx-1+gImgs.length)%gImgs.length;showGImg();}
+function gNext(){if(gImgs.length<2)return;gIdx=(gIdx+1)%gImgs.length;showGImg();}
+
+// ═══════════════════ CSV EXPORT ═══════════════════
+function exportCSV(){
+  const h=['Line#','Qty','Make','Model','Description','Category','Sub-Cat','Cost','Serial','IP Address','Home Location','Available','Avail Detail','In Use','InUse Detail','Broken','Broken Detail','Repair','Repair Detail','Retired','Retired Detail','Unknown','Unknown Detail','Notes'];
+  const rows=S.items.map(it=>{
+    const u=it.units||{},d=it.details||{};
+    return[it.line,it.qty,it.make,it.model,it.desc,it.cat,it.subcat,it.cost,it.serial,it.ip||'',it.loc,
+      u.available||0,d.available||'',u.inuse||0,d.inuse||'',
+      u.broken||0,d.broken||'',u.repair||0,d.repair||'',
+      u.retired||0,d.retired||'',u.unknown||0,d.unknown||'',it.auditNotes||'',
+    ].map(v=>`"${(v===null||v===undefined?'':v).toString().replace(/"/g,'""')}"`).join(',');
+  });
+  const dt=new Date().toISOString().slice(0,10);
+  const csv=[h.join(','),...rows].join('\r\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`Audio_Inventory_PTC_${dt}.csv`; a.click();
+  toast('CSV exported.');
+}
+
+// ═══════════════════ JSON BACKUP / RESTORE ═══════════════════
+function exportJSON(){
+  const payload={
+    version:1,
+    exported:new Date().toISOString(),
+    items:S.items,
+    shows:S.shows,
+  };
+  const dt=new Date().toISOString().slice(0,10);
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`PTC_Audio_Backup_${dt}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('JSON backup exported.');
+}
+
+function handleJsonImport(event){
+  const file=event.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const payload=JSON.parse(e.target.result);
+      if(!payload.items||!Array.isArray(payload.items)){
+        toast('Invalid backup file — no items found.'); event.target.value=''; return;
+      }
+      if(!confirm(`Restore ${payload.items.length} items from "${file.name}"?\n\nThis REPLACES all current data including show/space allocations.`)){
+        event.target.value=''; return;
+      }
+      S.items=payload.items.map(migrate);
+      if(payload.shows&&Array.isArray(payload.shows)){
+        S.shows=payload.shows;
+        // Rebuild tombstones from whatever seed shows are missing in the restore
+        const ids=new Set(S.shows.map(s=>s.id));
+        const tomb=SHOWS_SEED.filter(sh=>!ids.has(sh.id)).map(sh=>sh.id);
+        try{localStorage.setItem(SHOWS_KEY+'_deleted',JSON.stringify(tomb));}catch(e){}
+      }
+      save(); saveShows();
+      try{localStorage.setItem('ptc_imported','1');}catch(e){}
+      buildFilters(); S.page=0; render();
+      toast(`✓ Restored ${S.items.length} items from backup.`);
+    }catch(err){ toast('Restore failed — check file format.'); }
+    event.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════ PRINT SYSTEM ═══════════════════
+function openPrint(){
+  document.getElementById('po-make').value='';
+  document.getElementById('po-model').value='';
+  document.getElementById('po-title').value='';
+  document.getElementById('po-note').value='';
+  buildScopeSelect();
+  buildCatGrid();
+  setLayout('clean');
+  updatePrintCount();
+  document.getElementById('printOv').classList.add('open');
+}
+function closePrint(){ document.getElementById('printOv').classList.remove('open'); }
+
+function buildScopeSelect(){
+  const sel=document.getElementById('po-scope');
+  let h='<option value="all">All equipment</option>';
+  h+='<optgroup label="Venue systems — assigned to a space">';
+  SPACES.forEach(sp=>{ h+=`<option value="space:${sp.id}">${esc(sp.name)}</option>`; });
+  h+='<option value="venues">All venue-assigned (grouped by venue)</option>';
+  h+='</optgroup>';
+  h+='<optgroup label="Pool"><option value="shared">Shared inventory — available to pull</option></optgroup>';
+  const seasons=[...new Set(S.shows.map(s=>s.season))].sort();
+  seasons.forEach(season=>{
+    const active=S.shows.filter(s=>s.season===season&&s.active);
+    if(!active.length) return;
+    h+=`<optgroup label="${esc(season)} productions">`;
+    active.forEach(sh=>{ h+=`<option value="show:${sh.id}">${esc(sh.name)}</option>`; });
+    h+='</optgroup>';
+  });
+  sel.innerHTML=h;
+}
+
+function getScope(){
+  const v=document.getElementById('po-scope')?.value||'all';
+  if(v==='all'||v==='shared'||v==='venues') return {type:v};
+  const [type,id]=v.split(':'); return {type,id};
+}
+
+function onScopeChange(){
+  const t=document.getElementById('po-title');
+  if(!t.value.trim()){
+    const sc=getScope();
+    if(sc.type==='space'){const sp=SPACES.find(s=>s.id===sc.id); if(sp) t.value=`${sp.name} — Venue System`;}
+    else if(sc.type==='show'){const sh=S.shows.find(s=>s.id===sc.id); if(sh) t.value=`${sh.name} — Equipment List`;}
+  }
+  updatePrintCount();
+}
+
+let printLayout='clean';
+function setLayout(v){
+  printLayout=v;
+  document.querySelectorAll('#po-layout .seg-b').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.getElementById('layoutHint').textContent = v==='clean'
+    ? 'Quantity, make/model, description. Grouped and ready to hand to a designer or load-in crew.'
+    : 'Adds status, unit breakdown, cost and audit notes. For internal use.';
+  updatePrintCount();
+}
+
+function buildCatGrid(){
+  const cats=[...new Set(S.items.map(i=>i.cat).filter(Boolean))].sort();
+  document.getElementById('catGrid').innerHTML=cats.map(c=>`
+    <label class="cat-cb on">
+      <input type="checkbox" class="cat-inp" data-cat="${esc(c)}" checked onchange="toggleCatCb(this);updatePrintCount()">
+      ${esc(c)}
+    </label>`).join('');
+}
+function toggleCatCb(el){ el.closest('.cat-cb').classList.toggle('on',el.checked); }
+function selAllCats(val){ document.querySelectorAll('.cat-inp').forEach(cb=>{cb.checked=val;toggleCatCb(cb);}); updatePrintCount(); }
+function getSelCats(){ return [...document.querySelectorAll('.cat-inp:checked')].map(c=>c.dataset.cat); }
+
+// What's free to pull: owned minus dead stock minus everything committed elsewhere.
+function designerQty(it){
+  const u=it.units||{};
+  if(!it.qty) return u.available||0;
+  const dead=(u.broken||0)+(u.repair||0)+(u.retired||0)+(u.unknown||0);
+  const committed=Object.values(it.showQty||{}).reduce((s,v)=>s+(v||0),0)
+                 +Object.values(it.spaceQty||{}).reduce((s,v)=>s+(v||0),0)
+                 +(u.inuse||0);
+  const free=it.qty-dead-committed;
+  return free>0?free:0;
+}
+function isVenueSpecific(it){ return SPACES.some(sp=>(it.spaceQty||{})[sp.id]>0); }
+
+function passFilters(it){
+  if(!getSelCats().includes(it.cat||'')) return false;
+  const mk=(document.getElementById('po-make')?.value||'').trim().toLowerCase();
+  const md=(document.getElementById('po-model')?.value||'').trim().toLowerCase();
+  if(mk&&!(it.make||'').toLowerCase().includes(mk)) return false;
+  if(md&&!(`${it.model||''} ${it.desc||''}`).toLowerCase().includes(md)) return false;
+  return true;
+}
+
+function scopeRows(scope){
+  const base=S.items.filter(passFilters);
+  let rows;
+  if(scope.type==='space')       rows=base.filter(it=>(it.spaceQty||{})[scope.id]>0).map(it=>({it,qty:(it.spaceQty||{})[scope.id]}));
+  else if(scope.type==='show')   rows=base.filter(it=>(it.showQty||{})[scope.id]>0).map(it=>({it,qty:(it.showQty||{})[scope.id]}));
+  else if(scope.type==='shared') rows=base.filter(it=>!isVenueSpecific(it)&&designerQty(it)>0).map(it=>({it,qty:designerQty(it)}));
+  else                           rows=base.filter(it=>(it.qty||0)>0).map(it=>({it,qty:it.qty}));
+  return rows.sort((a,b)=>(`${a.it.make} ${a.it.model}`).localeCompare(`${b.it.make} ${b.it.model}`));
+}
+
+function updatePrintCount(){
+  const scope=getScope();
+  let n;
+  if(scope.type==='venues'){
+    const base=S.items.filter(passFilters);
+    n=base.reduce((s,it)=>s+SPACES.filter(sp=>(it.spaceQty||{})[sp.id]>0).length,0);
+  } else n=scopeRows(scope).length;
+  document.getElementById('pCount').innerHTML=`<span>${n}</span> line${n!==1?'s':''} will print`;
+}
+
+const PS_MAP={available:'ps-ok',inuse:'ps-us',broken:'ps-br',repair:'ps-rp',unknown:'ps-uk',retired:'ps-no'};
+const PS_LBL={available:'Available',inuse:'In Use',broken:'Broken',repair:'Repair',unknown:'Unknown',retired:'Retired'};
+function prStatus(it){ const st=statusOf(it); return `<span class="ps ${PS_MAP[st]||'ps-no'}">${PS_LBL[st]||st}</span>`; }
+function prBreakdown(it){
+  const u=it.units||{}, d=it.details||{};
+  return `<span class="pr-bd">${['available','inuse','broken','repair','retired','unknown']
+    .filter(k=>(u[k]||0)>0).map(k=>`${u[k]} ${k}${d[k]?': '+d[k].slice(0,35):''}`).join(' · ')}</span>`;
+}
+function prHead(clean,qtyLbl){
+  if(clean) return `<thead><tr><th style="width:46px">${qtyLbl}</th><th style="width:180px">Make / Model</th><th>Description</th></tr></thead>`;
+  return `<thead><tr><th style="width:40px">${qtyLbl}</th><th style="width:150px">Make / Model</th><th>Description</th><th style="width:88px">Status</th><th style="width:150px">Breakdown</th><th style="width:50px">Cost</th><th style="width:140px">Notes</th></tr></thead>`;
+}
+function prRow(qty,it,clean){
+  const head=`<td>${qty}</td><td><span class="pr-mk">${esc(it.make)} ${esc(it.model)}</span></td><td class="pr-dc">${esc(it.desc)}</td>`;
+  if(clean) return `<tr>${head}</tr>`;
+  return `<tr>${head}<td>${prStatus(it)}</td><td>${prBreakdown(it)}</td><td>${it.cost?'$'+it.cost:''}</td><td class="pr-dc">${esc(it.auditNotes)}</td></tr>`;
+}
+function prCatSections(rows,clean,qtyLbl){
+  const byCat={};
+  rows.forEach(r=>{const c=r.it.cat||'Other'; (byCat[c]=byCat[c]||[]).push(r);});
+  return Object.keys(byCat).sort().map(c=>{
+    const body=byCat[c].map(r=>prRow(r.qty,r.it,clean)).join('');
+    return `<div class="pr-sec"><div class="pr-cat">${esc(c)}<span>${byCat[c].length} item${byCat[c].length>1?'s':''}</span></div><table class="pr-tbl">${prHead(clean,qtyLbl)}<tbody>${body}</tbody></table></div>`;
+  }).join('');
+}
+
+function defaultTitle(scope){
+  if(scope.type==='space'){const sp=SPACES.find(s=>s.id===scope.id);return sp?`${sp.name} — Venue System`:'Venue System';}
+  if(scope.type==='show'){const sh=S.shows.find(s=>s.id===scope.id);return sh?`${sh.name} — Equipment List`:'Equipment List';}
+  if(scope.type==='venues') return 'Venue Systems — Installed Equipment';
+  if(scope.type==='shared') return 'Shared Inventory — Available for Production';
+  return 'Audio Equipment Inventory';
+}
+
+function doPrint(){
+  const scope=getScope();
+  const clean=printLayout==='clean';
+  const qtyLbl = scope.type==='shared' ? 'Avail' : 'Qty';
+  const today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+
+  let body='', count=0;
+  if(scope.type==='venues'){
+    const base=S.items.filter(passFilters);
+    SPACES.forEach(sp=>{
+      const rows=base.filter(it=>(it.spaceQty||{})[sp.id]>0)
+                     .map(it=>({it,qty:(it.spaceQty||{})[sp.id]}))
+                     .sort((a,b)=>(`${a.it.make} ${a.it.model}`).localeCompare(`${b.it.make} ${b.it.model}`));
+      if(!rows.length) return;
+      count+=rows.length;
+      body+=`<div class="pr-vh" style="border-left-color:${sp.colorHex}">${esc(sp.name)}<span>${rows.length} item${rows.length>1?'s':''}</span></div>`;
+      body+=prCatSections(rows,clean,'Qty');
+    });
+  } else {
+    const rows=scopeRows(scope);
+    count=rows.length;
+    body=prCatSections(rows,clean,qtyLbl);
+  }
+  if(!count){ alert('Nothing to print for this selection.'); return; }
+
+  const title=document.getElementById('po-title').value.trim()||defaultTitle(scope);
+  const note=document.getElementById('po-note').value.trim();
+  const logoSrc=document.querySelector('#hdr .brand img')?.src||'';
+  document.getElementById('pr').innerHTML=`
+    <div class="pr-hdr">${logoSrc?`<img src="${logoSrc}" alt="PTC">`:''}
+      <div><div class="pr-org">Phoenix Theatre Company — Audio Department</div>
+        <div class="pr-ttl">${esc(title)}</div>
+        <div class="pr-meta"><span>Generated ${today}</span><span>${count} line${count!==1?'s':''}</span></div>
+      </div></div>
+    ${note?`<div class="pr-note">${esc(note)}</div>`:''}
+    ${body}
+    <div class="pr-ft"><span>Phoenix Theatre Company — Audio Inventory</span><span>${today}</span></div>`;
+  document.getElementById('pr').classList.add('on');
+  closePrint();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ window.print(); document.getElementById('pr').classList.remove('on'); }));
+}
+
+// ═══════════════════ TOAST ═══════════════════
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// ═══════════════════ PRODUCTIONS — EDIT MODAL ═══════════════════
+function renderProdRows(showQty, showNotes, legacyNote){
+  const container=document.getElementById('prodRows');
+  const activeShows=S.shows.filter(s=>s.active);
+  let html='';
+  if(legacyNote){
+    html+=`<div style="font-family:var(--mono);font-size:10px;padding:6px 10px;margin-bottom:8px;background:rgba(230,126,34,.08);border:1px solid rgba(230,126,34,.25);border-left:3px solid #eb984e;border-radius:3px;color:#eb984e">
+      <span style="opacity:.7;letter-spacing:.1em;text-transform:uppercase;font-size:9px">Previous note (for reference):</span><br>
+      <span style="color:var(--text)">${esc(legacyNote)}</span>
+    </div>`;
+  }
+  if(!activeShows.length){
+    container.innerHTML=html+'<div class="prod-empty">No active shows. Use 🎭 Shows to set up productions.</div>';
+    return;
+  }
+  html+=activeShows.map(sh=>{
+    const qty=showQty[sh.id]||0;
+    const note=showNotes[sh.id]||'';
+    return `<div class="prod-row">
+      <div class="prod-row-lbl">${esc(sh.name)}</div>
+      <input type="number" id="pq-${sh.id}" min="0" value="${qty}" oninput="onProdQtyChange()" placeholder="0">
+      <input type="text"   id="pn-${sh.id}" value="${esc(note)}" placeholder="e.g. pit snake, stage rack…">
+      <div id="pc-${sh.id}"></div>
+    </div>`;
+  }).join('');
+  container.innerHTML=html;
+  checkProdConflicts();
+}
+
+function renderSpaceRows(spaceQty, spaceNotes){
+  const container=document.getElementById('spaceRows');
+  container.innerHTML=SPACES.map(sp=>{
+    const qty=spaceQty[sp.id]||0;
+    const note=spaceNotes[sp.id]||'';
+    return `<div class="space-row">
+      <div class="prod-row-lbl">${esc(sp.name)}</div>
+      <input type="number" id="sq-${sp.id}" min="0" value="${qty}" placeholder="0" oninput="onSpaceQtyChange()">
+      <input type="text"   id="sn-${sp.id}" value="${esc(note)}" placeholder="e.g. FOH rack, booth patch…">
+    </div>`;
+  }).join('');
+}
+
+function checkProdConflicts(){
+  const activeShows=S.shows.filter(s=>s.active);
+  const totalQty=parseInt(document.getElementById('f-qty').value)||0;
+  let anyConflict=false;
+  const datesOverlap=(a,b)=>{
+    const aStart=a.loadIn||a.open, aEnd=a.close||a.open||a.loadIn;
+    const bStart=b.loadIn||b.open, bEnd=b.close||b.open||b.loadIn;
+    if(!aStart||!bStart) return false;
+    const aS=new Date(aStart), aE=new Date(aEnd);
+    const bS=new Date(bStart), bE=new Date(bEnd);
+    return aS<=bE && bS<=aE;
+  };
+  activeShows.forEach(sh=>{
+    const badge=document.getElementById('pc-'+sh.id);
+    if(!badge) return;
+    badge.innerHTML='';
+    const qEl=document.getElementById('pq-'+sh.id);
+    const qty=qEl?parseInt(qEl.value)||0:0;
+    if(!qty) return;
+    // sum allocations across all shows (including this one) that overlap in dates
+    let sum=qty;
+    const overlapping=[];
+    activeShows.forEach(other=>{
+      if(other.id===sh.id) return;
+      const oEl=document.getElementById('pq-'+other.id);
+      const oQty=oEl?parseInt(oEl.value)||0:0;
+      if(!oQty) return;
+      if(datesOverlap(sh,other)){
+        sum+=oQty;
+        overlapping.push(other.name);
+      }
+    });
+    // only a conflict if combined demand exceeds what we own
+    if(totalQty && sum>totalQty){
+      anyConflict=true;
+      const over=sum-totalQty;
+      badge.innerHTML=`<span class="prod-conflict" title="Combined allocation ${sum} exceeds total qty ${totalQty} (over by ${over}). Overlaps with: ${overlapping.join(', ')}">⚠ over by ${over}</span>`;
+    }
+  });
+  const cb=document.getElementById('prodConflictBadge');
+  if(cb) cb.style.display=anyConflict?'inline-flex':'none';
+}
+
+// ═══════════════════ MANAGE SHOWS MODAL ═══════════════════
+let _showsDraft=[];
+
+function openManageShows(){
+  _showsDraft=S.shows.map(s=>({...s}));
+  renderShowsModal();
+  document.getElementById('showsOv').classList.add('open');
+}
+
+function closeManageShows(){
+  document.getElementById('showsOv').classList.remove('open');
+}
+
+function saveShowsAndClose(){
+  // collect date edits from inputs
+  _showsDraft.forEach(sh=>{
+    const li=document.getElementById('si-li-'+sh.id);
+    const op=document.getElementById('si-op-'+sh.id);
+    const cl=document.getElementById('si-cl-'+sh.id);
+    const sp=document.getElementById('si-sp-'+sh.id);
+    if(li) sh.loadIn=li.value||null;
+    if(op) sh.open  =op.value||null;
+    if(cl) sh.close =cl.value||null;
+    if(sp) sh.space =sp.value||'';
+  });
+  // Tombstone any seed shows the user has removed so they don't come back on reload
+  const draftIds=new Set(_showsDraft.map(s=>s.id));
+  const tombstones=SHOWS_SEED.filter(sh=>!draftIds.has(sh.id)).map(sh=>sh.id);
+  try{localStorage.setItem(SHOWS_KEY+'_deleted',JSON.stringify(tombstones));}catch(e){}
+  S.shows=_showsDraft;
+  saveShows();
+  buildFilters();
+  render(); // refresh gantt
+  closeManageShows();
+  toast('Shows saved.');
+}
+
+function renderShowsModal(){
+  const body=document.getElementById('showsBody');
+  const seasons=[...new Set(_showsDraft.map(s=>s.season))].sort();
+  body.innerHTML=seasons.map(season=>{
+    const shows=_showsDraft.filter(s=>s.season===season);
+    const anyActive=shows.some(s=>s.active);
+    return `<div>
+      <div class="season-hdr">
+        <span class="season-lbl">${season} Season</span>
+        <button class="season-toggle${anyActive?' on':''}" onclick="toggleSeason('${season}')">${anyActive?'Active':'Inactive'}</button>
+      </div>
+      <div class="shows-col-hdrs">
+        <span>Show</span><span>Load-In</span><span>Opens</span><span>Closes</span><span>Space</span><span></span>
+      </div>
+      ${shows.map(sh=>{
+        const spObj=SPACES.find(sp=>sp.id===sh.space);
+        const dotColor=spObj?spObj.colorHex:UNASSIGNED_SPACE.colorHex;
+        const spaceOpts=SPACES.map(sp=>`<option value="${sp.id}"${sh.space===sp.id?' selected':''}>${sp.name}</option>`).join('');
+        return `
+      <div class="show-row${sh.active?'':' inactive'}" id="sr-${sh.id}">
+        <div class="show-row-name"><span class="sp-dot" style="background:${dotColor}"></span>${esc(sh.name)}</div>
+        <input type="date" id="si-li-${sh.id}" value="${sh.loadIn||''}" title="Load-In">
+        <input type="date" id="si-op-${sh.id}" value="${sh.open||''}"   title="Opens">
+        <input type="date" id="si-cl-${sh.id}" value="${sh.close||''}"  title="Closes">
+        <select id="si-sp-${sh.id}" title="Space">
+          <option value="">—</option>
+          ${spaceOpts}
+        </select>
+        <button class="show-del" title="Remove show" onclick="removeShow('${sh.id}')">✕</button>
+      </div>`;}).join('')}
+    </div>`;
+  }).join('');
+}
+
+function toggleSeason(season){
+  const shows=_showsDraft.filter(s=>s.season===season);
+  const anyActive=shows.some(s=>s.active);
+  shows.forEach(s=>s.active=!anyActive);
+  renderShowsModal();
+}
+
+function removeShow(id){
+  if(!confirm('Remove this show? Any gear allocations for it will be lost on next save.')) return;
+  _showsDraft=_showsDraft.filter(s=>s.id!==id);
+  renderShowsModal();
+}
+
+function addShow(){
+  const nameEl=document.getElementById('newShowName');
+  const seasonEl=document.getElementById('newShowSeason');
+  const name=nameEl.value.trim();
+  if(!name){nameEl.focus();return;}
+  _showsDraft.push({
+    id:'s_'+Date.now(),
+    name,
+    season:seasonEl.value,
+    active:seasonEl.value==='25-26',
+    loadIn:null,open:null,close:null,space:''
+  });
+  nameEl.value='';
+  renderShowsModal();
+}
+
+// ═══════════════════ MANAGE CATEGORIES ═══════════════════
+function buildCatSelect(){
+  const sel=document.getElementById('f-cat');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Select…</option>';
+  S.cats.forEach(c=>{
+    const o=document.createElement('option');
+    o.value=c; o.textContent=c;
+    sel.appendChild(o);
+  });
+  if(cur) sel.value=cur;
+}
+
+function openManageCats(){
+  renderCatsModal();
+  document.getElementById('catsOv').classList.add('open');
+}
+
+function closeManageCats(){
+  document.getElementById('catsOv').classList.remove('open');
+  buildCatSelect(); // refresh dropdown after edits
+}
+
+function renderCatsModal(){
+  const body=document.getElementById('catsBody');
+  body.innerHTML=S.cats.map((c,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+      <input type="text" value="${esc(c)}" onchange="renamecat(${i},this.value)"
+        style="font-family:var(--mono);font-size:12px;padding:5px 8px;border:1px solid var(--border2);border-radius:3px;background:var(--panel);color:var(--text);outline:none;flex:1">
+      <button class="show-del" onclick="removeCat(${i})" title="Remove">✕</button>
+    </div>`).join('');
+}
+
+function renamecat(idx, val){
+  val=val.trim();
+  if(!val) return;
+  S.cats[idx]=val;
+  saveCats();
+}
+
+function removeCat(idx){
+  const name=S.cats[idx];
+  const inUse=S.items.some(it=>it.cat===name);
+  if(inUse&&!confirm(`"${name}" is used by some items. Remove anyway? Those items will keep the category name but it won't appear in the dropdown.`)) return;
+  S.cats.splice(idx,1);
+  saveCats();
+  renderCatsModal();
+}
+
+function addCat(){
+  const el=document.getElementById('newCatName');
+  const name=el.value.trim();
+  if(!name){el.focus();return;}
+  if(S.cats.includes(name)){toast('Category already exists.');return;}
+  S.cats.push(name);
+  saveCats();
+  el.value='';
+  renderCatsModal();
+  toast(`Added: ${name}`);
+}
+
+// ═══════════════════ INIT ═══════════════════
+document.getElementById('catF').addEventListener('change', ()=>{ if(!S._building){S.page=0; render();} });
+document.getElementById('locF').addEventListener('change', ()=>{ if(!S._building){S.page=0; render();} });
+document.getElementById('showF').addEventListener('change', ()=>{ if(!S._building){S.showFilter=document.getElementById('showF').value; S.page=0; render();} });
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    document.getElementById('editOv').classList.remove('open');
+    document.getElementById('catsOv').classList.remove('open');
+    document.getElementById('printOv').classList.remove('open');
+    document.getElementById('showsOv').classList.remove('open');
+  }
+});
+
+load();
+</script>
+</body>
+</html>

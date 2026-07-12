@@ -1,0 +1,233 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PTC Audio — Lens Throw Calculator</title>
+<style>
+:root{--bk:#0a0a0a;--red:#E82C2A;--grey:#888}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:#111;color:#eee;font:17.5px/1.35 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;display:flex;flex-direction:column}
+#top{background:var(--bk);border-bottom:3px solid var(--red);padding:10px 25px;display:flex;align-items:center;gap:15px;flex-wrap:wrap;flex:0 0 auto}
+#top b{font-size:21px;letter-spacing:1px}#top .r{color:var(--red)}
+#stage{padding:15px 25px 25px;max-width:1000px;margin:0 auto;width:100%;flex:1 1 auto;overflow:auto}
+.card{background:#1c1c1c;border:1px solid #2c2c2c;border-radius:8px;padding:15px 20px;margin-top:12.5px}
+.card h2{margin:0 0 10px;font-size:20px;border-bottom:2px solid var(--red);padding-bottom:6px}
+label{display:block;color:var(--grey);font-size:14.5px;margin:10px 0 4px}
+select,input{width:100%;max-width:420px;padding:8.5px 12px;font-size:16.5px;background:#161616;border:1px solid #333;border-radius:6px;color:#fff}
+#modeSel{display:flex;border:1px solid #333;border-radius:6px;overflow:hidden;max-width:420px;margin-top:6px}
+#modeSel div{flex:1;text-align:center;padding:8px 6px;cursor:pointer;color:#aaa;font-size:14.5px}
+#modeSel div.on{background:var(--red);color:#fff}
+#unitSel{display:flex;border:1px solid #333;border-radius:6px;overflow:hidden;max-width:160px;margin-top:6px}
+#unitSel div{flex:1;text-align:center;padding:6px;cursor:pointer;color:#aaa;font-size:14px}
+#unitSel div.on{background:var(--red);color:#fff}
+#basisRow{margin-top:12px}
+#basisSel{display:flex;border:1px solid #333;border-radius:6px;overflow:hidden;max-width:260px;margin-top:6px}
+#basisSel div{flex:1;text-align:center;padding:7px 6px;cursor:pointer;color:#aaa;font-size:14px}
+#basisSel div.on{background:var(--red);color:#fff}
+.result{margin-top:15px;padding:15px 18px;background:#161616;border-left:4px solid var(--red);border-radius:0 6px 6px 0}
+.result .big{font-size:26px;font-weight:700}
+.result .sub{color:var(--grey);font-size:14.5px;margin-top:4px}
+.note{background:#1d1d14;border-left:4px solid #c9a227;padding:7.5px 15px;margin-top:10px;font-size:14.5px;border-radius:0 6px 6px 0}
+.warn{background:#2a1414;border-left:4px solid var(--red);padding:7.5px 15px;margin-top:10px;font-size:14.5px;border-radius:0 6px 6px 0}
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin-top:8px}
+td,th{padding:5px 10px;border-bottom:1px solid #2a2a2a;text-align:left}
+th{color:var(--grey);font-weight:600;font-size:13px;text-transform:uppercase}
+.tag{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:10px;margin-left:6px}
+.tag.ok{background:#173a1d;color:#7fd88f}
+.tag.unv{background:#3a2c17;color:#e0b06a}
+.tag.none{background:#3a1717;color:#e08a8a}
+#foot{padding:10px 25px;color:#666;font-size:13.5px;text-align:center;flex:0 0 auto}
+</style></head><body>
+<div id="top"><b>PTC <span class="r">AUDIO</span></b><span style="color:#888;font-size:13px">lens throw calculator · The Phoenix Theatre Company</span></div>
+<div id="stage">
+
+<div class="card">
+<h2>1. Pick a projector / lens</h2>
+<label for="unit">Distance units</label>
+<div id="unitSel"><div id="uFt" class="on" onclick="setUnit('ft')">FEET</div><div id="uM" onclick="setUnit('m')">METERS</div></div>
+
+<label for="lens">Owned gear</label>
+<select id="lens" onchange="render()"></select>
+<div id="lensNote"></div>
+</div>
+
+<div class="card">
+<h2>2. Solve for…</h2>
+<div id="modeSel">
+ <div id="mW2D" class="on" onclick="setMode('w2d')">Screen size → throw distance</div>
+ <div id="mD2W" onclick="setMode('d2w')">Throw distance → screen size</div>
+</div>
+<div id="basisRow">
+ <label>Entering screen size as</label>
+ <div id="basisSel"><div id="bDiag" class="on" onclick="setBasis('diag')">DIAGONAL</div><div id="bWidth" onclick="setBasis('width')">WIDTH</div></div>
+</div>
+<label id="inputLabel" for="inputVal">Image diagonal</label>
+<div id="inputFt" style="display:flex;gap:10px;max-width:420px">
+ <div style="flex:1"><input id="inFeet" type="number" step="1" placeholder="ft" oninput="render()"><div style="color:#666;font-size:12px;margin-top:3px">feet</div></div>
+ <div style="flex:1"><input id="inInches" type="number" step="1" min="0" max="11" placeholder="in" oninput="render()"><div style="color:#666;font-size:12px;margin-top:3px">inches</div></div>
+</div>
+<input id="inputVal" type="number" step="0.01" placeholder="e.g. 6.1" oninput="render()" style="display:none">
+<div id="out"></div>
+</div>
+
+<div class="card">
+<h2>All owned gear at a glance</h2>
+<table id="allTable"></table>
+</div>
+
+</div>
+<div id="foot">Matthew Gibney · Audio Supervisor · m.gibney@phoenixtheatre.com — throw-ratio data current as of 2026-07-11, sourced from Raw/Inventory + Christie manuals (Wiki: christie-gs-series.md / christie-jazz-series.md / christie-crimson-series.md) + one verified web lookup for the Epson (ProjectorCentral). See notes on each item for source/confidence.</div>
+
+<script>
+/* ================= DATA =================
+   Throw ratio (TR) = throw distance / image width, both in the same unit.
+   trMin/trMax define the zoom range (equal values = a fixed/prime lens).
+   aspect = image width / image height (1.6 = 16:10 WUXGA, 1.333 = 4:3 XGA).
+   confidence: 'ok' = confirmed against a manual/spec sheet, 'unv' = from our
+   own inventory doc but not independently verified, 'none' = no lens data.
+*/
+const LENSES = [
+ {id:'jazz-zoom', label:'Christie Jazz body + Zoom Lens (1.3–1.8:1)', trMin:1.3, trMax:1.8, aspect:1.6, qty:'lens ×2, bodies: DWU-1800JS ×1 / DWU-2400JS ×2',
+  conf:'ok', note:'Inventory-tagged "JS Series / Full ILS", 4K compatible. Throw ratio matches inventory description directly.'},
+ {id:'jazz-shortzoom', label:'Christie Jazz body + Short Zoom Lens (0.9–1.3:1)', trMin:0.9, trMax:1.3, aspect:1.6, qty:'lens ×2, bodies: DWU-1800JS ×1 / DWU-2400JS ×2',
+  conf:'ok', note:'Inventory-tagged "Jazz Series".'},
+ {id:'jazz-ust', label:'Christie Jazz body + UST Snorkle Lens (0.38:1 fixed)', trMin:0.38, trMax:0.38, aspect:1.6, qty:'lens ×2, bodies: DWU-1800JS ×1 / DWU-2400JS ×2',
+  conf:'ok', note:'Inventory-tagged "JS". Fixed/prime lens — no zoom range.'},
+ {id:'crimson-ust', label:'Christie Crimson WU31 + UST Snorkle Lens (0.37:1 fixed)', trMin:0.37, trMax:0.37, aspect:1.6, qty:'lens ×1, body: Crimson WU31 ×1',
+  conf:'ok', note:'Matches the Crimson manual\'s "0.37:1 HD ILS" row (P/N 118-131106-XX) — confirmed against Wiki: christie-crimson-series.md.'},
+ {id:'crimson-ils', label:'Christie Crimson WU31 + ILS1 Zoom Lens (1.4–1.8:1)', trMin:1.4, trMax:1.8, aspect:1.6, qty:'lens ×1, body: Crimson WU31 ×1',
+  conf:'ok', note:'This lens is dual-spec (1.5–2.0:1 on SX+ bodies, 1.4–1.8:1 on HD/WU bodies) — WU31 uses the HD/WU figure, matching the Crimson manual\'s "1.4-1.8:1 HD ILS" row (P/N 118-100112-XX).'},
+ {id:'gs-body', label:'Christie DWU-880A-GS (no lens owned — unusable as-is)', trMin:null, trMax:null, aspect:1.6, qty:'body ×1, ZERO GS-compatible lenses in stock',
+  conf:'none', note:'Confirmed by Matthew (2026-07-11): the department owns no GS-compatible lens at all — this isn\'t a missing-data gap, the body is genuinely unusable until a lens is acquired. GS uses Christie\'s interchangeable motorized lens system (this model is commonly sold "White, No Lens" per Christie\'s own datasheet), and the GS manual has no throw-ratio table of its own since throw ratio is a lens spec, not a body spec — Christie\'s separate "Lens Throw Ratios Technical Reference" document isn\'t in our library either. Once a lens is bought, add it here with its real throw ratio.'},
+ {id:'epson-g5950', label:'Epson PowerLite Pro G5950 (built-in 1.8x zoom, all-in-one)', trMin:1.31, trMax:2.38, aspect:1.333, qty:'body ×1, lens is built-in/non-interchangeable',
+  conf:'ok', note:'Throw ratio 1.31–2.38:1 (D:W) per Epson\'s published spec (via ProjectorCentral) — verified by web lookup 2026-07-11, not in our own manual library. XGA/4:3, not WUXGA like the Christie units.'},
+ {id:'infocus-in2136', label:'InFocus IN2136 (built-in lens, all-in-one)', trMin:1.18, trMax:1.54, aspect:null, qty:'body ×1',
+  conf:'unv', note:'Throw ratio from the department\'s own video inventory doc (Karla), not independently verified against an InFocus manual/spec sheet. Native aspect ratio not confirmed — width-only result below.'},
+ {id:'infocus-genesis', label:'InFocus Genesis IN118BBST (built-in lens, all-in-one)', trMin:0.5, trMax:0.5, aspect:null, qty:'body ×2',
+  conf:'unv', note:'Throw ratio from the department\'s own video inventory doc (Karla), not independently verified against an InFocus manual/spec sheet. Native aspect ratio not confirmed — width-only result below.'},
+];
+
+let UNIT='ft', MODE='w2d', BASIS='diag';
+function setUnit(u){
+ UNIT=u;
+ document.getElementById('uFt').classList.toggle('on',u==='ft');
+ document.getElementById('uM').classList.toggle('on',u==='m');
+ document.getElementById('inputFt').style.display = u==='ft'? 'flex':'none';
+ document.getElementById('inputVal').style.display = u==='ft'? 'none':'block';
+ render()
+}
+// Reads the current input as a decimal value in the active unit (feet or meters).
+function getInputValue(){
+ if(UNIT==='ft'){
+  const ft=parseFloat(document.getElementById('inFeet').value)||0;
+  const inch=parseFloat(document.getElementById('inInches').value)||0;
+  if(!document.getElementById('inFeet').value && !document.getElementById('inInches').value) return NaN;
+  return ft + inch/12;
+ }
+ return parseFloat(document.getElementById('inputVal').value);
+}
+function setBasis(b){BASIS=b;document.getElementById('bDiag').classList.toggle('on',b==='diag');document.getElementById('bWidth').classList.toggle('on',b==='width');updateLabel();render()}
+function setMode(m){MODE=m;document.getElementById('mW2D').classList.toggle('on',m==='w2d');document.getElementById('mD2W').classList.toggle('on',m==='d2w');
+ document.getElementById('basisRow').style.display = m==='w2d'? 'block':'none';
+ updateLabel();
+ render()}
+function updateLabel(){
+ if(MODE==='d2w'){ document.getElementById('inputLabel').textContent='Available throw distance'; return }
+ document.getElementById('inputLabel').textContent = BASIS==='diag'? 'Image diagonal' : 'Image width';
+}
+
+function populate(){
+ const sel=document.getElementById('lens');
+ sel.innerHTML=LENSES.map(l=>`<option value="${l.id}">${l.label}</option>`).join('');
+}
+
+function confTag(c){
+ if(c==='ok')return '<span class="tag ok">confirmed</span>';
+ if(c==='unv')return '<span class="tag unv">unverified source</span>';
+ return '<span class="tag none">no data</span>';
+}
+
+// Diagonal-multiplier for a given aspect (width/height). diag = width * k.
+function diagK(aspect){ return Math.sqrt(1+Math.pow(1/aspect,2)); }
+function fmt(n){ return n.toFixed(1); }
+// Feet-and-inches display (e.g. 15'-9") for the feet unit; meters stay decimal.
+function fmtFeetIn(n){
+ let totalIn=Math.round(n*12);
+ let ft=Math.floor(totalIn/12), inch=totalIn%12;
+ if(inch===12){inch=0;ft++}
+ return `${ft}'-${inch}"`;
+}
+function fmtDist(n,u){ return u==='ft'? fmtFeetIn(n) : n.toFixed(2)+' m'; }
+function range(min,max,fixed,u){
+ if(u==='ft'){ return fixed? fmtFeetIn(min) : `${fmtFeetIn(min)} – ${fmtFeetIn(max)}`; }
+ return fixed? `${fmt(min)} ${u}` : `${fmt(min)}–${fmt(max)} ${u}`;
+}
+
+function render(){
+ const l=LENSES.find(x=>x.id===document.getElementById('lens').value);
+ document.getElementById('lensNote').innerHTML=`<div class="note">${l.note} ${confTag(l.conf)}<br><span style="color:#888">Owned: ${l.qty}</span></div>`;
+
+ // Diagonal-basis input only makes sense if we know the aspect ratio to
+ // convert diagonal <-> width. Force width-basis (and disable the toggle)
+ // for units with no confirmed aspect, e.g. the two InFocus bodies.
+ const basisSel=document.getElementById('basisSel');
+ if(!l.aspect && BASIS==='diag'){ BASIS='width'; }
+ basisSel.style.opacity = l.aspect? '1':'.4';
+ basisSel.style.pointerEvents = l.aspect? 'auto':'none';
+ document.getElementById('bDiag').classList.toggle('on',BASIS==='diag');
+ document.getElementById('bWidth').classList.toggle('on',BASIS==='width');
+ updateLabel();
+
+ const out=document.getElementById('out');
+ if(l.trMin==null){
+  out.innerHTML=`<div class="warn">No throw-ratio data for this body — can't calculate. Confirm which lens is mounted, then pick a lens above (or treat this as a placeholder until that's resolved).</div>`;
+  return;
+ }
+ let v=getInputValue();
+ if(!v||v<=0||isNaN(v)){out.innerHTML='';return}
+
+ const u=UNIT==='ft'?'ft':'m';
+ const fixed = l.trMin===l.trMax;
+ let wMin,wMax,big,sub;
+
+ if(MODE==='w2d'){
+  // Convert a diagonal input down to width first — TR math always runs on
+  // width, since throw ratio is defined as distance/width, not distance/diagonal.
+  const widthIn = (BASIS==='diag' && l.aspect)? v/diagK(l.aspect) : v;
+  const dMin=l.trMin*widthIn, dMax=l.trMax*widthIn;
+  big = range(dMin,dMax,fixed,u);
+  sub = `Throw distance for a ${fmtDist(v,u)} ${BASIS==='diag'?'diagonal':'wide'} image`;
+  wMin=wMax=widthIn;
+ } else {
+  wMin=v/l.trMax; wMax=v/l.trMin;
+  big = range(wMin,wMax,fixed,u)+' wide';
+  sub = `Achievable image width at ${fmtDist(v,u)} throw distance`;
+ }
+
+ let rows='';
+ if(l.aspect){
+  const k=diagK(l.aspect);
+  const hMin=wMin/l.aspect, hMax=wMax/l.aspect;
+  const dgMin=wMin*k, dgMax=wMax*k;
+  rows = `<table>
+   <tr><th>Screen dimension</th><th>Value</th></tr>
+   <tr><td>Width</td><td>${range(wMin,wMax,wMin===wMax,u)}</td></tr>
+   <tr><td>Height</td><td>${range(hMin,hMax,hMin===hMax,u)}</td></tr>
+   <tr><td>Diagonal</td><td>${range(dgMin,dgMax,dgMin===dgMax,u)}</td></tr>
+  </table>`;
+ } else {
+  rows = `<div class="note">Native aspect ratio not confirmed for this unit — height/diagonal can't be derived, width only.</div>`;
+ }
+
+ out.innerHTML=`<div class="result"><div class="big">${big}</div><div class="sub">${sub}</div>${rows}</div>`;
+}
+
+function allTable(){
+ const rows=LENSES.map(l=>{
+  const tr = l.trMin==null?'—':(l.trMin===l.trMax? l.trMin+':1' : l.trMin+'–'+l.trMax+':1');
+  return `<tr><td>${l.label}</td><td>${tr}</td><td>${l.qty}</td><td>${confTag(l.conf)}</td></tr>`;
+ }).join('');
+ document.getElementById('allTable').innerHTML=`<tr><th>Gear</th><th>Throw ratio</th><th>Owned</th><th>Data</th></tr>${rows}`;
+}
+
+populate();
+allTable();
+render();
+</script>
+</body></html>
