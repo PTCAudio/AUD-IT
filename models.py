@@ -254,15 +254,42 @@ def upsert_kb_page(slug, title, section, body_markdown, tags, source_files):
     db.commit()
     db.close()
 
+_STOPWORDS = {
+    'a','an','the','is','are','was','were','do','does','did','how','many','much',
+    'what','which','who','whom','where','when','why','in','on','at','of','for',
+    'to','and','or','we','i','you','it','this','that','have','has','had','be',
+    'can','could','will','would','should','with','about','our'
+}
+
 def search_kb_pages(q, limit=8):
-    """Plain LIKE search — fine at ~45 pages. Revisit with FTS5 if the KB grows a lot."""
+    """Keyword AND-match on title+body — fine at ~45 pages. Splits the query into
+    significant words (dropping common stopwords) and requires every remaining
+    word to appear somewhere in the page, so natural questions like 'what console
+    is in the hormel' match on 'console'+'hormel' rather than the literal phrase.
+    Revisit with FTS5 if the KB grows a lot."""
     db = get_db()
-    like = f'%{q}%'
-    rows = db.execute('''
+    words = [w.strip('?.,!"\'') for w in q.lower().split()]
+    words = [w for w in words if w and w not in _STOPWORDS]
+    if not words:
+        words = [w.strip('?.,!"\'') for w in q.lower().split() if w.strip('?.,!"\'')]
+    if not words:
+        db.close()
+        return []
+
+    clauses = []
+    params = []
+    for w in words:
+        clauses.append('(title LIKE ? OR body_markdown LIKE ?)')
+        like = f'%{w}%'
+        params.extend([like, like])
+    where = ' AND '.join(clauses)
+    params.append(limit)
+
+    rows = db.execute(f'''
         SELECT slug, title, section FROM kb_pages
-        WHERE title LIKE ? OR body_markdown LIKE ?
+        WHERE {where}
         ORDER BY title LIMIT ?
-    ''', (like, like, limit)).fetchall()
+    ''', params).fetchall()
     db.close()
     return [dict(r) for r in rows]
 

@@ -215,7 +215,9 @@ def tools_page(name):
     template = TOOL_TEMPLATES.get(name)
     if not template:
         return render_template('token_invalid.html', reason='tool not found'), 404
-    return render_template(template)
+    user = auth.current_user()
+    is_admin = bool(user and user.get('role') == 'admin')
+    return render_template(template, is_admin=is_admin)
 
 @app.route('/admin/users')
 @admin_required

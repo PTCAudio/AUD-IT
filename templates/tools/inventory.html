@@ -338,11 +338,12 @@ tr:hover .r-acts{opacity:1}
   </div>
   <div class="hdr-btns">
     <input type="file" id="jsonInput" accept=".json" style="display:none" onchange="handleJsonImport(event)">
+    <span id="roBadge" style="display:none;color:var(--grey,#888);font-size:11px;letter-spacing:.5px;align-self:center;margin-right:6px">READ-ONLY</span>
     <button class="btn" onclick="exportCSV()">↓ Export CSV</button>
     <button class="btn" onclick="exportJSON()" title="Full backup including show/space allocations">↓ Backup JSON</button>
-    <button class="btn" onclick="document.getElementById('jsonInput').click()" title="Restore from JSON backup">↑ Restore JSON</button>
+    <button class="btn" id="restoreBtn" onclick="document.getElementById('jsonInput').click()" title="Restore from JSON backup">↑ Restore JSON</button>
     <button class="btn" onclick="openPrint()">⎙ Print / PDF</button>
-    <button class="btn btn-p" onclick="openAdd()">+ Add Item</button>
+    <button class="btn btn-p" id="addBtn" onclick="openAdd()">+ Add Item</button>
   </div>
 </header>
 <div id="app">
@@ -796,6 +797,19 @@ const LOC_FIX = {
   'MS RF Rack':'Stephenson RF Rack','MS/BSR':'Stephenson/BSR',
   'MS Grid?':'Stephenson Grid?','Mainstage System':'Stephenson System',
 };
+
+// ═══════════════════ AUTH ═══════════════════
+// Server-supplied: true only for admin accounts. Non-admins get a read-only
+// view — mutating functions below no-op with an alert, and the Add/Restore
+// buttons are hidden on load. This is a UI guard, not a hard security
+// boundary (the tool itself has no server-side persistence — see below) —
+// it stops accidental edits by regular staff, not a determined bypass.
+const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+
+function requireAdmin(){
+  if(!IS_ADMIN){ alert('Read-only — inventory edits are admin-only. Ask an admin if this needs to change.'); return false; }
+  return true;
+}
 
 // ═══════════════════ STATE ═══════════════════
 const S = { items:[], shows:[], cats:[], page:0, filter:'all', sortCol:'line', sortDir:1, editIdx:null, showFilter:'' };
@@ -1305,6 +1319,7 @@ function changePage(d){
 const SK=['available','inuse','broken','repair','retired','unknown'];
 
 function openAdd(){
+  if(!requireAdmin())return;
   S.editIdx=null;
   document.getElementById('eTitle').textContent='Add Inventory Item';
   document.getElementById('eSub').textContent='New item — fill in what you know';
@@ -1322,7 +1337,7 @@ function openEdit(idx){
   const it=S.items[idx];
   document.getElementById('eTitle').textContent=`${it.make||''} ${it.model||''}`.trim()||'Edit Item';
   document.getElementById('eSub').textContent=`Line ${it.line||'—'}`;
-  document.getElementById('delBtn').style.display='inline-flex';
+  document.getElementById('delBtn').style.display=IS_ADMIN?'inline-flex':'none';
   buildCatSelect();
   fillForm(it);
   document.getElementById('editOv').classList.add('open');
@@ -1333,6 +1348,7 @@ function openEdit(idx){
 function closeEdit(){ document.getElementById('editOv').classList.remove('open'); }
 
 function duplicateItem(idx){
+  if(!requireAdmin())return;
   const it=S.items[idx];
   S.editIdx=null;
   document.getElementById('eTitle').textContent=`Duplicate — ${it.make||''} ${it.model||''}`.trim();
@@ -1400,6 +1416,7 @@ function fillForm(it){
 }
 
 function saveItem(){
+  if(!requireAdmin())return;
   const make=document.getElementById('f-make').value.trim();
   const model=document.getElementById('f-model').value.trim();
   const qty=parseInt(document.getElementById('f-qty').value)||0;
@@ -1458,6 +1475,7 @@ function saveItem(){
 }
 
 function deleteItem(){
+  if(!requireAdmin())return;
   if(S.editIdx===null) return;
   const it=S.items[S.editIdx];
   if(!confirm(`Permanently delete "${it.make} ${it.model}"?\n\nTip: use Retired status to keep history.`)) return;
@@ -1466,6 +1484,7 @@ function deleteItem(){
 }
 
 function confirmDel(idx){
+  if(!requireAdmin())return;
   const it=S.items[idx];
   if(!confirm(`Permanently delete "${it.make} ${it.model}"?\n\nTip: use Edit → Retired units to keep history.`)) return;
   S.items.splice(idx,1); save(); buildFilters(); render(); toast('Item deleted.');
@@ -1641,6 +1660,7 @@ function exportJSON(){
 }
 
 function handleJsonImport(event){
+  if(!requireAdmin()){event.target.value='';return;}
   const file=event.target.files[0]; if(!file) return;
   const reader=new FileReader();
   reader.onload=e=>{
@@ -1965,6 +1985,7 @@ function closeManageShows(){
 }
 
 function saveShowsAndClose(){
+  if(!IS_ADMIN){closeManageShows();return;}
   // collect date edits from inputs
   _showsDraft.forEach(sh=>{
     const li=document.getElementById('si-li-'+sh.id);
@@ -2030,12 +2051,14 @@ function toggleSeason(season){
 }
 
 function removeShow(id){
+  if(!requireAdmin())return;
   if(!confirm('Remove this show? Any gear allocations for it will be lost on next save.')) return;
   _showsDraft=_showsDraft.filter(s=>s.id!==id);
   renderShowsModal();
 }
 
 function addShow(){
+  if(!requireAdmin())return;
   const nameEl=document.getElementById('newShowName');
   const seasonEl=document.getElementById('newShowSeason');
   const name=nameEl.value.trim();
@@ -2085,6 +2108,7 @@ function renderCatsModal(){
 }
 
 function renamecat(idx, val){
+  if(!IS_ADMIN)return;
   val=val.trim();
   if(!val) return;
   S.cats[idx]=val;
@@ -2092,6 +2116,7 @@ function renamecat(idx, val){
 }
 
 function removeCat(idx){
+  if(!requireAdmin())return;
   const name=S.cats[idx];
   const inUse=S.items.some(it=>it.cat===name);
   if(inUse&&!confirm(`"${name}" is used by some items. Remove anyway? Those items will keep the category name but it won't appear in the dropdown.`)) return;
@@ -2101,6 +2126,7 @@ function removeCat(idx){
 }
 
 function addCat(){
+  if(!requireAdmin())return;
   const el=document.getElementById('newCatName');
   const name=el.value.trim();
   if(!name){el.focus();return;}
@@ -2125,6 +2151,12 @@ document.addEventListener('keydown',e=>{
     document.getElementById('showsOv').classList.remove('open');
   }
 });
+
+if(!IS_ADMIN){
+  document.getElementById('addBtn').style.display='none';
+  document.getElementById('restoreBtn').style.display='none';
+  document.getElementById('roBadge').style.display='inline';
+}
 
 load();
 </script>
