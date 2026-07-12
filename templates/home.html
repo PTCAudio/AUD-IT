@@ -5,8 +5,6 @@
 *{box-sizing:border-box}html,body{height:100%}body{margin:0;background:#111;color:#eee;font:17.5px/1.35 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;display:flex;flex-direction:column}
 #top{background:var(--bk);border-bottom:3px solid var(--red);padding:10px 25px;display:flex;align-items:center;gap:15px;flex-wrap:wrap;flex:0 0 auto}
 #top b{font-size:21px;letter-spacing:1px}#top .r{color:var(--red)}
-#mode{margin-left:auto;display:flex;gap:0;border:1px solid #333;border-radius:6px;overflow:hidden}
-#mode div{padding:5px 15px;font-size:15px;cursor:pointer;color:#aaa}#mode div.on{background:var(--red);color:#fff}
 #crumb{padding:7.5px 25px;color:var(--grey);font-size:16px;flex:0 0 auto}#crumb a{color:var(--red);text-decoration:none;cursor:pointer}
 #stage{padding:0 25px 15px;max-width:1375px;margin:0 auto;width:100%;flex:1 1 auto;overflow:auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:12.5px;margin-top:7.5px}
@@ -55,8 +53,7 @@ td:last-child{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15.5px
    a one-line revert (delete this rule) rather than a rebuild. */
 #q,#jessBtn,#jessPanel{display:none !important}
 </style></head><body>
-<div id="top"><b>PTC <span class="r">AUDIO</span></b><span style="color:#888;font-size:13px">department home · The Phoenix Theatre Company</span>
-<div id="mode"><div id="mStaff" onclick="setMode('staff')">STAFF</div><div id="mGuest" onclick="setMode('guest')">GUEST</div></div></div>
+<div id="top"><b>PTC <span class="r">AUDIO</span></b><span style="color:#888;font-size:13px">department home · The Phoenix Theatre Company</span></div>
 <div id="crumb"></div><div id="stage"></div>
 <div id="foot">Matthew Gibney · Audio Supervisor · m.gibney@phoenixtheatre.com — facts current as of 2026-07-09</div>
 
@@ -130,14 +127,14 @@ async function jessAsk(){const inp=document.getElementById('jessQ');const q=inp.
  document.getElementById('jessSend').disabled=false}
 </script>
 <script>
-/* STAFF/GUEST venue fact data is now database-backed (venues + venue_systems
-   tables, editable at /admin/venues) rather than hardcoded here — server
-   injects the exact same nested shape the rendering code below already
-   expects, so sec()/venue()/card()/home() need zero changes. The original
-   hardcoded snapshot this was seeded from lives in seed_data/*.json and in
-   git history if it's ever needed for reference. */
+/* Venue fact data is database-backed (venues + venue_systems tables,
+   editable at /admin/venues) rather than hardcoded here — server injects
+   the exact same nested shape the rendering code below already expects, so
+   sec()/venue()/card()/home() need zero changes. The guest-facing sanitized
+   view/mode switch was removed — this is now an internal, logged-in-only
+   page, so everyone sees the full staff detail; admin-only controls are
+   still gated separately by IS_ADMIN below. */
 const STAFF = {{ staff_data|tojson }};
-const GUEST = {{ guest_data|tojson }};
 /* ===== documents / tools / procedures (staff unless noted) ===== */
 const DOCS=[
  ["Riders (external-ready)",[["Stephenson Audio System Rider v1.2","/docs/Riders/Stephenson_Audio_System_Rider_v1.2.pdf",1],["Hormel Audio System Rider v1.0","/docs/Riders/Hormel_Audio_System_Rider_v1.0.pdf",1]]],
@@ -157,10 +154,8 @@ const TOOLS=[["Task Manager","/tasks"],["Knowledge Base","/kb"],["Inventory","/t
 /* ===== app ===== */
 const COLORS={venues:'#E82C2A',tools:'#2C9BE8',admin:'#C9A227',docs:'#E8892C'};
 function sec(label,color){return `<div class="sec" style="color:${color}">${label}</div>`}
-let MODE=localStorage.getItem('ptcMode')||'staff';
 const crumb=document.getElementById('crumb'),stage=document.getElementById('stage');
-function setMode(m){MODE=m;localStorage.setItem('ptcMode',m);home()}
-function db(){return MODE==='staff'?STAFF:GUEST}
+function db(){return STAFF}
 function home(){
  // home() fully replaces #stage, including the #q search box itself — if
  // that happens while the user is mid-keystroke (doSearch calls home() for
@@ -172,21 +167,15 @@ function home(){
  const prevVal = prevQ ? prevQ.value : '';
  const prevSel = prevQ ? [prevQ.selectionStart, prevQ.selectionEnd] : null;
 
- document.getElementById('mStaff').classList.toggle('on',MODE==='staff');
- document.getElementById('mGuest').classList.toggle('on',MODE==='guest');
  crumb.innerHTML='<a onclick="home()">Home</a>';
  let h='<input id="q" placeholder="search everything…" oninput="doSearch(this.value)">';
  h+=sec('VENUES & SYSTEMS',COLORS.venues)+'<div class="grid">'+Object.keys(db()).map(v=>`<div class="tile" style="border-left-color:${COLORS.venues}" onclick="venue('${v}')"><b>${v}</b><span>${db()[v]._d}</span></div>`).join('')+'</div>';
- if(MODE==='staff'){
-  h+=sec('TOOLS',COLORS.tools)+'<div class="grid">'+TOOLS.map(t=>`<a class="tile" style="border-left-color:${COLORS.tools}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
-  h+=sec('ADMIN',COLORS.admin)+'<div class="grid">'+ADMIN.map(t=>`<a class="tile" style="border-left-color:${COLORS.admin}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
-  if(IS_ADMIN){
-   h+=sec('ADMIN ONLY',COLORS.admin)+'<div class="grid">'+ADMIN_ONLY.map(t=>`<a class="tile" style="border-left-color:${COLORS.admin}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
-  }
-  h+=sec('DOCUMENTS',COLORS.docs)+`<div class="grid"><div class="tile" style="border-left-color:${COLORS.docs}" onclick="docs()"><b>📄 Documents</b><span>${DOCS.reduce((n,g)=>n+g[1].length,0)} files · browse all</span></div></div>`;
- } else {
-  h+=sec('DOCUMENTS',COLORS.docs)+`<div class="grid"><div class="tile" style="border-left-color:${COLORS.docs}" onclick="docs()"><b>📄 Documents</b><span>${DOCS.filter(g=>g[1].some(d=>d[2])).reduce((n,g)=>n+g[1].filter(d=>d[2]).length,0)} files · browse all</span></div></div>`;
+ h+=sec('TOOLS',COLORS.tools)+'<div class="grid">'+TOOLS.map(t=>`<a class="tile" style="border-left-color:${COLORS.tools}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
+ h+=sec('ADMIN',COLORS.admin)+'<div class="grid">'+ADMIN.map(t=>`<a class="tile" style="border-left-color:${COLORS.admin}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
+ if(IS_ADMIN){
+  h+=sec('ADMIN ONLY',COLORS.admin)+'<div class="grid">'+ADMIN_ONLY.map(t=>`<a class="tile" style="border-left-color:${COLORS.admin}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
  }
+ h+=sec('DOCUMENTS',COLORS.docs)+`<div class="grid"><div class="tile" style="border-left-color:${COLORS.docs}" onclick="docs()"><b>📄 Documents</b><span>${DOCS.reduce((n,g)=>n+g[1].length,0)} files · browse all</span></div></div>`;
  stage.innerHTML=h;
 
  if(hadFocus){
@@ -197,9 +186,8 @@ function home(){
  }
 }
 function docs(){crumb.innerHTML='<a onclick="home()">Home</a> › <b style="color:#eee">Documents</b>';
- const list=MODE==='staff'?DOCS:DOCS.filter(g=>g[1].some(d=>d[2]));
- stage.innerHTML=list.map(g=>{const items=MODE==='staff'?g[1]:g[1].filter(d=>d[2]);
-  return `<div class="card" style="border-top:2px solid ${COLORS.docs}"><h2 style="border-bottom-color:${COLORS.docs}">${g[0]}</h2>${items.map(d=>`<a class="tile" style="border:none;padding:6px 0" href="${d[1]}" target="_blank">📄 ${d[0]}</a>`).join('')}</div>`}).join('')}
+ stage.innerHTML=DOCS.map(g=>{
+  return `<div class="card" style="border-top:2px solid ${COLORS.docs}"><h2 style="border-bottom-color:${COLORS.docs}">${g[0]}</h2>${g[1].map(d=>`<a class="tile" style="border:none;padding:6px 0" href="${d[1]}" target="_blank">📄 ${d[0]}</a>`).join('')}</div>`}).join('')}
 function venue(v){crumb.innerHTML=`<a onclick="home()">Home</a> › <b style="color:#eee">${v}</b>`;
  const systems=Object.keys(db()[v]).filter(k=>k!=='_d');
  let h=`<div style="margin:7.5px 0 2.5px"><b style="font-size:23px">${v}</b><span style="color:var(--grey);font-size:15px;margin-left:10px">${db()[v]._d}</span></div>`;
@@ -207,12 +195,12 @@ function venue(v){crumb.innerHTML=`<a onclick="home()">Home</a> › <b style="co
  stage.innerHTML=h}
 function card(v,s,short){const d=db()[v][s];
  return `<div class="card"><h2>${short?s:v+' — '+s}</h2><table>${d.rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>`+
- (MODE==='staff'?d.warns.map(w=>`<div class="warn">⚠ ${w}</div>`).join(''):'')+
+ d.warns.map(w=>`<div class="warn">⚠ ${w}</div>`).join('')+
  d.notes.map(n=>`<div class="note">${n}</div>`).join('')+`</div>`}
 function doSearch(t){t=t.trim().toLowerCase();if(t.length<2){home();return}
  let out='';const D=db();
  for(const v in D)for(const s in D[v]){if(s==='_d')continue;const d=D[v][s];
-  const blob=(s+' '+d.rows.flat().join(' ')+' '+(MODE==='staff'?d.warns.join(' '):'')+' '+d.notes.join(' ')).toLowerCase();
+  const blob=(s+' '+d.rows.flat().join(' ')+' '+d.warns.join(' ')+' '+d.notes.join(' ')).toLowerCase();
   if(t.split(/\s+/).every(x=>blob.includes(x)))out+=card(v,s)}
  stage.querySelectorAll('.card,.grid,.sec').forEach(e=>e.remove());
  stage.insertAdjacentHTML('beforeend',out||'<div class="card">no matches</div>')}

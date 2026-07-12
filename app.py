@@ -198,8 +198,7 @@ def home_page():
     user = auth.current_user()
     is_admin = bool(user and user.get('role') == 'admin')
     return render_template('home.html', is_admin=is_admin,
-                            staff_data=models.get_venues_nested('staff'),
-                            guest_data=models.get_venues_nested('guest'))
+                            staff_data=models.get_venues_nested('staff'))
 
 # ══════════════════════════════════
 # DOCUMENTS (riders, system guides, network diagrams, budget/incident PDFs)
