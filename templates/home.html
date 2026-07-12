@@ -83,14 +83,25 @@ function jessAppendResults(pages,q){const log=document.getElementById('jessLog')
   body.textContent='No KB pages matched "'+q+'".';
  } else {
   pages.forEach(p=>{
+   const wrap=document.createElement('div');
+   wrap.style.margin='0 0 12px';
    const a=document.createElement('a');
    a.href='/kb/'+p.slug;
    a.style.display='block';
    a.style.color='var(--red)';
-   a.style.margin='3px 0';
    a.style.textDecoration='none';
+   a.style.fontWeight='600';
    a.textContent=(p.section?'['+p.section+'] ':'')+p.title;
-   body.appendChild(a);
+   wrap.appendChild(a);
+   if(p.snippet){
+    const s=document.createElement('div');
+    s.style.color='#aaa';
+    s.style.fontSize='13px';
+    s.style.marginTop='2px';
+    s.textContent=p.snippet;
+    wrap.appendChild(s);
+   }
+   body.appendChild(wrap);
   });
  }
  div.appendChild(who);div.appendChild(body);

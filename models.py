@@ -261,12 +261,38 @@ _STOPWORDS = {
     'can','could','will','would','should','with','about','our'
 }
 
-def search_kb_pages(q, limit=8):
-    """Keyword AND-match on title+body — fine at ~45 pages. Splits the query into
-    significant words (dropping common stopwords) and requires every remaining
-    word to appear somewhere in the page, so natural questions like 'what console
-    is in the hormel' match on 'console'+'hormel' rather than the literal phrase.
-    Revisit with FTS5 if the KB grows a lot."""
+def _snippet_for(body, words, width=180):
+    """Grab a window of text around the first hit of any search word, so
+    results show the actual answer (e.g. an IP address) instead of just a
+    page title. Falls back to the start of the page if nothing hits (AND
+    match already guarantees every word is present somewhere, so this is
+    just about picking the most useful window)."""
+    lower = body.lower()
+    pos = -1
+    for w in words:
+        idx = lower.find(w)
+        if idx != -1 and (pos == -1 or idx < pos):
+            pos = idx
+    if pos == -1:
+        pos = 0
+    start = max(0, pos - width // 3)
+    end = min(len(body), start + width)
+    text = body[start:end]
+    text = ' '.join(text.split())  # collapse markdown line breaks/whitespace
+    text = text.lstrip('#-*| ')
+    prefix = '…' if start > 0 else ''
+    suffix = '…' if end < len(body) else ''
+    return f'{prefix}{text}{suffix}'
+
+def search_kb_pages(q, limit=5):
+    """Keyword AND-match on title+body, ranked by relevance, with a content
+    snippet per result — fine at ~45 pages. Splits the query into significant
+    words (dropping common stopwords) and requires every remaining word to
+    appear somewhere in the page, so natural questions like 'what console is
+    in the hormel' match on 'console'+'hormel' rather than the literal phrase.
+    Ranking: title hits count for more than body-only hits, so the page most
+    specifically about the topic surfaces first instead of a flat alphabetical
+    list. Revisit with FTS5 if the KB grows a lot."""
     db = get_db()
     words = [w.strip('?.,!"\'') for w in q.lower().split()]
     words = [w for w in words if w and w not in _STOPWORDS]
@@ -283,15 +309,24 @@ def search_kb_pages(q, limit=8):
         like = f'%{w}%'
         params.extend([like, like])
     where = ' AND '.join(clauses)
-    params.append(limit)
 
     rows = db.execute(f'''
-        SELECT slug, title, section FROM kb_pages
+        SELECT slug, title, section, body_markdown FROM kb_pages
         WHERE {where}
-        ORDER BY title LIMIT ?
     ''', params).fetchall()
     db.close()
-    return [dict(r) for r in rows]
+
+    scored = []
+    for r in rows:
+        title_l = r['title'].lower()
+        body_l = r['body_markdown'].lower()
+        score = sum(6 for w in words if w in title_l) + sum(body_l.count(w) for w in words)
+        scored.append((score, dict(
+            slug=r['slug'], title=r['title'], section=r['section'],
+            snippet=_snippet_for(r['body_markdown'], words),
+        )))
+    scored.sort(key=lambda x: (-x[0], x[1]['title']))
+    return [item for _, item in scored[:limit]]
 
 
 # ══════════════════════════════════
