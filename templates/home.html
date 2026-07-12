@@ -179,7 +179,14 @@ const DOCS=[
  ["Network",[["Audio Network Big Picture v1.0","Network/PTC_Audio_Network_Big_Picture_v1.0.pdf",0],["Switch-by-Switch Reference v2.0","Network/PTC_Audio_Switch_By_Switch_v2.0.pdf",0],["Stephenson Designer IP Quick Sheet v1.3","Network/Stephenson_Designer_IP_QuickSheet_v1.3.pdf",0],["Arcadia System Map v1.1","Network/Arcadia_System_Map_by_Space_v1.1.pdf",0]]],
  ["Budget & reports",[["Season Supply Budget Analysis","Budget/Season_Supply_Budget_Analysis.pdf",0],["MS26 Sound Spend Report","Budget/MS26_Sound_Spend_Report.pdf",0],["Band Mic Usage Comparison","Budget/Band_Mic_Usage_Comparison.pdf",0]]],
  ["Incidents",[["PM5 DSP Incident Report v1.1 2026-07-10","Incidents/PM5_DSP_Incident_Report_v1.1_2026-07-10.pdf",0]]]];
-const ADMIN=[["Outlook Mail","https://outlook.cloud.microsoft/mail/"],["Tallie Expense Reports","https://usetallie.com/x9/Expense/Tile"],["Render Dashboard","https://dashboard.render.com/"],["Chrome Remote Desktop","https://remotedesktop.google.com/access/"]];
+// Server-supplied: true only for admin accounts (see /home route in app.py).
+const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+// General office links — every logged-in staff account authenticates separately
+// with these services in their own browser session; this app never sees or
+// passes along Microsoft/Tallie credentials, it's just a bookmark.
+const ADMIN=[["Outlook Mail","https://outlook.cloud.microsoft/mail/"],["Tallie Expense Reports","https://usetallie.com/x9/Expense/Tile"]];
+// Infra/admin-only links — only shown to admin accounts.
+const ADMIN_ONLY=[["Manage Users","/admin/users"],["Render Dashboard","https://dashboard.render.com/"],["Chrome Remote Desktop","https://remotedesktop.google.com/access/"]];
 const TOOLS=[["Task Manager","/tasks"],["Knowledge Base","/kb"],["Inventory","/tools/inventory"],["QuoteBuilder","/tools/quotebuilder"],["Season Calendar","/tools/season-calendar"],["CL5 Patch Generator","/tools/cl5-patch-generator"],["Lens Throw Calculator","/tools/lens-throw-calculator"]];
 /* ===== app ===== */
 const COLORS={venues:'#E82C2A',tools:'#2C9BE8',admin:'#C9A227',docs:'#E8892C'};
@@ -196,6 +203,9 @@ function home(){document.getElementById('mStaff').classList.toggle('on',MODE==='
  if(MODE==='staff'){
   h+=sec('TOOLS',COLORS.tools)+'<div class="grid">'+TOOLS.map(t=>`<a class="tile" style="border-left-color:${COLORS.tools}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
   h+=sec('ADMIN',COLORS.admin)+'<div class="grid">'+ADMIN.map(t=>`<a class="tile" style="border-left-color:${COLORS.admin}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
+  if(IS_ADMIN){
+   h+=sec('ADMIN ONLY',COLORS.admin)+'<div class="grid">'+ADMIN_ONLY.map(t=>`<a class="tile" style="border-left-color:${COLORS.admin}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
+  }
   h+=sec('DOCUMENTS',COLORS.docs)+`<div class="grid"><div class="tile" style="border-left-color:${COLORS.docs}" onclick="docs()"><b>📄 Documents</b><span>${DOCS.reduce((n,g)=>n+g[1].length,0)} files · browse all</span></div></div>`;
  } else {
   h+=sec('DOCUMENTS',COLORS.docs)+`<div class="grid"><div class="tile" style="border-left-color:${COLORS.docs}" onclick="docs()"><b>📄 Documents</b><span>${DOCS.filter(g=>g[1].some(d=>d[2])).reduce((n,g)=>n+g[1].filter(d=>d[2]).length,0)} files · browse all</span></div></div>`;

@@ -194,7 +194,9 @@ def tasks():
 @app.route('/home')
 @login_required
 def home_page():
-    return render_template('home.html')
+    user = auth.current_user()
+    is_admin = bool(user and user.get('role') == 'admin')
+    return render_template('home.html', is_admin=is_admin)
 
 # ══════════════════════════════════
 # STANDALONE TOOLS (ported from local single-file HTML apps)
@@ -556,13 +558,19 @@ def api_audit_log():
 MAX_KB_BODY = 300000  # generous — some Wiki pages (e.g. TOC-indexed manuals) run long
 
 def validate_kb_page(data):
+    # Note: title/section are stored as plain text (NOT html-escaped here) —
+    # this endpoint is only reachable via API key (the sync script) or an
+    # admin session, not public input, and the KB templates/JS already escape
+    # on display (Jinja auto-escapes in kb_index.html/kb_page.html; the Jess
+    # search results use textContent). Escaping here too would double-escape
+    # (e.g. "Allen & Heath" -> "Allen &amp; Heath" -> literal "&amp;" on screen).
     slug = str(data.get('slug', '')).strip()[:120]
     if not slug or not all(c.isalnum() or c in '-_' for c in slug):
         return None
     return {
         'slug': slug,
-        'title': sanitize(data.get('title', slug), 200),
-        'section': sanitize(data.get('section', ''), 50),
+        'title': str(data.get('title', slug)).strip()[:200],
+        'section': str(data.get('section', '')).strip()[:50],
         'body_markdown': str(data.get('body_markdown', ''))[:MAX_KB_BODY],
         'tags': data.get('tags', []) if isinstance(data.get('tags', []), list) else [],
         'source_files': data.get('source_files', []) if isinstance(data.get('source_files', []), list) else [],
