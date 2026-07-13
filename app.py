@@ -653,6 +653,26 @@ def api_kb_search():
     return jsonify(models.search_kb_pages(q))
 
 # ══════════════════════════════════
+# INVENTORY — one-time migration from the Inventory tool's own localStorage
+# JSON export into the database. Admin-only; safe to re-run (idempotent —
+# clears and reloads inventory_items/_shows/_spaces only, never touches the
+# shared shows table). See models.import_inventory_from_tool_export().
+# ══════════════════════════════════
+
+@app.route('/api/inventory/import', methods=['POST'])
+@require_api_key_or_session
+def api_inventory_import():
+    data = request.get_json() or {}
+    if not isinstance(data.get('items'), list):
+        return jsonify({'error': "Expected the Inventory tool's export shape: {items: [...], shows: [...]}"}), 400
+    result = models.import_inventory_from_tool_export(data)
+    user = auth.current_user()
+    models.log_action(user['id'] if user else None, user['name'] if user else 'api-key',
+                       'inventory_imported',
+                       detail=f"{result['items_imported']} items, {len(result['unmatched_shows'])} unmatched shows")
+    return jsonify(result)
+
+# ══════════════════════════════════
 # VENUE FACT DB (Home page STAFF/GUEST editor)
 # ══════════════════════════════════
 

@@ -7,6 +7,7 @@ import sqlite3
 import os
 import json
 import re
+import difflib
 from datetime import datetime
 
 DB_PATH = os.environ.get('DATABASE_PATH', 'audit_suite.db')
@@ -1245,10 +1246,24 @@ def export_all():
     }
 
 
+def _merge_qty_notes(qty_map, notes_map):
+    """The Inventory tool's own localStorage JSON export stores per-show/
+    per-space qty and notes as two SEPARATE parallel objects (showQty:
+    {id:number}, showNotes:{id:string}) rather than nested together —
+    verified against templates/tools/inventory.html's saveItem(). Merge
+    them into the {id:{'qty':...,'notes':...}} shape the rest of this app
+    (and this app's own /api/backup export) uses."""
+    out = {}
+    for k in set((qty_map or {}).keys()) | set((notes_map or {}).keys()):
+        out[k] = {'qty': (qty_map or {}).get(k, 0) or 0, 'notes': (notes_map or {}).get(k, '') or ''}
+    return out
+
+
 def import_inventory(data):
     """Import inventory items from a JSON backup (either this app's own
     /api/backup export, or the Inventory tool's legacy localStorage export
-    shape — field names are matched defensively across both)."""
+    shape — field names and the showQty/showNotes split are matched
+    defensively across both)."""
     db = get_db()
     # Clear existing
     db.execute('DELETE FROM inventory_item_shows')
@@ -1263,8 +1278,14 @@ def import_inventory(data):
     # into their own tables via the normal helper functions)
     items = data.get('items', data.get('inventory', []))
     for item in items:
-        show_alloc = item.get('showQty') or item.get('showAllocations') or item.get('show_allocations') or {}
-        space_alloc = item.get('spaceQty') or item.get('spaceAllocations') or item.get('space_allocations') or {}
+        if 'showQty' in item or 'showNotes' in item:
+            show_alloc = _merge_qty_notes(item.get('showQty'), item.get('showNotes'))
+        else:
+            show_alloc = item.get('showAllocations') or item.get('show_allocations') or {}
+        if 'spaceQty' in item or 'spaceNotes' in item:
+            space_alloc = _merge_qty_notes(item.get('spaceQty'), item.get('spaceNotes'))
+        else:
+            space_alloc = item.get('spaceAllocations') or item.get('space_allocations') or {}
         create_item({
             'line': item.get('line', 0),
             'qty': item.get('qty', 0),
@@ -1308,6 +1329,107 @@ def import_inventory(data):
     db.commit()
     db.close()
     return len(items)
+
+
+def import_inventory_from_tool_export(payload):
+    """One-time migration: load real inventory data from the Inventory
+    tool's own localStorage JSON export (the 'JSON backup' button —
+    {version, items, shows}) into the database.
+
+    Deliberately NOT the same as import_inventory() above: this does not
+    touch the shows/categories tables at all. Those are owned by the Task
+    Manager app and already contain the real, live show records — the
+    Inventory tool's 'shows' array is a separate local copy with different
+    IDs (its own 's1'/'s2'/... scheme) and even a couple of fields (season)
+    the shared table doesn't have. Overwriting the shared table with that
+    copy would be actively destructive.
+
+    Instead, per-item show allocations get resolved from the Inventory
+    tool's local show ID -> name, then matched by name (case/whitespace
+    -insensitive exact match) against the real shows already in the
+    database, so inventory_item_shows.show_id ends up holding real,
+    joinable show IDs. Names that don't match exactly are left keyed by
+    their original name text (still human-readable, just not FK-joinable)
+    and reported back so a human can decide whether to rename/fix them.
+    """
+    # Idempotent: clear any previously-imported inventory rows so re-running
+    # this (e.g. after fixing a show-name mismatch) doesn't duplicate items.
+    # Safe — this only touches inventory_items/_shows/_spaces, never shows.
+    db = get_db()
+    db.execute('DELETE FROM inventory_item_shows')
+    db.execute('DELETE FROM inventory_item_spaces')
+    db.execute('DELETE FROM inventory_items')
+    db.commit()
+    db.close()
+
+    local_shows = payload.get('shows', [])
+    local_id_to_name = {s['id']: s.get('name', '') for s in local_shows if s.get('id')}
+
+    real_shows = list_all_shows_raw()
+    name_to_real_id = {}
+    for s in real_shows:
+        key = ' '.join(s['name'].split()).lower()
+        name_to_real_id[key] = s['id']
+    real_names = [s['name'] for s in real_shows]
+
+    def resolve_show_id(local_id):
+        name = local_id_to_name.get(local_id, local_id)
+        key = ' '.join(str(name).split()).lower()
+        if key in name_to_real_id:
+            return name_to_real_id[key], None
+        suggestion = difflib.get_close_matches(name, real_names, n=1, cutoff=0.6)
+        return name, (name, suggestion[0] if suggestion else None)
+
+    items = payload.get('items', [])
+    unmatched = {}  # original_name -> suggested closest real name (or None)
+    imported = 0
+
+    for item in items:
+        show_alloc_raw = _merge_qty_notes(item.get('showQty'), item.get('showNotes'))
+        show_alloc = {}
+        for local_id, v in show_alloc_raw.items():
+            resolved_id, unmatched_info = resolve_show_id(local_id)
+            show_alloc[resolved_id] = v
+            if unmatched_info:
+                unmatched[unmatched_info[0]] = unmatched_info[1]
+
+        space_alloc = _merge_qty_notes(item.get('spaceQty'), item.get('spaceNotes'))
+
+        create_item({
+            'line': item.get('line', 0),
+            'qty': item.get('qty', 0),
+            'make': item.get('make', ''),
+            'model': item.get('model', ''),
+            'desc': item.get('desc', ''),
+            'cat': item.get('cat', ''),
+            'subcat': item.get('subcat', ''),
+            'cost': _safe_float(item.get('cost')),
+            'serial': item.get('serial', ''),
+            'ip': item.get('ip', ''),
+            'loc': item.get('loc', ''),
+            'auditNotes': item.get('auditNotes', ''),
+            'units': item.get('units', {}),
+            'details': item.get('details', {}),
+            'show_allocations': show_alloc,
+            'space_allocations': space_alloc,
+        })
+        imported += 1
+
+    return {'items_imported': imported, 'unmatched_shows': unmatched}
+
+
+def _safe_float(v):
+    try:
+        return float(v) if v not in (None, '') else 0.0
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def list_all_shows_raw():
+    db = get_db()
+    rows = db.execute('SELECT id, name FROM shows').fetchall()
+    db.close()
+    return [dict(r) for r in rows]
 
 
 def import_tasks(data):
