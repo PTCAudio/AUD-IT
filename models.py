@@ -377,6 +377,12 @@ def upsert_kb_page(slug, title, section, body_markdown, tags, source_files):
     db.commit()
     db.close()
 
+def delete_kb_page(slug):
+    db = get_db()
+    db.execute('DELETE FROM kb_pages WHERE slug = ?', (slug,))
+    db.commit()
+    db.close()
+
 _STOPWORDS = {
     'a','an','the','is','are','was','were','do','does','did','how','many','much',
     'what','which','who','whom','where','when','why','in','on','at','of','for',

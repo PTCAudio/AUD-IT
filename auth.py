@@ -141,3 +141,22 @@ def require_api_key_or_session(f):
             return f(*args, **kwargs)
         return jsonify({'error': 'Unauthorized'}), 401
     return decorated
+
+
+def require_api_key_or_admin(f):
+    """Same as require_api_key_or_session, but a browser session must be an
+    admin — for routes (like inventory writes) where regular logged-in
+    users should stay read-only in the UI, while a machine credential
+    (e.g. the MCP server) is trusted at admin-equivalent level."""
+    import os
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        key = request.headers.get('X-API-Key')
+        api_key = os.environ.get('API_KEY', '')
+        if key and api_key and key == api_key:
+            return f(*args, **kwargs)
+        if session.get('user_id') and session.get('role') == 'admin':
+            return f(*args, **kwargs)
+        return jsonify({'error': 'Admin access required'}), 403
+    return decorated

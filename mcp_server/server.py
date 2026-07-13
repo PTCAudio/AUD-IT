@@ -346,6 +346,182 @@ async def set_hours(author: str, date: str, space: str, hours: float):
 
 
 # ══════════════════════════════════
+# INVENTORY
+# Field names below (cat/subcat/audit_notes/show_qty/space_qty/etc.) map to
+# the Inventory tool's own field names on the wire (desc/cat/subcat/
+# auditNotes/showQty/spaceQty/...). show_qty/show_notes/space_qty/
+# space_notes are separate {id: value} dicts, matching how the tool itself
+# stores them — show/space ids come from list_inventory_items output on
+# existing items (they're the Inventory tool's OWN local show ids like
+# 's1'/'s2', not the Task Manager shows' ids — the two are different ID
+# spaces on purpose, see models.import_inventory_from_tool_export).
+# ══════════════════════════════════
+
+@mcp.tool()
+async def list_inventory_items():
+    """List all active (non-deleted) inventory items — audio/video gear, quantities, locations, and show/space allocations."""
+    return await request("GET", "/api/inventory/items")
+
+
+@mcp.tool()
+async def create_inventory_item(
+    make: str,
+    model: str,
+    qty: int,
+    line: int = 0,
+    desc: str = "",
+    cat: str = "",
+    subcat: str = "",
+    cost: float = 0,
+    serial: str = "",
+    ip: str = "",
+    loc: str = "",
+    audit_notes: str = "",
+    units: Optional[dict] = None,
+    details: Optional[dict] = None,
+    show_qty: Optional[dict] = None,
+    show_notes: Optional[dict] = None,
+    space_qty: Optional[dict] = None,
+    space_notes: Optional[dict] = None,
+):
+    """Create a new inventory item. make, model, and qty are required.
+
+    units: status breakdown, e.g. {"available": 5, "broken": 1} — keys are
+    'available'/'inuse'/'broken'/'repair'/'retired'/'unknown'.
+    show_qty / space_qty: allocation counts keyed by show/space id (see
+    list_inventory_items for existing id examples); show_notes/space_notes
+    are matching per-id note text.
+    """
+    payload = {
+        "line": line, "qty": qty, "make": make, "model": model, "desc": desc,
+        "cat": cat, "subcat": subcat, "cost": cost, "serial": serial, "ip": ip,
+        "loc": loc, "auditNotes": audit_notes,
+        "units": units or {}, "details": details or {},
+        "showQty": show_qty or {}, "showNotes": show_notes or {},
+        "spaceQty": space_qty or {}, "spaceNotes": space_notes or {},
+    }
+    return await request("POST", "/api/inventory/items", json=payload)
+
+
+@mcp.tool()
+async def update_inventory_item(
+    item_id: int,
+    make: Optional[str] = None,
+    model: Optional[str] = None,
+    qty: Optional[int] = None,
+    line: Optional[int] = None,
+    desc: Optional[str] = None,
+    cat: Optional[str] = None,
+    subcat: Optional[str] = None,
+    cost: Optional[float] = None,
+    serial: Optional[str] = None,
+    ip: Optional[str] = None,
+    loc: Optional[str] = None,
+    audit_notes: Optional[str] = None,
+    units: Optional[dict] = None,
+    details: Optional[dict] = None,
+    show_qty: Optional[dict] = None,
+    show_notes: Optional[dict] = None,
+    space_qty: Optional[dict] = None,
+    space_notes: Optional[dict] = None,
+):
+    """Update fields on an existing inventory item. Only pass the fields you want to change.
+
+    Note: show_qty/space_qty (if passed) REPLACE the item's entire set of
+    allocations for that type — pass the full desired map, not just the
+    one you're adding/changing.
+    """
+    payload = clean(locals())
+    payload.pop("item_id", None)
+    if "audit_notes" in payload: payload["auditNotes"] = payload.pop("audit_notes")
+    if "show_qty" in payload: payload["showQty"] = payload.pop("show_qty")
+    if "show_notes" in payload: payload["showNotes"] = payload.pop("show_notes")
+    if "space_qty" in payload: payload["spaceQty"] = payload.pop("space_qty")
+    if "space_notes" in payload: payload["spaceNotes"] = payload.pop("space_notes")
+    return await request("PUT", f"/api/inventory/items/{item_id}", json=payload)
+
+
+@mcp.tool()
+async def delete_inventory_item(item_id: int):
+    """Delete an inventory item. This is a soft-delete — the item moves to
+    Recently Deleted and can be recovered with restore_inventory_item."""
+    return await request("DELETE", f"/api/inventory/items/{item_id}")
+
+
+@mcp.tool()
+async def list_deleted_inventory_items():
+    """List soft-deleted inventory items that are available to restore."""
+    return await request("GET", "/api/inventory/items/deleted")
+
+
+@mcp.tool()
+async def restore_inventory_item(item_id: int):
+    """Restore a soft-deleted inventory item back into active inventory."""
+    return await request("POST", f"/api/inventory/items/{item_id}/restore")
+
+
+@mcp.tool()
+async def purge_inventory_item(item_id: int):
+    """Permanently delete an inventory item — cannot be undone, skips
+    Recently Deleted entirely. Use delete_inventory_item for normal,
+    recoverable deletion instead unless you specifically need this."""
+    return await request("DELETE", f"/api/inventory/items/{item_id}/purge")
+
+
+# ══════════════════════════════════
+# KNOWLEDGE BASE
+# ══════════════════════════════════
+
+@mcp.tool()
+async def list_kb_pages():
+    """List all Knowledge Base pages (slug, title, section, last updated) — no body text, use get_kb_page or search_kb for content."""
+    return await request("GET", "/api/kb/pages")
+
+
+@mcp.tool()
+async def get_kb_page(slug: str):
+    """Get the full content of one Knowledge Base page by its slug (see list_kb_pages or search_kb for slugs)."""
+    return await request("GET", f"/api/kb/pages/{slug}")
+
+
+@mcp.tool()
+async def search_kb(query: str):
+    """Search the Knowledge Base by keyword (e.g. a system name, IP, or procedure) and get back matching pages with relevance-ranked snippets."""
+    return await request("GET", "/api/kb/search", params={"q": query})
+
+
+@mcp.tool()
+async def upsert_kb_page(
+    slug: str,
+    title: str,
+    body_markdown: str,
+    section: str = "",
+    tags: Optional[list[str]] = None,
+    source_files: Optional[list[str]] = None,
+):
+    """Create a new Knowledge Base page or overwrite an existing one (matched by slug).
+
+    slug: URL-safe identifier, letters/numbers/hyphens/underscores only (e.g. 'hormel-network-map').
+    body_markdown: the page content as Markdown (tables and fenced code blocks are supported).
+    """
+    payload = {
+        "slug": slug,
+        "title": title,
+        "body_markdown": body_markdown,
+        "section": section,
+        "tags": tags or [],
+        "source_files": source_files or [],
+    }
+    return await request("POST", "/api/kb/pages", json=payload)
+
+
+@mcp.tool()
+async def delete_kb_page(slug: str):
+    """Delete a Knowledge Base page by slug."""
+    return await request("DELETE", f"/api/kb/pages/{slug}")
+
+
+# ══════════════════════════════════
 # MISC
 # ══════════════════════════════════
 

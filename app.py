@@ -84,6 +84,7 @@ def validate_journal(data):
 login_required = auth.login_required
 admin_required = auth.admin_required
 require_api_key_or_session = auth.require_api_key_or_session
+require_api_key_or_admin = auth.require_api_key_or_admin
 
 # Generic message shown regardless of whether an email is registered,
 # so /forgot-password can't be used to enumerate accounts.
@@ -136,7 +137,7 @@ def accept_invite(token):
                 models.log_action(user_id, invite['name'], 'account_created', detail=f"via invite from user {invite['invited_by']}")
                 user = models.get_user_by_id(user_id)
                 auth.log_in_user(user)
-                return redirect(url_for('tasks'))
+                return redirect(url_for('home_page'))
     return render_template('accept_invite.html', invite=invite, error=error)
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
@@ -174,7 +175,7 @@ def reset_password(token):
             user = models.get_user_by_id(reset['user_id'])
             models.log_action(user['id'], user['name'], 'password_reset_completed')
             auth.log_in_user(user)
-            return redirect(url_for('tasks'))
+            return redirect(url_for('home_page'))
     return render_template('reset_password.html', error=error)
 
 # ══════════════════════════════════
@@ -631,6 +632,11 @@ def kb_page(slug):
     body_html = md_lib.markdown(page['body_markdown'], extensions=['tables', 'fenced_code'])
     return render_template('kb_page.html', active='kb', page=page, body_html=body_html)
 
+@app.route('/api/kb/pages', methods=['GET'])
+@require_api_key_or_session
+def api_kb_list():
+    return jsonify(models.list_kb_pages())
+
 @app.route('/api/kb/pages', methods=['POST'])
 @require_api_key_or_session
 def api_kb_upsert():
@@ -643,6 +649,22 @@ def api_kb_upsert():
         page['body_markdown'], page['tags'], page['source_files']
     )
     return jsonify({'status': 'ok', 'slug': page['slug']})
+
+@app.route('/api/kb/pages/<slug>', methods=['GET'])
+@require_api_key_or_session
+def api_kb_get(slug):
+    page = models.get_kb_page(slug)
+    if not page:
+        return jsonify({'error': 'Page not found'}), 404
+    return jsonify(page)
+
+@app.route('/api/kb/pages/<slug>', methods=['DELETE'])
+@require_api_key_or_session
+def api_kb_delete(slug):
+    if not models.get_kb_page(slug):
+        return jsonify({'error': 'Page not found'}), 404
+    models.delete_kb_page(slug)
+    return jsonify({'status': 'deleted'})
 
 @app.route('/api/kb/search', methods=['GET'])
 @require_api_key_or_session
@@ -711,12 +733,12 @@ def _item_payload_to_model_data(data):
     return out
 
 @app.route('/api/inventory/items', methods=['GET'])
-@login_required
+@require_api_key_or_session
 def api_inventory_list_items():
     return jsonify(models.list_items_for_tool())
 
 @app.route('/api/inventory/items', methods=['POST'])
-@admin_required
+@require_api_key_or_admin
 def api_inventory_create_item():
     data = request.get_json() or {}
     if not data.get('make') or not data.get('model') or not data.get('qty'):
@@ -725,7 +747,7 @@ def api_inventory_create_item():
     return jsonify(models.get_item_for_tool(item_id)), 201
 
 @app.route('/api/inventory/items/<int:item_id>', methods=['PUT'])
-@admin_required
+@require_api_key_or_admin
 def api_inventory_update_item(item_id):
     if not models.get_item(item_id):
         return jsonify({'error': 'Item not found'}), 404
@@ -734,7 +756,7 @@ def api_inventory_update_item(item_id):
     return jsonify(models.get_item_for_tool(item_id))
 
 @app.route('/api/inventory/items/<int:item_id>', methods=['DELETE'])
-@admin_required
+@require_api_key_or_admin
 def api_inventory_delete_item(item_id):
     if not models.get_item(item_id):
         return jsonify({'error': 'Item not found'}), 404
@@ -742,12 +764,12 @@ def api_inventory_delete_item(item_id):
     return jsonify({'status': 'deleted'})
 
 @app.route('/api/inventory/items/deleted', methods=['GET'])
-@admin_required
+@require_api_key_or_admin
 def api_inventory_list_deleted():
     return jsonify([models._item_to_tool_shape(i) for i in models.list_deleted_items()])
 
 @app.route('/api/inventory/items/<int:item_id>/restore', methods=['POST'])
-@admin_required
+@require_api_key_or_admin
 def api_inventory_restore_item(item_id):
     item = models.get_item(item_id)
     if not item:
@@ -756,7 +778,7 @@ def api_inventory_restore_item(item_id):
     return jsonify(models.get_item_for_tool(item_id))
 
 @app.route('/api/inventory/items/<int:item_id>/purge', methods=['DELETE'])
-@admin_required
+@require_api_key_or_admin
 def api_inventory_purge_item(item_id):
     if not models.get_item(item_id):
         return jsonify({'error': 'Item not found'}), 404
