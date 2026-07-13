@@ -1385,13 +1385,16 @@ def import_inventory_from_tool_export(payload):
     the shared table doesn't have. Overwriting the shared table with that
     copy would be actively destructive.
 
-    Instead, per-item show allocations get resolved from the Inventory
-    tool's local show ID -> name, then matched by name (case/whitespace
-    -insensitive exact match) against the real shows already in the
-    database, so inventory_item_shows.show_id ends up holding real,
-    joinable show IDs. Names that don't match exactly are left keyed by
-    their original name text (still human-readable, just not FK-joinable)
-    and reported back so a human can decide whether to rename/fix them.
+    IMPORTANT: show allocations are stored keyed by the Inventory tool's
+    OWN local show IDs (its 's1'/'s2'/... scheme from the 'shows' array in
+    the export payload) — NOT translated to the Task Manager's real shows
+    table IDs. This matters because every bit of client-side UI that reads
+    show allocations (the production rows in the edit modal, show filters,
+    scopeRows/print reports) looks items up via S.shows, which is loaded
+    from the tool's OWN local show list, entirely independent of the
+    shared shows table. Translating to the "real" show ID would silently
+    break every one of those lookups, even though the data looks fine in
+    the database — this was tried once and caused exactly that bug.
     """
     # Idempotent: clear any previously-imported inventory rows so re-running
     # this (e.g. after fixing a show-name mismatch) doesn't duplicate items.
@@ -1403,37 +1406,12 @@ def import_inventory_from_tool_export(payload):
     db.commit()
     db.close()
 
-    local_shows = payload.get('shows', [])
-    local_id_to_name = {s['id']: s.get('name', '') for s in local_shows if s.get('id')}
-
-    real_shows = list_all_shows_raw()
-    name_to_real_id = {}
-    for s in real_shows:
-        key = ' '.join(s['name'].split()).lower()
-        name_to_real_id[key] = s['id']
-    real_names = [s['name'] for s in real_shows]
-
-    def resolve_show_id(local_id):
-        name = local_id_to_name.get(local_id, local_id)
-        key = ' '.join(str(name).split()).lower()
-        if key in name_to_real_id:
-            return name_to_real_id[key], None
-        suggestion = difflib.get_close_matches(name, real_names, n=1, cutoff=0.6)
-        return name, (name, suggestion[0] if suggestion else None)
-
     items = payload.get('items', [])
-    unmatched = {}  # original_name -> suggested closest real name (or None)
     imported = 0
 
     for item in items:
-        show_alloc_raw = _merge_qty_notes(item.get('showQty'), item.get('showNotes'))
-        show_alloc = {}
-        for local_id, v in show_alloc_raw.items():
-            resolved_id, unmatched_info = resolve_show_id(local_id)
-            show_alloc[resolved_id] = v
-            if unmatched_info:
-                unmatched[unmatched_info[0]] = unmatched_info[1]
-
+        # Keep the tool's own local show IDs as-is — see docstring above.
+        show_alloc = _merge_qty_notes(item.get('showQty'), item.get('showNotes'))
         space_alloc = _merge_qty_notes(item.get('spaceQty'), item.get('spaceNotes'))
 
         create_item({
@@ -1456,7 +1434,7 @@ def import_inventory_from_tool_export(payload):
         })
         imported += 1
 
-    return {'items_imported': imported, 'unmatched_shows': unmatched}
+    return {'items_imported': imported, 'unmatched_shows': {}}
 
 
 def _safe_float(v):
