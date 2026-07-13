@@ -253,10 +253,37 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
         );
+
+        -- ══════════════════════════════════
+        -- DOCUMENTS (Home page Documents section — riders, guides, network
+        -- diagrams, budget/incident PDFs). Files live on the Render
+        -- persistent disk (see get_docs_storage_dir()), not in the git repo,
+        -- so admin upload/delete take effect immediately with no deploy.
+        -- ══════════════════════════════════
+        CREATE TABLE IF NOT EXISTS doc_sections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            sort_order INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            section_id INTEGER NOT NULL REFERENCES doc_sections(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            orig_filename TEXT DEFAULT '',
+            size_bytes INTEGER DEFAULT 0,
+            sort_order INTEGER DEFAULT 0,
+            uploaded_by TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        );
     ''')
     db.commit()
 
     _seed_venues_if_empty(db)
+    _seed_documents_if_empty(db)
 
     # Migrations
     try:
@@ -298,6 +325,8 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_inv_category ON inventory_items(category);
         CREATE INDEX IF NOT EXISTS idx_inv_item_shows_item ON inventory_item_shows(item_id);
         CREATE INDEX IF NOT EXISTS idx_inv_item_spaces_item ON inventory_item_spaces(item_id);
+        CREATE INDEX IF NOT EXISTS idx_doc_sections_sort ON doc_sections(sort_order);
+        CREATE INDEX IF NOT EXISTS idx_documents_section ON documents(section_id);
     ''')
     db.commit()
     db.close()
@@ -341,6 +370,209 @@ def _seed_venues_if_empty(db):
                      s_order))
                 s_order += 1
     db.commit()
+
+
+def get_docs_storage_dir():
+    """Directory where uploaded document PDFs actually live. Placed next to
+    the SQLite DB file — on Render that's the persistent disk mount
+    (/var/data), so uploads/deletes survive redeploys with no git push
+    needed, exactly like the DB itself. Locally (no DATABASE_PATH set) this
+    just resolves to a folder next to the repo, which is fine for dev."""
+    base = os.path.dirname(os.path.abspath(DB_PATH))
+    d = os.path.join(base, 'doc_uploads')
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+# Legacy hardcoded DOCS array from templates/home.html, used only as the
+# one-time seed source below — kept here (not re-read from the template) so
+# the seed doesn't depend on home.html's JS still matching this shape later.
+_LEGACY_DOCS_SEED = [
+    ("Riders (external-ready)", [
+        ("Stephenson Audio System Rider v1.2", "Riders/Stephenson_Audio_System_Rider_v1.2.pdf"),
+        ("Hormel Audio System Rider v1.0", "Riders/Hormel_Audio_System_Rider_v1.0.pdf"),
+    ]),
+    ("System guides", [
+        ("Hormel System Reference Guide v1.3", "System-Guides/Hormel_System_Reference_Guide_v1.3.pdf"),
+        ("Hormel Network Signal Flow", "System-Guides/Hormel_Network_Signal_Flow_v1.0.pdf"),
+        ("Hormel CL5 MIDI Remote Addendum", "System-Guides/Hormel_CL5_MIDI_Remote_Control_Addendum_v1.0.pdf"),
+        ("RIVAGEPM Show-File Teardown", "System-Guides/Inside_the_Show_File_RIVAGEPM_Teardown.pdf"),
+    ]),
+    ("Network", [
+        ("Audio Network Big Picture v1.0", "Network/PTC_Audio_Network_Big_Picture_v1.0.pdf"),
+        ("Switch-by-Switch Reference v2.0", "Network/PTC_Audio_Switch_By_Switch_v2.0.pdf"),
+        ("Stephenson Designer IP Quick Sheet v1.3", "Network/Stephenson_Designer_IP_QuickSheet_v1.3.pdf"),
+        ("Arcadia System Map v1.1", "Network/Arcadia_System_Map_by_Space_v1.1.pdf"),
+    ]),
+    ("Budget & reports", [
+        ("Season Supply Budget Analysis", "Budget/Season_Supply_Budget_Analysis.pdf"),
+        ("MS26 Sound Spend Report", "Budget/MS26_Sound_Spend_Report.pdf"),
+        ("Band Mic Usage Comparison", "Budget/Band_Mic_Usage_Comparison.pdf"),
+    ]),
+    ("Incidents", [
+        ("PM5 DSP Incident Report v1.1 2026-07-10", "Incidents/PM5_DSP_Incident_Report_v1.1_2026-07-10.pdf"),
+    ]),
+]
+
+
+def _seed_documents_if_empty(db):
+    """One-time migration: copies the PDFs that used to be served straight
+    out of the git-tracked docs/ folder into the persistent-disk storage dir,
+    and seeds doc_sections/documents from the old hardcoded DOCS array in
+    home.html. Only runs when doc_sections is empty, so later admin edits
+    (renames, uploads, deletes) are never clobbered on restart."""
+    existing = db.execute('SELECT COUNT(*) AS c FROM doc_sections').fetchone()['c']
+    if existing:
+        return
+
+    import shutil
+    repo_docs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
+    storage_dir = get_docs_storage_dir()
+
+    for s_order, (section_name, docs) in enumerate(_LEGACY_DOCS_SEED):
+        cur = db.execute(
+            'INSERT INTO doc_sections (name, sort_order) VALUES (?, ?)',
+            (section_name, s_order)
+        )
+        section_id = cur.lastrowid
+        for d_order, (title, rel_path) in enumerate(docs):
+            src = os.path.join(repo_docs_dir, rel_path)
+            orig_filename = os.path.basename(rel_path)
+            ext = os.path.splitext(orig_filename)[1] or '.pdf'
+            stored_filename = uuid.uuid4().hex + ext
+            size_bytes = 0
+            if os.path.isfile(src):
+                dst = os.path.join(storage_dir, stored_filename)
+                shutil.copyfile(src, dst)
+                size_bytes = os.path.getsize(dst)
+            else:
+                # Source missing (shouldn't happen, but don't fail the whole
+                # seed over one missing file) — insert the row anyway with
+                # size_bytes=0 so it's at least visible/manageable in admin.
+                pass
+            db.execute('''INSERT INTO documents
+                (section_id, title, filename, orig_filename, size_bytes, sort_order, uploaded_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                (section_id, title, stored_filename, orig_filename, size_bytes, d_order, 'migration'))
+    db.commit()
+
+
+# ══════════════════════════════════
+# DOCUMENTS CRUD
+# ══════════════════════════════════
+
+def list_documents_grouped():
+    """Sections + their (non-empty ordering aside) documents, ordered for
+    display — used both by the Home page and the admin editor."""
+    db = get_db()
+    sections = db.execute(
+        'SELECT * FROM doc_sections ORDER BY sort_order, name'
+    ).fetchall()
+    result = []
+    for s in sections:
+        docs = db.execute(
+            'SELECT * FROM documents WHERE section_id = ? ORDER BY sort_order, title',
+            (s['id'],)
+        ).fetchall()
+        result.append({
+            'id': s['id'],
+            'name': s['name'],
+            'sort_order': s['sort_order'],
+            'documents': [dict(d) for d in docs],
+        })
+    db.close()
+    return result
+
+def get_doc_section(section_id):
+    db = get_db()
+    row = db.execute('SELECT * FROM doc_sections WHERE id = ?', (section_id,)).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+def create_doc_section(name, sort_order=None):
+    db = get_db()
+    if sort_order is None:
+        max_order = db.execute('SELECT MAX(sort_order) AS m FROM doc_sections').fetchone()['m']
+        sort_order = (max_order or 0) + 1
+    cur = db.execute(
+        'INSERT INTO doc_sections (name, sort_order) VALUES (?, ?)',
+        (name, sort_order)
+    )
+    db.commit()
+    section_id = cur.lastrowid
+    db.close()
+    return section_id
+
+def rename_doc_section(section_id, name):
+    db = get_db()
+    db.execute('UPDATE doc_sections SET name = ? WHERE id = ?', (name, section_id))
+    db.commit()
+    db.close()
+
+def reorder_doc_sections(id_order_list):
+    db = get_db()
+    for order, section_id in enumerate(id_order_list):
+        db.execute('UPDATE doc_sections SET sort_order = ? WHERE id = ?', (order, section_id))
+    db.commit()
+    db.close()
+
+def delete_doc_section(section_id):
+    """Returns the stored filenames of any documents in the section, so the
+    caller can remove them from disk — the DB rows cascade-delete via the
+    FK, but SQLite obviously can't clean up files on disk for us."""
+    db = get_db()
+    docs = db.execute('SELECT filename FROM documents WHERE section_id = ?', (section_id,)).fetchall()
+    filenames = [d['filename'] for d in docs]
+    db.execute('DELETE FROM doc_sections WHERE id = ?', (section_id,))
+    db.commit()
+    db.close()
+    return filenames
+
+def get_document(doc_id):
+    db = get_db()
+    row = db.execute('SELECT * FROM documents WHERE id = ?', (doc_id,)).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+def create_document(section_id, title, filename, orig_filename='', size_bytes=0, sort_order=None, uploaded_by=''):
+    db = get_db()
+    if sort_order is None:
+        max_order = db.execute(
+            'SELECT MAX(sort_order) AS m FROM documents WHERE section_id = ?', (section_id,)
+        ).fetchone()['m']
+        sort_order = (max_order or 0) + 1
+    cur = db.execute('''INSERT INTO documents
+        (section_id, title, filename, orig_filename, size_bytes, sort_order, uploaded_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?)''',
+        (section_id, title, filename, orig_filename, size_bytes, sort_order, uploaded_by))
+    db.commit()
+    doc_id = cur.lastrowid
+    db.close()
+    return doc_id
+
+def delete_document(doc_id):
+    """Returns the stored filename (so the caller can remove it from disk)
+    or None if the document didn't exist."""
+    db = get_db()
+    row = db.execute('SELECT filename FROM documents WHERE id = ?', (doc_id,)).fetchone()
+    if not row:
+        db.close()
+        return None
+    filename = row['filename']
+    db.execute('DELETE FROM documents WHERE id = ?', (doc_id,))
+    db.commit()
+    db.close()
+    return filename
+
+def reorder_documents(section_id, id_order_list):
+    db = get_db()
+    for order, doc_id in enumerate(id_order_list):
+        db.execute(
+            'UPDATE documents SET sort_order = ? WHERE id = ? AND section_id = ?',
+            (order, doc_id, section_id)
+        )
+    db.commit()
+    db.close()
 
 
 # ══════════════════════════════════

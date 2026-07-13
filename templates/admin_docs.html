@@ -1,0 +1,181 @@
+{% extends "shell.html" %}
+{% block title %}Documents{% endblock %}
+
+{% block head %}
+<style>
+#docs-admin{padding:20px 24px;max-width:1000px;margin:0 auto}
+.doc-title{font-family:var(--disp);font-size:28px;letter-spacing:.06em;color:var(--wht);margin-bottom:6px}
+.doc-sub{font-family:var(--mono);font-size:12px;color:var(--mut);margin-bottom:20px}
+.doc-panel{background:var(--sur);border:1px solid var(--b1);border-radius:6px;padding:20px;margin-bottom:20px}
+.doc-panel h3{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin-bottom:14px}
+.doc-form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.doc-form input[type=text]{font-family:var(--mono);font-size:13px;padding:9px 12px;border:1px solid var(--b2);border-radius:4px;background:var(--pan);color:var(--txt);min-width:160px}
+.doc-form input[type=file]{font-family:var(--mono);font-size:12px;color:var(--txt)}
+.doc-btn{font-family:var(--mono);font-size:11px;letter-spacing:.05em;padding:9px 16px;border:none;border-radius:4px;background:var(--red);color:#fff;cursor:pointer;text-transform:uppercase}
+.doc-btn:hover{background:#e8394f}
+.doc-btn:disabled{opacity:.5;cursor:default}
+.doc-btn-sm{font-family:var(--mono);font-size:9px;padding:5px 10px;border:1px solid var(--b2);border-radius:3px;background:var(--pan);color:var(--txt);cursor:pointer}
+.doc-btn-sm:hover{border-color:var(--red)}
+.doc-btn-sm:disabled{opacity:.35;cursor:default}
+.section-block{border:1px solid var(--b1);border-radius:6px;margin-bottom:16px;overflow:hidden}
+.section-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--pan);border-bottom:1px solid var(--b1);gap:10px}
+.section-head-l{display:flex;align-items:center;gap:8px;flex:1}
+.section-name{font-family:var(--disp);font-size:16px;letter-spacing:.04em;color:var(--wht);background:none;border:none;border-bottom:1px solid transparent;padding:2px 0;min-width:80px}
+.section-name:focus{outline:none;border-bottom-color:var(--red)}
+.section-actions{display:flex;gap:6px}
+.doc-row{padding:12px 16px;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.doc-row:last-child{border-bottom:none}
+.doc-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.doc-name{font-family:var(--mono);font-size:13px;color:var(--wht);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-meta{font-family:var(--mono);font-size:10px;color:var(--mut)}
+.doc-row-actions{display:flex;gap:6px;flex-shrink:0}
+.add-doc-row{padding:14px 16px;background:var(--pan)}
+.empty-hint{padding:14px 16px;font-family:var(--mono);font-size:11px;color:var(--mut);font-style:italic}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="docs-admin">
+  <div class="doc-title">Documents</div>
+  <div class="doc-sub">Powers the Home page Documents section. Files live on the app's own storage — upload/delete take effect immediately, no deploy needed.</div>
+
+  <div class="doc-panel">
+    <h3>Add a section</h3>
+    <div class="doc-form">
+      <input type="text" id="new-section-name" placeholder="Section name (e.g. Riders)">
+      <button class="doc-btn" onclick="addSection()">Add Section</button>
+    </div>
+  </div>
+
+  {% for s in sections %}
+  <div class="section-block" data-section-id="{{ s.id }}">
+    <div class="section-head">
+      <div class="section-head-l">
+        <input type="text" class="section-name" value="{{ s.name }}" data-section-id="{{ s.id }}" onblur="renameSection(this)">
+      </div>
+      <div class="section-actions">
+        <button class="doc-btn-sm" {{ 'disabled' if loop.first else '' }} onclick="moveSection({{ s.id }},-1)">↑</button>
+        <button class="doc-btn-sm" {{ 'disabled' if loop.last else '' }} onclick="moveSection({{ s.id }},1)">↓</button>
+        <button class="doc-btn-sm" onclick="deleteSection({{ s.id }}, '{{ s.name|e }}', {{ s.documents|length }})">Delete section</button>
+      </div>
+    </div>
+
+    {% if not s.documents %}
+    <div class="empty-hint">No documents in this section yet.</div>
+    {% endif %}
+    {% for d in s.documents %}
+    <div class="doc-row" data-doc-id="{{ d.id }}">
+      <div class="doc-info">
+        <div class="doc-name">📄 {{ d.title }}</div>
+        <div class="doc-meta">{{ (d.size_bytes / 1024)|round(0, 'floor')|int }} KB{% if d.uploaded_by %} · uploaded by {{ d.uploaded_by }}{% endif %}</div>
+      </div>
+      <div class="doc-row-actions">
+        <button class="doc-btn-sm" {{ 'disabled' if loop.first else '' }} onclick="moveDoc({{ s.id }},{{ d.id }},-1)">↑</button>
+        <button class="doc-btn-sm" {{ 'disabled' if loop.last else '' }} onclick="moveDoc({{ s.id }},{{ d.id }},1)">↓</button>
+        <a class="doc-btn-sm" href="/docs/file/{{ d.id }}" target="_blank" style="text-decoration:none;display:inline-block">View</a>
+        <button class="doc-btn-sm" onclick="deleteDoc({{ d.id }}, '{{ d.title|e }}')">Delete</button>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="add-doc-row">
+      <div class="doc-form">
+        <input type="text" placeholder="Title" class="new-doc-title" style="flex:1;min-width:180px">
+        <input type="file" class="new-doc-file" accept="application/pdf">
+        <button class="doc-btn" onclick="uploadDoc({{ s.id }}, this)">Upload PDF</button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function addSection(){
+  var name=gi('new-section-name').value.trim();
+  if(!name){toast('Section name required');return;}
+  var res=await api('POST','/api/docs/sections',{name:name});
+  if(res){toast('Section added');setTimeout(function(){location.reload()},500);}
+}
+
+async function renameSection(input){
+  var id=input.getAttribute('data-section-id');
+  var name=input.value.trim();
+  if(!name){toast('Section name required');input.focus();return;}
+  var res=await api('PUT','/api/docs/sections/'+id,{name:name});
+  if(res){toast('Saved');}
+}
+
+async function deleteSection(id,name,docCount){
+  var msg=docCount>0
+    ? 'Delete "'+name+'" and its '+docCount+' document'+(docCount===1?'':'s')+'? This deletes the files too — cannot be undone.'
+    : 'Delete "'+name+'"?';
+  if(!confirm(msg))return;
+  var res=await api('DELETE','/api/docs/sections/'+id);
+  if(res){toast('Section deleted');setTimeout(function(){location.reload()},500);}
+}
+
+async function moveSection(id,dir){
+  var blocks=Array.from(document.querySelectorAll('.section-block'));
+  var ids=blocks.map(function(b){return parseInt(b.getAttribute('data-section-id'),10)});
+  var i=ids.indexOf(id);
+  var j=i+dir;
+  if(j<0||j>=ids.length)return;
+  var tmp=ids[i];ids[i]=ids[j];ids[j]=tmp;
+  var res=await api('POST','/api/docs/sections/reorder',{order:ids});
+  if(res){setTimeout(function(){location.reload()},300);}
+}
+
+async function moveDoc(sectionId,docId,dir){
+  var block=document.querySelector('.section-block[data-section-id="'+sectionId+'"]');
+  var rows=Array.from(block.querySelectorAll('.doc-row'));
+  var ids=rows.map(function(r){return parseInt(r.getAttribute('data-doc-id'),10)});
+  var i=ids.indexOf(docId);
+  var j=i+dir;
+  if(j<0||j>=ids.length)return;
+  var tmp=ids[i];ids[i]=ids[j];ids[j]=tmp;
+  var res=await api('POST','/api/docs/reorder',{section_id:sectionId,order:ids});
+  if(res){setTimeout(function(){location.reload()},300);}
+}
+
+async function deleteDoc(id,title){
+  if(!confirm('Delete "'+title+'"? This removes the file — cannot be undone.'))return;
+  var res=await api('DELETE','/api/docs/'+id);
+  if(res){toast('Document deleted');setTimeout(function(){location.reload()},500);}
+}
+
+async function uploadDoc(sectionId,btn){
+  var row=btn.parentElement;
+  var titleInput=row.querySelector('.new-doc-title');
+  var fileInput=row.querySelector('.new-doc-file');
+  var title=titleInput.value.trim();
+  var file=fileInput.files[0];
+  if(!title){toast('Title required');return;}
+  if(!file){toast('Choose a PDF file');return;}
+  if(file.type && file.type!=='application/pdf' && !file.name.toLowerCase().endsWith('.pdf')){
+    toast('Only PDF files are allowed');return;
+  }
+  btn.disabled=true;btn.textContent='Uploading…';
+  var fd=new FormData();
+  fd.append('section_id',sectionId);
+  fd.append('title',title);
+  fd.append('file',file);
+  try{
+    var res=await fetch('/api/docs/upload',{method:'POST',body:fd});
+    if(res.status===401){window.location='/login';return;}
+    if(!res.ok){
+      var err=await res.json().catch(function(){return{}});
+      toast(err.error||('Upload failed ('+res.status+')'));
+      btn.disabled=false;btn.textContent='Upload PDF';
+      return;
+    }
+    toast('Uploaded');
+    setTimeout(function(){location.reload()},500);
+  }catch(e){
+    toast('Upload failed — try again');
+    btn.disabled=false;btn.textContent='Upload PDF';
+  }
+}
+</script>
+{% endblock %}

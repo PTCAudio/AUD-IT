@@ -9,10 +9,12 @@ Routes:
 """
 import os
 import json
+import uuid
 import html as html_lib
 from flask import (Flask, request, jsonify, render_template,
                    redirect, url_for, session, send_file, Response, send_from_directory,
                    abort)
+from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import models
 import auth
@@ -23,6 +25,7 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-me')
 API_KEY = os.environ.get('API_KEY', '')
+app.config['MAX_CONTENT_LENGTH'] = 40 * 1024 * 1024  # 40MB — generous for PDFs, blocks abuse
 
 MAX_TEXT = 500
 MAX_NOTES = 5000
@@ -199,23 +202,158 @@ def home_page():
     user = auth.current_user()
     is_admin = bool(user and user.get('role') == 'admin')
     return render_template('home.html', is_admin=is_admin,
-                            staff_data=models.get_venues_nested('staff'))
+                            staff_data=models.get_venues_nested('staff'),
+                            docs_data=models.list_documents_grouped())
 
 # ══════════════════════════════════
 # DOCUMENTS (riders, system guides, network diagrams, budget/incident PDFs)
-# Served behind login from docs/ — never a public static path.
+# DB-backed (doc_sections/documents in models.py) — files live on the Render
+# persistent disk (models.get_docs_storage_dir()), not the git repo, so
+# admin upload/delete take effect immediately with no deploy. Served behind
+# login, never a public static path.
 # ══════════════════════════════════
 
-DOCS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
+DOCS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')  # legacy git-tracked fallback
+
+@app.route('/docs/file/<int:doc_id>')
+@login_required
+def docs_file(doc_id):
+    doc = models.get_document(doc_id)
+    if not doc:
+        abort(404)
+    storage_dir = models.get_docs_storage_dir()
+    full_path = os.path.join(storage_dir, doc['filename'])
+    if not os.path.isfile(full_path):
+        abort(404)
+    download_name = doc['orig_filename'] or (doc['title'] + '.pdf')
+    return send_from_directory(storage_dir, doc['filename'], download_name=download_name)
 
 @app.route('/docs/<path:filepath>')
 @login_required
-def docs_file(filepath):
-    # send_from_directory already blocks path traversal (rejects '..' etc.)
+def docs_legacy_file(filepath):
+    # Kept only for any old bookmarked/shared links to the pre-migration
+    # git-tracked paths — new links all go through /docs/file/<id> above.
     full_path = os.path.join(DOCS_DIR, filepath)
     if not os.path.isfile(full_path):
         abort(404)
     return send_from_directory(DOCS_DIR, filepath)
+
+ALLOWED_DOC_EXTENSIONS = {'.pdf'}
+
+@app.route('/admin/docs')
+@admin_required
+def admin_docs_page():
+    return render_template('admin_docs.html', active='admin_docs',
+                            sections=models.list_documents_grouped())
+
+@app.route('/api/docs/sections', methods=['POST'])
+@admin_required
+def api_create_doc_section():
+    data = request.get_json() or {}
+    name = sanitize(data.get('name', ''), 80)
+    if not name:
+        return jsonify({'error': 'Section name required'}), 400
+    section_id = models.create_doc_section(name)
+    return jsonify({'status': 'created', 'id': section_id}), 201
+
+@app.route('/api/docs/sections/<int:section_id>', methods=['PUT'])
+@admin_required
+def api_rename_doc_section(section_id):
+    data = request.get_json() or {}
+    name = sanitize(data.get('name', ''), 80)
+    if not name:
+        return jsonify({'error': 'Section name required'}), 400
+    if not models.get_doc_section(section_id):
+        return jsonify({'error': 'Section not found'}), 404
+    models.rename_doc_section(section_id, name)
+    return jsonify({'status': 'updated'})
+
+@app.route('/api/docs/sections/<int:section_id>', methods=['DELETE'])
+@admin_required
+def api_delete_doc_section(section_id):
+    if not models.get_doc_section(section_id):
+        return jsonify({'error': 'Section not found'}), 404
+    filenames = models.delete_doc_section(section_id)
+    storage_dir = models.get_docs_storage_dir()
+    for fn in filenames:
+        try:
+            os.remove(os.path.join(storage_dir, fn))
+        except OSError:
+            pass
+    return jsonify({'status': 'deleted'})
+
+@app.route('/api/docs/sections/reorder', methods=['POST'])
+@admin_required
+def api_reorder_doc_sections():
+    data = request.get_json() or {}
+    order = data.get('order', [])
+    if not isinstance(order, list) or not all(isinstance(x, int) for x in order):
+        return jsonify({'error': 'order must be a list of section ids'}), 400
+    models.reorder_doc_sections(order)
+    return jsonify({'status': 'reordered'})
+
+@app.route('/api/docs/upload', methods=['POST'])
+@admin_required
+def api_upload_doc():
+    section_id = request.form.get('section_id', type=int)
+    title = sanitize(request.form.get('title', ''), 150)
+    file = request.files.get('file')
+
+    if not section_id or not models.get_doc_section(section_id):
+        return jsonify({'error': 'Valid section_id required'}), 400
+    if not title:
+        return jsonify({'error': 'Title required'}), 400
+    if not file or not file.filename:
+        return jsonify({'error': 'File required'}), 400
+
+    orig_filename = secure_filename(file.filename)
+    ext = os.path.splitext(orig_filename)[1].lower()
+    if ext not in ALLOWED_DOC_EXTENSIONS:
+        return jsonify({'error': 'Only PDF files are allowed'}), 400
+
+    stored_filename = uuid.uuid4().hex + ext
+    storage_dir = models.get_docs_storage_dir()
+    dest_path = os.path.join(storage_dir, stored_filename)
+    file.save(dest_path)
+    size_bytes = os.path.getsize(dest_path)
+
+    user = auth.current_user()
+    doc_id = models.create_document(
+        section_id, title, stored_filename,
+        orig_filename=orig_filename, size_bytes=size_bytes,
+        uploaded_by=(user.get('name') if user else '')
+    )
+    models.log_action(user['id'] if user else None, user['name'] if user else '',
+                       'upload_document', target=str(doc_id), detail=title)
+    return jsonify({'status': 'uploaded', 'id': doc_id}), 201
+
+@app.route('/api/docs/<int:doc_id>', methods=['DELETE'])
+@admin_required
+def api_delete_doc(doc_id):
+    doc = models.get_document(doc_id)
+    filename = models.delete_document(doc_id)
+    if filename is None:
+        return jsonify({'error': 'Document not found'}), 404
+    storage_dir = models.get_docs_storage_dir()
+    try:
+        os.remove(os.path.join(storage_dir, filename))
+    except OSError:
+        pass
+    user = auth.current_user()
+    models.log_action(user['id'] if user else None, user['name'] if user else '',
+                       'delete_document', target=str(doc_id), detail=doc['title'] if doc else '')
+    return jsonify({'status': 'deleted'})
+
+@app.route('/api/docs/reorder', methods=['POST'])
+@admin_required
+def api_reorder_docs():
+    data = request.get_json() or {}
+    section_id = data.get('section_id')
+    order = data.get('order', [])
+    if not isinstance(section_id, int) or not isinstance(order, list) or not all(isinstance(x, int) for x in order):
+        return jsonify({'error': 'section_id (int) and order (list of ids) required'}), 400
+    models.reorder_documents(section_id, order)
+    return jsonify({'status': 'reordered'})
 
 # ══════════════════════════════════
 # STANDALONE TOOLS (ported from local single-file HTML apps)

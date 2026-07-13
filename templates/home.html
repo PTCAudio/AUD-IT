@@ -135,13 +135,11 @@ async function jessAsk(){const inp=document.getElementById('jessQ');const q=inp.
    page, so everyone sees the full staff detail; admin-only controls are
    still gated separately by IS_ADMIN below. */
 const STAFF = {{ staff_data|tojson }};
-/* ===== documents / tools / procedures (staff unless noted) ===== */
-const DOCS=[
- ["Riders (external-ready)",[["Stephenson Audio System Rider v1.2","/docs/Riders/Stephenson_Audio_System_Rider_v1.2.pdf",1],["Hormel Audio System Rider v1.0","/docs/Riders/Hormel_Audio_System_Rider_v1.0.pdf",1]]],
- ["System guides",[["Hormel System Reference Guide v1.3","/docs/System-Guides/Hormel_System_Reference_Guide_v1.3.pdf",0],["Hormel Network Signal Flow","/docs/System-Guides/Hormel_Network_Signal_Flow_v1.0.pdf",0],["Hormel CL5 MIDI Remote Addendum","/docs/System-Guides/Hormel_CL5_MIDI_Remote_Control_Addendum_v1.0.pdf",0],["RIVAGEPM Show-File Teardown","/docs/System-Guides/Inside_the_Show_File_RIVAGEPM_Teardown.pdf",0]]],
- ["Network",[["Audio Network Big Picture v1.0","/docs/Network/PTC_Audio_Network_Big_Picture_v1.0.pdf",0],["Switch-by-Switch Reference v2.0","/docs/Network/PTC_Audio_Switch_By_Switch_v2.0.pdf",0],["Stephenson Designer IP Quick Sheet v1.3","/docs/Network/Stephenson_Designer_IP_QuickSheet_v1.3.pdf",0],["Arcadia System Map v1.1","/docs/Network/Arcadia_System_Map_by_Space_v1.1.pdf",0]]],
- ["Budget & reports",[["Season Supply Budget Analysis","/docs/Budget/Season_Supply_Budget_Analysis.pdf",0],["MS26 Sound Spend Report","/docs/Budget/MS26_Sound_Spend_Report.pdf",0],["Band Mic Usage Comparison","/docs/Budget/Band_Mic_Usage_Comparison.pdf",0]]],
- ["Incidents",[["PM5 DSP Incident Report v1.1 2026-07-10","/docs/Incidents/PM5_DSP_Incident_Report_v1.1_2026-07-10.pdf",0]]]];
+/* ===== documents ===== */
+// DB-backed (doc_sections/documents tables, editable at /admin/docs) instead
+// of hardcoded — server injects [{id,name,documents:[{id,title,...}]}], so
+// docs() below just needs to build hrefs from each document's id.
+const DOCS_RAW = {{ docs_data|tojson }};
 // Server-supplied: true only for admin accounts (see /home route in app.py).
 const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
 // General office links — every logged-in staff account authenticates separately
@@ -149,7 +147,7 @@ const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
 // passes along Microsoft/Tallie credentials, it's just a bookmark.
 const ADMIN=[["Outlook Mail","https://outlook.cloud.microsoft/mail/"],["Tallie Expense Reports","https://usetallie.com/x9/Expense/Tile"]];
 // Infra/admin-only links — only shown to admin accounts.
-const ADMIN_ONLY=[["Manage Users","/admin/users"],["Manage Venue Data","/admin/venues"],["Render Dashboard","https://dashboard.render.com/"],["Chrome Remote Desktop","https://remotedesktop.google.com/access/"]];
+const ADMIN_ONLY=[["Manage Users","/admin/users"],["Manage Venue Data","/admin/venues"],["Manage Documents","/admin/docs"],["Render Dashboard","https://dashboard.render.com/"],["Chrome Remote Desktop","https://remotedesktop.google.com/access/"]];
 const TOOLS=[["Task Manager","/tasks"],["Knowledge Base","/kb"],["Inventory","/tools/inventory"],["QuoteBuilder","/tools/quotebuilder"],["Season Calendar","/tools/season-calendar"],["CL5 Patch Generator","/tools/cl5-patch-generator"],["Lens Throw Calculator","/tools/lens-throw-calculator"]];
 /* ===== app ===== */
 const COLORS={venues:'#E82C2A',tools:'#2C9BE8',admin:'#C9A227',docs:'#E8892C'};
@@ -175,7 +173,7 @@ function home(){
  if(IS_ADMIN){
   h+=sec('ADMIN ONLY',COLORS.admin)+'<div class="grid">'+ADMIN_ONLY.map(t=>`<a class="tile" style="border-left-color:${COLORS.admin}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
  }
- h+=sec('DOCUMENTS',COLORS.docs)+`<div class="grid"><div class="tile" style="border-left-color:${COLORS.docs}" onclick="docs()"><b>📄 Documents</b><span>${DOCS.reduce((n,g)=>n+g[1].length,0)} files · browse all</span></div></div>`;
+ h+=sec('DOCUMENTS',COLORS.docs)+`<div class="grid"><div class="tile" style="border-left-color:${COLORS.docs}" onclick="docs()"><b>📄 Documents</b><span>${DOCS_RAW.reduce((n,g)=>n+g.documents.length,0)} files · browse all</span></div></div>`;
  stage.innerHTML=h;
 
  if(hadFocus){
@@ -186,8 +184,8 @@ function home(){
  }
 }
 function docs(){crumb.innerHTML='<a onclick="home()">Home</a> › <b style="color:#eee">Documents</b>';
- stage.innerHTML=DOCS.map(g=>{
-  return `<div class="card" style="border-top:2px solid ${COLORS.docs}"><h2 style="border-bottom-color:${COLORS.docs}">${g[0]}</h2>${g[1].map(d=>`<a class="tile" style="border:none;padding:6px 0" href="${d[1]}" target="_blank">📄 ${d[0]}</a>`).join('')}</div>`}).join('')}
+ stage.innerHTML=DOCS_RAW.map(g=>{
+  return `<div class="card" style="border-top:2px solid ${COLORS.docs}"><h2 style="border-bottom-color:${COLORS.docs}">${g.name}</h2>${g.documents.map(d=>`<a class="tile" style="border:none;padding:6px 0" href="/docs/file/${d.id}" target="_blank">📄 ${d.title}</a>`).join('')}</div>`}).join('')}
 function venue(v){crumb.innerHTML=`<a onclick="home()">Home</a> › <b style="color:#eee">${v}</b>`;
  const systems=Object.keys(db()[v]).filter(k=>k!=='_d');
  let h=`<div style="margin:7.5px 0 2.5px"><b style="font-size:23px">${v}</b><span style="color:var(--grey);font-size:15px;margin-left:10px">${db()[v]._d}</span></div>`;
