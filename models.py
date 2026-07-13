@@ -228,6 +228,36 @@ def init_db():
             updated_at TEXT DEFAULT (datetime('now'))
         );
 
+        -- Real full-text index (replaces the old LIKE '%word%' substring
+        -- search — that matched inside unrelated words, e.g. a query for
+        -- "CS" matching "process"/"docs"/"successful"). Porter-stemmed
+        -- word-boundary tokenization means "console"/"consoles" and
+        -- "crash"/"crashed"/"crashing" match each other without the
+        -- substring false-positives. Kept in sync with kb_pages by the
+        -- triggers below — every write path (upsert_kb_page, delete_kb_page,
+        -- any future one) stays correct automatically, nothing to remember.
+        CREATE VIRTUAL TABLE IF NOT EXISTS kb_pages_fts USING fts5(
+            slug UNINDEXED,
+            title,
+            body_markdown,
+            tokenize = 'porter unicode61'
+        );
+
+        CREATE TRIGGER IF NOT EXISTS kb_pages_fts_ai AFTER INSERT ON kb_pages BEGIN
+            INSERT INTO kb_pages_fts (slug, title, body_markdown)
+            VALUES (new.slug, new.title, new.body_markdown);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS kb_pages_fts_ad AFTER DELETE ON kb_pages BEGIN
+            DELETE FROM kb_pages_fts WHERE slug = old.slug;
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS kb_pages_fts_au AFTER UPDATE ON kb_pages BEGIN
+            DELETE FROM kb_pages_fts WHERE slug = old.slug;
+            INSERT INTO kb_pages_fts (slug, title, body_markdown)
+            VALUES (new.slug, new.title, new.body_markdown);
+        END;
+
         -- ══════════════════════════════════
         -- VENUE FACT DB (Home page STAFF/GUEST system data)
         -- ══════════════════════════════════
@@ -284,6 +314,7 @@ def init_db():
 
     _seed_venues_if_empty(db)
     _seed_documents_if_empty(db)
+    _backfill_kb_fts_if_needed(db)
 
     # Migrations
     try:
@@ -330,6 +361,25 @@ def init_db():
     ''')
     db.commit()
     db.close()
+
+
+def _backfill_kb_fts_if_needed(db):
+    """One-time population of kb_pages_fts for rows that already existed
+    before the FTS5 upgrade shipped — the triggers only fire on writes that
+    happen after they're created, so a DB with pre-existing kb_pages rows
+    (e.g. the live production DB, already synced from the Wiki) needs this
+    to catch up once. Guarded so it's a no-op on every startup after that."""
+    fts_count = db.execute('SELECT COUNT(*) AS c FROM kb_pages_fts').fetchone()['c']
+    if fts_count:
+        return
+    kb_count = db.execute('SELECT COUNT(*) AS c FROM kb_pages').fetchone()['c']
+    if not kb_count:
+        return
+    db.execute('''
+        INSERT INTO kb_pages_fts (slug, title, body_markdown)
+        SELECT slug, title, body_markdown FROM kb_pages
+    ''')
+    db.commit()
 
 
 def _seed_venues_if_empty(db):
@@ -761,15 +811,40 @@ def _snippet_for(body, words, width=200):
     suffix = '…' if end < len(body) else ''
     return f'{prefix}{text}{suffix}'
 
+# Pages excluded from search ranking (still fully browsable/linkable directly
+# via /kb/<slug> or the index) — narrative/log-style pages that densely
+# namedrop nearly every topic in the KB at some point, so under an AND-match
+# search they'd surface on queries that have nothing to do with what someone
+# actually wants. changelog.md is the current example: 80 dense lines
+# spanning every show, piece of gear, and network device touched this
+# season — exactly the shape that pollutes keyword search.
+_SEARCH_EXCLUDED_SLUGS = {'changelog'}
+
+
+def _fts_query_string(words):
+    """Build a safe FTS5 MATCH expression from a plain word list — each word
+    double-quoted (so hyphens/asterisks/colons in the raw query can't be
+    misread as FTS5 operators) and ANDed together, so every word must match
+    somewhere (same "all terms required" behavior as before, just via a real
+    tokenized index instead of a substring scan)."""
+    return ' AND '.join('"' + w.replace('"', '""') + '"' for w in words)
+
+
 def search_kb_pages(q, limit=5):
-    """Keyword AND-match on title+body, ranked by relevance, with a content
-    snippet per result — fine at ~45 pages. Splits the query into significant
-    words (dropping common stopwords) and requires every remaining word to
-    appear somewhere in the page, so natural questions like 'what console is
-    in the hormel' match on 'console'+'hormel' rather than the literal phrase.
-    Ranking: title hits count for more than body-only hits, so the page most
-    specifically about the topic surfaces first instead of a flat alphabetical
-    list. Revisit with FTS5 if the KB grows a lot."""
+    """Full-text search via SQLite FTS5 (porter-stemmed, word-boundary
+    tokenized), ranked by bm25 with title matches weighted well above body
+    matches, with a content snippet per result. Replaced the original
+    LIKE '%word%' substring scan — that matched inside unrelated words (a
+    query for "CS" matched "process"/"docs"/"successful"...), which got
+    worse the shorter/more technical the search term was (exactly the kind
+    of query this KB gets a lot of: "CS", "AD4Q", "PM5"). FTS5 tokenizes on
+    real word boundaries so that class of false positive is gone, and
+    stemming still collapses "console"/"consoles", "crash"/"crashed" etc.
+    the same way substring matching used to, just without the collateral
+    damage. Splits the query into significant words (dropping common
+    stopwords) and requires every remaining word to match somewhere, so
+    natural questions like 'what console is in the hormel' match on
+    'console'+'hormel' rather than the literal phrase."""
     db = get_db()
     words = [w.strip('?.,!"\'') for w in q.lower().split()]
     words = [w for w in words if w and w not in _STOPWORDS]
@@ -779,37 +854,37 @@ def search_kb_pages(q, limit=5):
         db.close()
         return []
 
-    clauses = []
-    params = []
-    for w in words:
-        clauses.append('(title LIKE ? OR body_markdown LIKE ?)')
-        like = f'%{w}%'
-        params.extend([like, like])
-    where = ' AND '.join(clauses)
+    match_expr = _fts_query_string(words)
+    where_extra = ''
+    params = [match_expr]
+    if _SEARCH_EXCLUDED_SLUGS:
+        placeholders = ','.join('?' * len(_SEARCH_EXCLUDED_SLUGS))
+        where_extra = f' AND kb_pages_fts.slug NOT IN ({placeholders})'
+        params.extend(_SEARCH_EXCLUDED_SLUGS)
+    params.append(limit)
 
-    rows = db.execute(f'''
-        SELECT slug, title, section, body_markdown FROM kb_pages
-        WHERE {where}
-    ''', params).fetchall()
+    try:
+        rows = db.execute(f'''
+            SELECT kb_pages_fts.slug AS slug, kb_pages_fts.title AS title,
+                   kb_pages_fts.body_markdown AS body_markdown, k.section AS section,
+                   bm25(kb_pages_fts, 0.0, 5.0, 1.0) AS rank
+            FROM kb_pages_fts
+            JOIN kb_pages k ON k.slug = kb_pages_fts.slug
+            WHERE kb_pages_fts MATCH ?{where_extra}
+            ORDER BY rank
+            LIMIT ?
+        ''', params).fetchall()
+    except sqlite3.OperationalError:
+        # Malformed FTS5 query syntax somehow slipped through the quoting
+        # above (belt-and-suspenders) — fail to no results rather than 500.
+        db.close()
+        return []
     db.close()
 
-    scored = []
-    for r in rows:
-        title_l = r['title'].lower()
-        body_l = r['body_markdown'].lower()
-        pos, co_occurs, _ = _proximity_window(body_l, words)
-        # Proximity dominates: a passage where all terms actually appear
-        # together outranks a page that merely mentions each word somewhere
-        # unrelated, regardless of how many scattered mentions it racks up.
-        score = (100 if co_occurs else 0)
-        score += sum(6 for w in words if w in title_l)
-        score += sum(body_l.count(w) for w in words)
-        scored.append((score, dict(
-            slug=r['slug'], title=r['title'], section=r['section'],
-            snippet=_snippet_for(r['body_markdown'], words),
-        )))
-    scored.sort(key=lambda x: (-x[0], x[1]['title']))
-    return [item for _, item in scored[:limit]]
+    return [dict(
+        slug=r['slug'], title=r['title'], section=r['section'],
+        snippet=_snippet_for(r['body_markdown'], words),
+    ) for r in rows]
 
 
 # ══════════════════════════════════
