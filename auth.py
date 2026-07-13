@@ -119,7 +119,15 @@ def admin_required(f):
     def decorated(*args, **kwargs):
         if not session.get('user_id'):
             return redirect(url_for('login', next=request.path))
-        if session.get('role') != 'admin':
+        # Check the live DB role, not session['role'] — that's only a
+        # snapshot taken at login time (see log_in_user() below), so a role
+        # change after login (e.g. promoting someone to admin) wouldn't take
+        # effect until they logged out and back in. /home already computes
+        # is_admin fresh from the DB on every load, so a stale session here
+        # meant admin-only links would show on Home but 403/redirect the
+        # moment you clicked them — this keeps the two checks in sync.
+        user = models.get_user_by_id(session['user_id'])
+        if not user or user.get('role') != 'admin':
             if request.path.startswith('/api/'):
                 return jsonify({'error': 'Admin access required'}), 403
             return redirect(url_for('tasks'))
@@ -156,7 +164,11 @@ def require_api_key_or_admin(f):
         api_key = os.environ.get('API_KEY', '')
         if key and api_key and key == api_key:
             return f(*args, **kwargs)
-        if session.get('user_id') and session.get('role') == 'admin':
+        # Live DB role check, not session['role'] — see admin_required above
+        # for why the cached session snapshot can go stale.
+        uid = session.get('user_id')
+        user = models.get_user_by_id(uid) if uid else None
+        if user and user.get('role') == 'admin':
             return f(*args, **kwargs)
         return jsonify({'error': 'Admin access required'}), 403
     return decorated
