@@ -764,6 +764,47 @@ def get_item(item_id, include_deleted=True):
     return _row_to_item(row)
 
 
+def _item_to_tool_shape(item):
+    """Convert a DB-shaped item (from _row_to_item) plus its show/space
+    allocations into the EXACT field names/shape templates/tools/
+    inventory.html's saveItem() constructs (desc/cat/subcat/auditNotes/
+    details/showQty/showNotes/spaceQty/spaceNotes as two separate parallel
+    objects each) — so the client-side JS needs zero renaming logic and can
+    treat API responses exactly like its old localStorage-loaded items."""
+    shows = get_item_shows(item['id'])
+    spaces = get_item_spaces(item['id'])
+    return {
+        'id': item['id'],
+        'line': item['line'],
+        'qty': item['qty'],
+        'make': item['make'],
+        'model': item['model'],
+        'desc': item['description'],
+        'cat': item['category'],
+        'subcat': item['subcategory'],
+        'cost': item['cost'],
+        'serial': item['serial'],
+        'ip': item['ip'],
+        'loc': item['location'],
+        'auditNotes': item['audit_notes'],
+        'units': item['units'],
+        'details': item['unit_details'],
+        'showQty': {k: v['qty'] for k, v in shows.items()},
+        'showNotes': {k: v['notes'] for k, v in shows.items() if v['notes']},
+        'spaceQty': {k: v['qty'] for k, v in spaces.items()},
+        'spaceNotes': {k: v['notes'] for k, v in spaces.items() if v['notes']},
+    }
+
+
+def list_items_for_tool(include_deleted=False):
+    return [_item_to_tool_shape(i) for i in list_items(include_deleted=include_deleted)]
+
+
+def get_item_for_tool(item_id):
+    item = get_item(item_id)
+    return _item_to_tool_shape(item) if item else None
+
+
 def create_item(data):
     db = get_db()
     cur = db.execute('''INSERT INTO inventory_items

@@ -673,6 +673,97 @@ def api_inventory_import():
     return jsonify(result)
 
 # ══════════════════════════════════
+# INVENTORY — items CRUD for the live Inventory tool (templates/tools/
+# inventory.html), which now reads/writes the database instead of
+# localStorage. Reads are available to any logged-in user (read-only for
+# non-admins, same as before); writes are admin-only, enforced server-side
+# here (the client-side requireAdmin() check in the tool is UX only, not
+# security). Request/response bodies use the tool's own field names
+# (desc/cat/subcat/auditNotes/details/showQty/showNotes/spaceQty/
+# spaceNotes) via models._item_to_tool_shape, so the JS needs no renaming.
+# ══════════════════════════════════
+
+def _item_payload_to_model_data(data):
+    """Convert a request body in the tool's shape (showQty+showNotes as
+    separate parallel objects, etc.) into what models.create_item/
+    update_item expect (a combined show_allocations/space_allocations
+    dict)."""
+    out = {
+        'line': data.get('line', 0),
+        'qty': data.get('qty', 0),
+        'make': data.get('make', ''),
+        'model': data.get('model', ''),
+        'desc': data.get('desc', ''),
+        'cat': data.get('cat', ''),
+        'subcat': data.get('subcat', ''),
+        'cost': models._safe_float(data.get('cost')),
+        'serial': data.get('serial', ''),
+        'ip': data.get('ip', ''),
+        'loc': data.get('loc', ''),
+        'auditNotes': data.get('auditNotes', ''),
+        'units': data.get('units', {}),
+        'details': data.get('details', {}),
+    }
+    if 'showQty' in data or 'showNotes' in data:
+        out['show_allocations'] = models._merge_qty_notes(data.get('showQty'), data.get('showNotes'))
+    if 'spaceQty' in data or 'spaceNotes' in data:
+        out['space_allocations'] = models._merge_qty_notes(data.get('spaceQty'), data.get('spaceNotes'))
+    return out
+
+@app.route('/api/inventory/items', methods=['GET'])
+@login_required
+def api_inventory_list_items():
+    return jsonify(models.list_items_for_tool())
+
+@app.route('/api/inventory/items', methods=['POST'])
+@admin_required
+def api_inventory_create_item():
+    data = request.get_json() or {}
+    if not data.get('make') or not data.get('model') or not data.get('qty'):
+        return jsonify({'error': 'Make, Model, and Quantity are required.'}), 400
+    item_id = models.create_item(_item_payload_to_model_data(data))
+    return jsonify(models.get_item_for_tool(item_id)), 201
+
+@app.route('/api/inventory/items/<int:item_id>', methods=['PUT'])
+@admin_required
+def api_inventory_update_item(item_id):
+    if not models.get_item(item_id):
+        return jsonify({'error': 'Item not found'}), 404
+    data = request.get_json() or {}
+    models.update_item(item_id, _item_payload_to_model_data(data))
+    return jsonify(models.get_item_for_tool(item_id))
+
+@app.route('/api/inventory/items/<int:item_id>', methods=['DELETE'])
+@admin_required
+def api_inventory_delete_item(item_id):
+    if not models.get_item(item_id):
+        return jsonify({'error': 'Item not found'}), 404
+    models.soft_delete_item(item_id)
+    return jsonify({'status': 'deleted'})
+
+@app.route('/api/inventory/items/deleted', methods=['GET'])
+@admin_required
+def api_inventory_list_deleted():
+    return jsonify([models._item_to_tool_shape(i) for i in models.list_deleted_items()])
+
+@app.route('/api/inventory/items/<int:item_id>/restore', methods=['POST'])
+@admin_required
+def api_inventory_restore_item(item_id):
+    item = models.get_item(item_id)
+    if not item:
+        return jsonify({'error': 'Item not found'}), 404
+    models.restore_item(item_id)
+    return jsonify(models.get_item_for_tool(item_id))
+
+@app.route('/api/inventory/items/<int:item_id>/purge', methods=['DELETE'])
+@admin_required
+def api_inventory_purge_item(item_id):
+    if not models.get_item(item_id):
+        return jsonify({'error': 'Item not found'}), 404
+    models.purge_item(item_id)
+    return jsonify({'status': 'purged'})
+
+# ══════════════════════════════════
 # VENUE FACT DB (Home page STAFF/GUEST editor)
 # ══════════════════════════════════
 

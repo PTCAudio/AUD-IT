@@ -342,6 +342,7 @@ tr:hover .r-acts{opacity:1}
     <button class="btn" onclick="exportCSV()">↓ Export CSV</button>
     <button class="btn" onclick="exportJSON()" title="Full backup including show/space allocations">↓ Backup JSON</button>
     <button class="btn" id="restoreBtn" onclick="document.getElementById('jsonInput').click()" title="Restore from JSON backup">↑ Restore JSON</button>
+    <button class="btn" id="deletedBtn" onclick="openDeleted()" title="Recover deleted items">🗑 Recently Deleted</button>
     <button class="btn" onclick="openPrint()">⎙ Print / PDF</button>
     <button class="btn btn-p" id="addBtn" onclick="openAdd()">+ Add Item</button>
   </div>
@@ -438,7 +439,7 @@ tr:hover .r-acts{opacity:1}
   </div>
   <div class="svc" id="svc"><span class="lbl" id="svcLbl">Service &amp; Repair</span><div class="svc-row" id="svcRow"></div></div>
   <div class="m-acts">
-    <button class="btn btn-d" id="delBtn" onclick="deleteItem()" style="display:none;margin-right:auto">Delete permanently</button>
+    <button class="btn btn-d" id="delBtn" onclick="deleteItem()" style="display:none;margin-right:auto">Delete</button>
     <button class="btn" onclick="closeEdit()">Cancel</button>
     <button class="btn btn-p" onclick="saveItem()">Save</button>
   </div>
@@ -535,165 +536,25 @@ tr:hover .r-acts{opacity:1}
 </div>
 </div>
 
+<!-- RECENTLY DELETED MODAL -->
+<div class="shows-ov" id="deletedOv" onclick="if(event.target===this)closeDeleted()">
+<div class="shows-modal">
+  <div class="m-title">Recently Deleted</div>
+  <div class="m-sub">Deleted items aren't gone — restore one back into the live inventory, or remove it for good.</div>
+  <div id="deletedBody"></div>
+  <div class="m-acts">
+    <button class="btn" onclick="closeDeleted()">Close</button>
+  </div>
+</div>
+</div>
+
 <div id="pr"></div>
 <div id="toast"></div>
 <script>
 
-const SEED=[
-[1,10,'Shure','565SD','Dynamic Switchable Vocal Mic, Cardioid, Chrome','Microphone','Dynamic',100,'','Storage'],
-[2,10,'Shure','SM57','Dynamic Instrument Mic, Cardioid','Microphone','Dynamic',100,'','Storage'],
-[3,6,'Behringer','XM8500','Dynamic Switchable Vocal Mic, Cardioid','Microphone','Dynamic',50,'','Storage'],
-[4,3,'Shure','SM58','Dynamic Vocal Mic, Cardioid','Microphone','Dynamic',100,'','Storage'],
-[5,2,'AKG','D700','Dynamic Vocal Mic, Cardioid','Microphone','Dynamic',85,'','Storage'],
-[6,2,'GLS','ES-57','Dynamic Instrument Mic, Cardioid','Microphone','Dynamic',25,'','Storage'],
-[7,1,'Shure','545SD','Dynamic Switchable Instrument Mic','Microphone','Dynamic',100,'','Storage'],
-[8,1,'Sennheiser','e816','Dynamic Switchable Vocal Mic','Microphone','Dynamic',100,'','Storage'],
-[9,1,'Fender','P51','Dynamic Switchable Vocal Mic','Microphone','Dynamic','','','Storage'],
-[10,9,'Shure','SM55','Supercardioid Dynamic Vocal Mic','Microphone','Dynamic',250,'','Storage'],
-[11,2,'Countryman','ISOMAX II-C','Cardioid Instrument Mic, Clip-On','Microphone','Condenser',325,'','Storage'],
-[12,2,'EV','CS15E','Cardioid Instrument Mic','Microphone','Condenser',250,'','Storage'],
-[13,4,'Crown','PCC160','Cardioid Boundary Floor Mic','Microphone','Condenser',400,'','Storage'],
-[14,1,'Shure','KSM 109','Cardioid Instrument Mic','Microphone','Condenser',100,'','Storage'],
-[15,1,'AKG','C451E','Cardioid Instrument Mic','Microphone','Condenser',600,'','Storage'],
-[16,5,'Shure','Mx185','Cardioid Lavalier Mic','Microphone','Condenser',250,'','Storage'],
-[17,6,'Shure','KSM137','Cardioid Instrument Mic','Microphone','Condenser',350,'','Storage'],
-[18,6,'Sennheiser','MKH-50','Super-Cardioid Instrument Mic','Microphone','Condenser',1200,'','Storage'],
-[19,4,'Sennheiser','MD-441','Super-Cardioid Instrument Mic, Dynamic','Microphone','Condenser',1000,'','Storage'],
-[20,4,'Sennheiser','e609','','Microphone','Condenser',100,'','Storage'],
-[21,4,'AKG','C414','Switchable Condenser, Side-Address','Microphone','Condenser',1000,'','Storage'],
-[22,1,'Sennheiser','MKE 600','Super-Cardioid Shotgun Mic','Microphone','Condenser','','','Storage'],
-[23,2,'Sennheiser','e904','Clip-on Drum Mic','Microphone','Dynamic',180,'','Storage'],
-[24,8,'Sennheiser','e604','Clip-on Drum Mic','Microphone','Dynamic',150,'','Storage'],
-[25,2,'Shure','Beta 91A','Cardioid Boundary Floor Mic','Microphone','Condenser',250,'','Storage'],
-[26,1,'Shure','Beta 52A','Supercardioid Kick Drum Mic','Microphone','Condenser',200,'','Storage'],
-[27,6,'Shure','WL93','Omnidirectional Lav Mic, Black','Microphone','Condenser',90,'','Storage Shelf'],
-[29,5,'Radial','J48','Active Direct Box','Direct Box','Active',230,'','Storage'],
-[30,2,'Countryman','Type 85','Active Direct Box','Direct Box','Active',150,'','Storage'],
-[31,1,'Avalon','U5','Active Direct Box, Tube','Direct Box','Tube',870,'','Storage'],
-[33,2,'Whirlwind','IMP2','Passive Direct Box','Direct Box','Passive','','','Storage'],
-[34,2,'Livewire','SPDI','Passive Direct Box','Direct Box','Passive','','','Storage'],
-[35,2,'Horizon','Straightline','Passive Direct Box','Direct Box','Passive','','','Storage'],
-[36,2,'Mystarsound','FD1','Passive Direct Box','Direct Box','Passive','','','Storage'],
-[37,1,'Pro Co','DB1','Passive Direct Box','Direct Box','Passive','','','Storage'],
-[41,6,'QSC','K8','8" Powered Monitor','Monitor','Self-Powered','','','Ruch Room'],
-[42,2,'QSC','K10','10" Powered Monitor','Monitor','Self-Powered','','','Ruch Room'],
-[43,2,'QSC','K12','12" Powered Monitor','Monitor','Self-Powered','','','Ruch Room'],
-[44,4,'JBL','EON15','15" Powered Monitor','Monitor','Self-Powered','','','Ruch Room'],
-[45,2,'Yamaha','MSR250','8" Powered Monitor','Monitor','Self-Powered','','','Storage'],
-[46,2,'Meyer','UPM-1P','Powered Speaker','Fill Speaker','Self-Powered','','','Storage'],
-[47,2,'Yamaha','S112IV','','Monitor','','','','Ruch Room'],
-[48,7,'Meyer','MM-4XP','4" Fill Speaker','Fill Speaker','Self-Powered','','','Storage'],
-[49,2,'EAW','JF80','Dual 5" Speaker','Fill Speaker','Self-Powered','','','Storage'],
-[50,1,'Behringer','Eurolive','Powered Monitor','Personal Monitor','Self-Powered','','','Storage'],
-[51,1,'Mackie','SRM150','Powered Monitor','Personal Monitor','Self-Powered','','','Storage'],
-[52,1,'Galaxy','PA5X140','Powered Monitor','Personal Monitor','Self-Powered','','','Storage'],
-[53,7,'Galaxy','Microspot','Powered Monitor','Personal Monitor','Self-Powered','','','Storage'],
-[55,1,'Behringer','X32','Small Format Mixer','Mixer','Digital','','','Storage'],
-[56,1,'Yamaha','O1V','Small Format Mixer','Mixer','Digital','','','Storage'],
-[57,4,'Yamaha','MG206c','Small Format Mixer','Mixer','Analog','','','Storage'],
-[58,1,'Midas','Venice 240','Small Format Mixer','Mixer','Analog','','','Hardes'],
-[59,1,'Allen and Heath','GLD 80','Small Format Mixer','Mixer','Digital','','','Hardes'],
-[60,1,'Behringer','XENYX502','Small Format Mixer','Mixer','','','','Storage'],
-[61,1,'Presonus','AudioBox 44VSL','Interface','Interface','','','','Storage'],
-[62,2,'Yamaha','MG60X','Small Format Mixer','Mixer','Analog','','','Storage'],
-[63,1,'AVID','Mbox','MIDI Interface','Interface','Digital','','','Storage'],
-[66,52,'Shure','ADX1M','Miniature Bodypack Transmitter','Wireless','','','','Storage'],
-[67,13,'Shure','AD4Q','4-Channel Axient Receiver','Wireless','','','','Stephenson RF Rack'],
-[68,4,'Shure','Adx2','Handheld Wireless TX','Wireless','','','','Stephenson RF Rack'],
-[69,1,'Countryman','B3R','Omni Lav 1/8", Brown','Microphone','','238','','Storage Shelf'],
-[70,6,'Countryman','B3R','Omni Lav 1/8", Beige','Microphone','','238','','Storage Shelf'],
-[71,4,'Countryman','B3R','Omni Lav 1/8", Tan','Microphone','','238','','Storage Shelf'],
-[72,21,'Countryman','B6','Omni Lav to LEMO, Beige','Microphone','','','','Storage'],
-[73,16,'Countryman','B6','Omni Lav to LEMO, Tan','Microphone','','','','Storage'],
-[74,14,'Countryman','B6','Omni Lav to LEMO, Cocoa','Microphone','','','','Storage'],
-[75,6,'Countryman','B6','Omni Lav to LEMO, Black','Microphone','','','','Storage'],
-[77,1,'Sennheiser','MK1-4','Omni Subminiature Lav, Beige','Wired Microphone','Condenser','','','Storage Shelf'],
-[78,2,'Sennheiser','MK2-4','Omni Subminiature Lav, Black','Wired Microphone','Condenser','','','Storage Shelf'],
-[80,9,'Point Source','','Omni Lav to TA4F','Microphone','','','',''],
-[83,2,'Crown','CE-1000','Power Amp','Power Amplifier','System','','','Stephenson Booth'],
-[84,1,'Pyle','PTA-1000','Power Amp','Power Amplifier','System','','','Stephenson Booth'],
-[85,4,"L'acoustic",'LA4X','Power Amp','Power Amplifier','System','','','Stephenson Booth'],
-[86,3,'Crown','CTS600','Power Amp – BOH Page / FOH Mix to Lobby','Power Amplifier','System','','','Stephenson Booth'],
-[88,1,'Meyer','Gallileo 616','Speaker Processor','System','System','','','Stephenson Booth'],
-[89,1,'TP-link','TLSG10160','Network Switch','System','System','','','Stephenson Booth'],
-[90,4,'Williams','PPA 135','Hearing Assist Transmitter','System','Comm','','','Stephenson Booth'],
-[91,1,'Clearcom','SB704','Clearcom Base Station','Hardwired Comm','Communications','','','Stephenson Booth'],
-[93,1,'Allen and Heath','Me-u hub','Personal Monitoring System','System','','','','Online via IP'],
-[94,1,'Yamaha','Rio3224D','Digital Snake Box','Output','','','','Stephenson FOH Rack'],
-[95,16,'Allen and Heath','Me-1','Personal Mixer','Mixer','','','','Storage/Ruch Room'],
-[97,2,'Clearcom','HME DX210','Wireless Comm Base Station','Hardwired Comm','Comm','','','Stephenson/BSR'],
-[98,1,'Clearcom','MS-440','4-Channel Main Comm Station','Hardwired Comm','Comm','','','Hormel Booth'],
-[99,1,'RF Venue','4 Zone Combiner','Antenna Combiner','System','System','','','Stephenson BS Rack'],
-[100,1,'Shure','AXT600','RF Spectrum Manager','System','System','','','Stephenson BS Rack'],
-[101,2,'Shure','UA845UWB','Antenna Distro','System','System','','','Stephenson FOH Rack'],
-[102,5,'Cisco','SG300-20','Network Switch','System','System','','','Stephenson BS Rack'],
-[103,1,'Apogee','Big Ben C777','External Wordclock','System','System','','','Stephenson FOH Rack'],
-[104,1,'Focusrite','RA8R','','System','System','','','Stephenson FOH Rack'],
-[106,1,'Scarlett','18i20','Audio Interface','Interface','System','','','Stephenson FOH Rack'],
-[107,1,'TC Electronic','M6000 MKII','Effect Processor','External Effect Processor','System','','','Stephenson FOH Rack'],
-[108,1,'Midi Solutions','F8','Footswitch Controller','System','MIDI','','','Stephenson FOH Rack'],
-[109,1,'Yamaha','PW800W','Power Supply','System','System','','','Stephenson FOH Rack'],
-[110,2,'Yamaha','CL5','Mixing Console','Mixer','System','','','Hormel Console'],
-[112,2,'Yamaha','IMX644','Output Distribution','Output Distro','System','','','Stephenson Booth'],
-[113,1,'Rane','EXP1x','Remote Audio Expansion','System','System','','','Hormel Rack'],
-[114,1,'Rane','HAL1x','Expandable Multiprocessor','System','System','','','Hormel Rack'],
-[116,6,'Clearcom','PTRS601','Wireless Comm','Communications','','','','All Over Campus'],
-[117,11,'Clearcom','PT501','Wireless Comm','Communications','','','','All Over Campus'],
-[118,2,'Clearcom','PTCCMET','Wireless Comm','Communications','','','','All Over Campus'],
-[119,2,'Clearcom','PTBP1','Wireless Comm','Communications','','','','All Over Campus'],
-[121,5,'Clearcom','PTCC40','Wireless Comm','Communications','','','','All Over Campus'],
-[122,2,'Clearcom','PTPH88','Wireless Comm','Communications','','','','All Over Campus'],
-[123,5,'Clearcom','PTDT108','Wireless Comm','Communications','','','','All Over Campus'],
-[124,3,'Clearcom','PTHS','Wireless Comm','Communications','','','','All Over Campus'],
-[126,8,'Clearcom','PTBP200','Wireless Comm','Communications','','','','All Over Campus'],
-[127,2,'Clearcom','PTBP210','Wireless Comm','Communications','','','','All Over Campus'],
-[128,4,'Clearcom','PTHS15','Wireless Comm','Communications','','','','All Over Campus'],
-[129,7,'Clearcom','PTHS16','Wireless Comm','Communications','','','','All Over Campus'],
-[130,1,'Clearcom','Arcadia','Arcadia Central Station','Communications','','','','Top of Roadcase MS'],
-[131,16,'Dressler','PTQLS','Cue Light System','Cue Lights','Comm','','','Stephenson Booth'],
-[132,12,'NuLogic','PTNDQL','Cue Light System','Cue Lights','Comm','','','Hormel Booth'],
-[134,2,'DBX','1066','Compressor/Limiter/Gate','External Effect Processor','','','','Hormel Booth'],
-[136,1,'Denon','DN-C635','Professional CD Player','Music Equip','System','','','Hormel Rack'],
-[143,4,"L'acoustic","ARC's",'Passive Speakers – Mains/Center','Monitor','Stephenson System','','','Stephenson'],
-[144,2,"L'acoustic",'SB18','Subwoofer','Monitor','Stephenson System','','','Stephenson Grid?'],
-[145,4,"L'acoustic",'8xti','Compact Loudspeaker – House Delay','Monitor','Stephenson System','','','Stephenson'],
-[146,5,"L'acoustic",'5xt','Ultra-compact Coaxial – Front Fill','Monitor','Stephenson System','','','Stephenson'],
-[147,4,'JBL','Control 1','Bookshelf Loudspeakers','Monitor','Self-Powered',175,'','Storage Shelf'],
-[152,20,'Sennheiser','5012 bodypacks','Wireless Transmitters','Wireless','','','','Hardes Back Hallway'],
-[153,3,'Sennheiser','SK5000 Handheld','Wireless Handhelds','Wireless','','','','Hardes Back Hallway'],
-[154,13,'Sennheiser','5212 bodypacks','Wireless Transmitters','Wireless','','','','Hardes Back Hallway'],
-[155,10,'Sennheiser','D-6000','Wireless Transmitters','Wireless','','','','Hardes Back Hallway'],
-[157,10,'Sennheiser','EM 3032','Wireless Receiver','Wireless','','','','Hardes Back Hallway'],
-[158,6,'Sennheiser','EM 3732','Wireless Receiver','Wireless','','','','Hardes Back Hallway'],
-[159,5,'Sennheiser','EM 6000','Wireless Receiver','Wireless','','','','Hardes Back Hallway'],
-[161,2,'AKG','Perception','Small Wireless System','Wireless','','','',''],
-[162,1,'Line 6','XD-V35L','Wireless Lavalier System','Wireless','','','','Storage Shelf'],
-[164,2,'Motu','Ultralite MK3','Audio Interface','Interface','','','','Storage Shelf'],
-[172,2,'Dell','Windows 7 PC','CPU','System','','','',''],
-[173,2,'Apple','Mac Mini (Old)','CPU','System','','','','Stephenson FOH Rack'],
-[174,2,'Dell','Windows 10 PC','CPU','System','','','',''],
-[175,2,'Apple','M1 Mac Mini','CPU','System','','','',''],
-
-// VLAN 16 - ClearCom / HXii Communications (from network map 2026)
-[200,1,'ClearCom','Arcadia Base Station','Arcadia Central Station AES67 - Primary','Communications','IP Intercom','','','Top of Roadcase MS'],
-[201,1,'ClearCom','Arcadia Base Station (Backup)','Arcadia Central Station AES67 - Backup','Communications','IP Intercom','','','Top of Roadcase MS'],
-[202,3,'ClearCom','HRM-4X','4-Wire Remote Station / Main Station Panel','Communications','IP Intercom','','','Stephenson'],
-[203,6,'ClearCom','FSII-TCVR-IP-19','FreeSpeak II IP Transceiver - Beltpack Antenna','Communications','IP Intercom','','','Various'],
-[204,2,'ClearCom','2X-HKB','2-Channel Key Panel / Beltstation','Communications','IP Intercom','','','Stephenson'],
-[205,21,'ClearCom','HXii-BP Beltpack','HXii Wireless Beltpack - Pool of 21 shared across Hormel / Stevenson / BlackBox','Communications','IP Intercom','','','RF Rack / Road Case'],
-];
-
-const VLAN16_IP={
-  200:'10.18.16.30',
-  201:'10.18.16.30 (backup)',
-  202:'10.18.16.40, .41, .42',
-  203:'10.18.16.47, .48, .49, .50, .51, .75',
-  204:'10.18.16.70 (x2)',
-  205:'Dynamic – assigned per venue when deployed (VLAN 16, .100–.180 range)',
-};
 
 // ═══════════════════ CONSTANTS ═══════════════════
-const KEY = 'ptc_audio_v3';
+// (items no longer use a localStorage key — see itemsApi() — shows/cats still do)
 const SHOWS_KEY = 'ptc_shows_v1';
 const CATS_KEY = 'ptc_cats_v1';
 const PER = 35;
@@ -818,13 +679,6 @@ const S = { items:[], shows:[], cats:[], page:0, filter:'all', sortCol:'line', s
 const mkU = () => ({available:0,inuse:0,broken:0,repair:0,retired:0,unknown:0});
 const mkD = () => ({available:'',inuse:'',broken:'',repair:'',retired:'',unknown:''});
 
-function itemFromSeed(r,i){
-  return { id:Date.now()+i, line:r[0], qty:r[1], make:r[2], model:r[3], desc:r[4],
-    cat:r[5], subcat:r[6], cost:r[7], serial:r[8], loc:r[9],
-    ip:VLAN16_IP[r[0]]||'', auditNotes:'',
-    units:mkU(), details:mkD(), showQty:{}, showNotes:{}, spaceQty:{}, spaceNotes:{} };
-}
-
 function migrate(it){
   if(!it.units)   it.units   = mkU();
   if(!it.details) it.details = mkD();
@@ -875,7 +729,25 @@ function statusWarnings(it){
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ═══════════════════ PERSISTENCE ═══════════════════
-function save(){ try{localStorage.setItem(KEY,JSON.stringify(S.items));}catch(e){} }
+// Items now live in the database (see /api/inventory/items*) instead of
+// localStorage — shows and categories are unchanged, still local only.
+// itemsApi() is a small fetch wrapper: throws with a readable message on
+// any non-2xx response so callers can toast a real error instead of
+// silently losing an edit.
+async function itemsApi(method, url, body){
+  const res=await fetch(url,{
+    method,
+    headers:body?{'Content-Type':'application/json'}:{},
+    body:body?JSON.stringify(body):undefined,
+  });
+  if(!res.ok){
+    let msg=`Request failed (${res.status})`;
+    try{ const j=await res.json(); if(j.error) msg=j.error; }catch(e){}
+    throw new Error(msg);
+  }
+  if(res.status===204) return null;
+  return res.json();
+}
 function saveShows(){ try{localStorage.setItem(SHOWS_KEY,JSON.stringify(S.shows));}catch(e){} }
 function saveCats(){ try{localStorage.setItem(CATS_KEY,JSON.stringify(S.cats));}catch(e){} }
 
@@ -906,25 +778,20 @@ function loadShows(){
   }catch(e){ S.shows=SHOWS_SEED.map(s=>({...s})); }
 }
 
-function load(){
+async function load(){
   loadShows();
   loadCats();
+  // Items are database-backed now — the DB is the single source of truth
+  // (real inventory data already migrated in), so there's no more local
+  // seed-merge fallback: an empty/failed load should look like an empty/
+  // failed load, not silently show placeholder demo data as if it were
+  // real.
   try{
-    const raw=localStorage.getItem(KEY);
-    if(raw){
-      S.items=JSON.parse(raw).map(migrate);
-      // Only merge seed items if user has never imported their own data
-      const hasImported=localStorage.getItem('ptc_imported');
-      if(!hasImported){
-        const lines=new Set(S.items.map(i=>i.line));
-        let added=0;
-        SEED.forEach((r,i)=>{ if(!lines.has(r[0])){ S.items.push(itemFromSeed(r,i)); added++; } });
-        if(added) save();
-      }
-    } else {
-      S.items=SEED.map(itemFromSeed); save();
-    }
-  }catch(e){ S.items=SEED.map(itemFromSeed); }
+    S.items=(await itemsApi('GET','/api/inventory/items')).map(migrate);
+  }catch(e){
+    S.items=[];
+    toast('Could not load inventory from the server — check your connection and reload.');
+  }
   buildCatSelect(); buildFilters(); render();
 }
 
@@ -1415,7 +1282,7 @@ function fillForm(it){
   renderSpaceRows(it.spaceQty||{}, it.spaceNotes||{});
 }
 
-function saveItem(){
+async function saveItem(){
   if(!requireAdmin())return;
   const make=document.getElementById('f-make').value.trim();
   const model=document.getElementById('f-model').value.trim();
@@ -1455,8 +1322,7 @@ function saveItem(){
   });
   const maxLine=Math.max(0,...S.items.map(i=>+i.line||0));
   const prev=S.editIdx!==null?S.items[S.editIdx]:null;
-  const item={
-    id:prev?prev.id:Date.now(),
+  const payload={
     line:parseInt(document.getElementById('f-line').value)||maxLine+1,
     qty,make,model,
     desc:document.getElementById('f-desc').value.trim(),
@@ -1469,25 +1335,44 @@ function saveItem(){
     auditNotes:document.getElementById('f-notes').value.trim(),
     units,details,showQty,showNotes,spaceQty,spaceNotes,
   };
-  if(S.editIdx!==null){S.items[S.editIdx]=item;}else{S.items.push(item);}
-  save(); closeEdit(); buildFilters(); render();
-  toast(`"${make} ${model}" saved.`);
+  // Real id comes from the server (create) or was already assigned (edit) —
+  // no more Date.now() client-side ID guessing.
+  try{
+    const saved=prev
+      ? await itemsApi('PUT','/api/inventory/items/'+prev.id,payload)
+      : await itemsApi('POST','/api/inventory/items',payload);
+    if(S.editIdx!==null){S.items[S.editIdx]=saved;}else{S.items.push(saved);}
+    closeEdit(); buildFilters(); render();
+    toast(`"${make} ${model}" saved.`);
+  }catch(e){
+    alert('Could not save this item: '+e.message+'\n\nYour edits are still in the form — try again.');
+  }
 }
 
-function deleteItem(){
+async function deleteItem(){
   if(!requireAdmin())return;
   if(S.editIdx===null) return;
   const it=S.items[S.editIdx];
-  if(!confirm(`Permanently delete "${it.make} ${it.model}"?\n\nTip: use Retired status to keep history.`)) return;
-  S.items.splice(S.editIdx,1);
-  save(); buildFilters(); closeEdit(); render(); toast('Item deleted.');
+  if(!confirm(`Delete "${it.make} ${it.model}"?\n\nIt'll move to Recently Deleted and can be restored from there.`)) return;
+  try{
+    await itemsApi('DELETE','/api/inventory/items/'+it.id);
+    S.items.splice(S.editIdx,1);
+    buildFilters(); closeEdit(); render(); toast('Item deleted.');
+  }catch(e){
+    alert('Could not delete this item: '+e.message);
+  }
 }
 
-function confirmDel(idx){
+async function confirmDel(idx){
   if(!requireAdmin())return;
   const it=S.items[idx];
-  if(!confirm(`Permanently delete "${it.make} ${it.model}"?\n\nTip: use Edit → Retired units to keep history.`)) return;
-  S.items.splice(idx,1); save(); buildFilters(); render(); toast('Item deleted.');
+  if(!confirm(`Delete "${it.make} ${it.model}"?\n\nIt'll move to Recently Deleted and can be restored from there.`)) return;
+  try{
+    await itemsApi('DELETE','/api/inventory/items/'+it.id);
+    S.items.splice(idx,1); buildFilters(); render(); toast('Item deleted.');
+  }catch(e){
+    alert('Could not delete this item: '+e.message);
+  }
 }
 
 // ═══════════════════ UNIT STATUS INPUT ═══════════════════
@@ -1663,28 +1548,35 @@ function handleJsonImport(event){
   if(!requireAdmin()){event.target.value='';return;}
   const file=event.target.files[0]; if(!file) return;
   const reader=new FileReader();
-  reader.onload=e=>{
+  reader.onload=async e=>{
     try{
       const payload=JSON.parse(e.target.result);
       if(!payload.items||!Array.isArray(payload.items)){
         toast('Invalid backup file — no items found.'); event.target.value=''; return;
       }
-      if(!confirm(`Restore ${payload.items.length} items from "${file.name}"?\n\nThis REPLACES all current data including show/space allocations.`)){
+      if(!confirm(`Restore ${payload.items.length} items from "${file.name}"?\n\nThis REPLACES all current inventory items and their show/space allocations. Shows themselves aren't touched — allocations are matched to your real shows by name.`)){
         event.target.value=''; return;
       }
-      S.items=payload.items.map(migrate);
+      // Items go through the same server-side import used for the initial
+      // real-data migration (see /api/inventory/import) — it matches
+      // show-name references against the real shows table rather than
+      // blindly trusting whatever local show IDs are in the file.
+      const result=await itemsApi('POST','/api/inventory/import',payload);
+      S.items=(await itemsApi('GET','/api/inventory/items')).map(migrate);
       if(payload.shows&&Array.isArray(payload.shows)){
         S.shows=payload.shows;
         // Rebuild tombstones from whatever seed shows are missing in the restore
         const ids=new Set(S.shows.map(s=>s.id));
         const tomb=SHOWS_SEED.filter(sh=>!ids.has(sh.id)).map(sh=>sh.id);
         try{localStorage.setItem(SHOWS_KEY+'_deleted',JSON.stringify(tomb));}catch(e){}
+        saveShows();
       }
-      save(); saveShows();
-      try{localStorage.setItem('ptc_imported','1');}catch(e){}
       buildFilters(); S.page=0; render();
-      toast(`✓ Restored ${S.items.length} items from backup.`);
-    }catch(err){ toast('Restore failed — check file format.'); }
+      let msg=`✓ Restored ${result.items_imported} items from backup.`;
+      const unmatchedCount=Object.keys(result.unmatched_shows||{}).length;
+      if(unmatchedCount) msg+=` (${unmatchedCount} show name${unmatchedCount>1?'s':''} didn't match an existing show — those items imported but aren't linked to a show record.)`;
+      toast(msg);
+    }catch(err){ toast('Restore failed: '+err.message); }
     event.target.value='';
   };
   reader.readAsText(file);
@@ -1984,6 +1876,67 @@ function closeManageShows(){
   document.getElementById('showsOv').classList.remove('open');
 }
 
+// ═══════════════════ RECENTLY DELETED ═══════════════════
+async function openDeleted(){
+  if(!requireAdmin())return;
+  document.getElementById('deletedOv').classList.add('open');
+  await renderDeletedList();
+}
+function closeDeleted(){
+  document.getElementById('deletedOv').classList.remove('open');
+}
+async function renderDeletedList(){
+  const body=document.getElementById('deletedBody');
+  body.innerHTML='<div style="padding:20px 0;color:var(--grey,#888)">Loading…</div>';
+  let items;
+  try{
+    items=await itemsApi('GET','/api/inventory/items/deleted');
+  }catch(e){
+    body.innerHTML='<div style="padding:20px 0;color:var(--grey,#888)">Could not load — try again.</div>';
+    return;
+  }
+  if(!items.length){
+    body.innerHTML='<div style="padding:20px 0;color:var(--grey,#888)">Nothing deleted recently.</div>';
+    return;
+  }
+  body.innerHTML=items.map(it=>`
+    <div class="del-row" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1">
+        <b>${esc(it.make)} ${esc(it.model)}</b>
+        <span style="color:var(--grey,#888);font-size:12px;margin-left:8px">${esc(it.desc||'')}</span>
+        <div style="color:var(--grey,#888);font-size:11px">Line ${it.line} · qty ${it.qty} · deleted ${esc(it.deleted_at||'')}</div>
+      </div>
+      <button class="btn btn-p" onclick="restoreDeletedItem(${it.id})">Restore</button>
+      <button class="btn btn-d" data-purge-id="${it.id}" data-purge-label="${esc(`${it.make} ${it.model}`)}">Delete forever</button>
+    </div>`).join('');
+  body.querySelectorAll('[data-purge-id]').forEach(btn=>{
+    btn.addEventListener('click',()=>purgeDeletedItem(btn.dataset.purgeId,btn.dataset.purgeLabel));
+  });
+}
+async function restoreDeletedItem(id){
+  if(!requireAdmin())return;
+  try{
+    await itemsApi('POST','/api/inventory/items/'+id+'/restore');
+    S.items=(await itemsApi('GET','/api/inventory/items')).map(migrate);
+    buildFilters(); render();
+    await renderDeletedList();
+    toast('Item restored.');
+  }catch(e){
+    alert('Could not restore this item: '+e.message);
+  }
+}
+async function purgeDeletedItem(id,label){
+  if(!requireAdmin())return;
+  if(!confirm(`Permanently delete "${label}"?\n\nThis cannot be undone — there's no further recovery after this.`)) return;
+  try{
+    await itemsApi('DELETE','/api/inventory/items/'+id+'/purge');
+    await renderDeletedList();
+    toast('Item permanently deleted.');
+  }catch(e){
+    alert('Could not delete this item: '+e.message);
+  }
+}
+
 function saveShowsAndClose(){
   if(!IS_ADMIN){closeManageShows();return;}
   // collect date edits from inputs
@@ -2149,12 +2102,14 @@ document.addEventListener('keydown',e=>{
     document.getElementById('catsOv').classList.remove('open');
     document.getElementById('printOv').classList.remove('open');
     document.getElementById('showsOv').classList.remove('open');
+    document.getElementById('deletedOv').classList.remove('open');
   }
 });
 
 if(!IS_ADMIN){
   document.getElementById('addBtn').style.display='none';
   document.getElementById('restoreBtn').style.display='none';
+  document.getElementById('deletedBtn').style.display='none';
   document.getElementById('roBadge').style.display='inline';
 }
 
