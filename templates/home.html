@@ -230,7 +230,7 @@ const ADMIN_ONLY=[
 // Server-supplied count of not-done rows in the tasks table (see /home route
 // in app.py) — surfaced as a flag on the Task Manager tile, same pattern as
 // the per-venue warn counts below.
-const OPEN_TASKS = {{ open_tasks }};
+let OPEN_TASKS = {{ open_tasks }};
 const TOOLS=[
  ["Task Manager","/tasks","department to-dos & show journal"],
  ["Knowledge Base","/kb","gear manuals with page-jump TOCs, plus network & procedure notes"],
@@ -308,4 +308,25 @@ function doSearch(t){t=t.trim().toLowerCase();if(t.length<2){home();return}
  stage.querySelectorAll('.card,.grid,.sec,#pulse').forEach(e=>e.remove());
  stage.insertAdjacentHTML('beforeend',out||'<div class="card">no matches</div>')}
 home();
+
+// OPEN_TASKS is baked into the page at load time — fine on first paint, but
+// a tab left open while you clear tasks elsewhere (or on another device)
+// goes stale. True interval-polling is overkill for a small internal tool,
+// so instead just refetch when the tab regains focus, which covers the
+// actual case people hit ("I came back to this tab") without hammering the
+// server while it's just sitting in the background.
+async function refreshOpenTasks(){
+ try{
+  const res=await fetch('/api/tasks');
+  if(!res.ok)return;
+  const tasks=await res.json();
+  OPEN_TASKS=tasks.filter(t=>!t.done).length;
+  // Only touch the DOM if we're still on the home view (not inside a
+  // venue/docs drill-down, where #pulse/.grid for TOOLS aren't present) —
+  // cheapest way to check is whether #pulse exists at all.
+  if(document.getElementById('pulse')) home();
+ }catch(e){/* offline or logged out — next focus will retry */}
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshOpenTasks()});
+window.addEventListener('focus',refreshOpenTasks);
 </script></body></html>
