@@ -1393,6 +1393,20 @@ def get_all_tasks():
     return [dict(r) for r in rows]
 
 
+def repair_blank_task_ids():
+    """One-time data repair — see api_cleanup_blank_task_ids in app.py for
+    why this exists. sqlite has no rowid on the tasks table's `id` (it's a
+    plain TEXT primary key), so a blank id can't be addressed by UPDATE ...
+    WHERE id=? — rowid is used instead to target the exact row."""
+    db = get_db()
+    rows = db.execute("SELECT rowid AS rid FROM tasks WHERE id IS NULL OR id = ''").fetchall()
+    for r in rows:
+        db.execute('UPDATE tasks SET id=? WHERE rowid=?', (str(uuid.uuid4())[:12], r['rid']))
+    db.commit()
+    db.close()
+    return len(rows)
+
+
 def create_task(data, created_by=None, created_by_name=''):
     db = get_db()
     task_id = data.get('id') or str(uuid.uuid4())[:12]

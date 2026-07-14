@@ -504,6 +504,24 @@ def api_create_task():
     task_id = models.create_task(data, created_by=created_by, created_by_name=created_by_name)
     return jsonify({'status': 'created', 'id': task_id}), 201
 
+@app.route('/api/tasks/cleanup-blank-ids', methods=['POST'])
+@auth.require_api_key_or_admin
+def api_cleanup_blank_task_ids():
+    """One-time data-repair: any task row with a blank/NULL id predates the
+    current validate_task() (which already guards create_task against this
+    for everything going forward — see models.create_task's `data.get('id')
+    or uuid...` fallback). A blank id breaks the /api/tasks/<task_id> routes
+    client-side (PUT/DELETE end up hitting /api/tasks/ with nothing after
+    the slash -> 404), which is what surfaced this. Backfills a fresh id
+    rather than deleting — the task's text/notes/etc. are untouched, it just
+    couldn't be addressed by the UI before. Safe to re-run — a second call
+    just reports 0 repaired."""
+    count = models.repair_blank_task_ids()
+    user = auth.current_user()
+    models.log_action(user['id'] if user else None, user['name'] if user else 'api',
+                       'cleanup_blank_task_ids', detail=f'{count} repaired')
+    return jsonify({'status': 'ok', 'repaired': count})
+
 @app.route('/api/tasks/clear-done', methods=['POST'])
 @admin_required
 def api_clear_done_tasks():
