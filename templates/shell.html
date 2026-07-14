@@ -21,9 +21,11 @@
     </div>
   </div>
   <nav class="hdr-nav">
-    <a href="/tasks" class="nav-tab active">&#x2611; Tasks & Journal</a>
+    <a href="/home" class="nav-tab{% if active=='home' %} active{% endif %}">&#x2302; Home</a>
+    <a href="/tasks" class="nav-tab{% if active=='tasks' %} active{% endif %}">&#x2611; Tasks & Journal</a>
+    <a href="/kb" class="nav-tab{% if active=='kb' %} active{% endif %}">&#x1F4D6; Knowledge Base</a>
     {% if session.get('role') == 'admin' %}
-    <a href="/admin/users" class="nav-tab">&#x1F464; Users</a>
+    <a href="/admin/users" class="nav-tab{% if active=='admin_users' %} active{% endif %}">&#x1F464; Users</a>
     {% endif %}
   </nav>
   <div class="hdr-actions">

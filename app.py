@@ -19,13 +19,14 @@ from dotenv import load_dotenv
 import models
 import auth
 import email_utils
+import pdf_utils
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-me')
 API_KEY = os.environ.get('API_KEY', '')
-app.config['MAX_CONTENT_LENGTH'] = 40 * 1024 * 1024  # 40MB — generous for PDFs, blocks abuse
+app.config['MAX_CONTENT_LENGTH'] = 150 * 1024 * 1024  # 150MB — vendor gear manuals (RIVAGE PM OM is ~93MB) run far bigger than the riders/guides this was originally sized for
 
 MAX_TEXT = 500
 MAX_NOTES = 5000
@@ -201,9 +202,11 @@ def tasks():
 def home_page():
     user = auth.current_user()
     is_admin = bool(user and user.get('role') == 'admin')
+    open_tasks = sum(1 for t in models.get_all_tasks() if not t.get('done'))
     return render_template('home.html', is_admin=is_admin,
                             staff_data=models.get_venues_nested('staff'),
-                            docs_data=models.list_documents_grouped())
+                            docs_data=models.list_documents_grouped(),
+                            open_tasks=open_tasks)
 
 # ══════════════════════════════════
 # DOCUMENTS (riders, system guides, network diagrams, budget/incident PDFs)
@@ -246,8 +249,13 @@ def admin_docs_page():
     return render_template('admin_docs.html', active='admin_docs',
                             sections=models.list_documents_grouped())
 
+@app.route('/api/docs/sections', methods=['GET'])
+@require_api_key_or_session
+def api_list_doc_sections():
+    return jsonify(models.list_documents_grouped())
+
 @app.route('/api/docs/sections', methods=['POST'])
-@admin_required
+@auth.require_api_key_or_admin
 def api_create_doc_section():
     data = request.get_json() or {}
     name = sanitize(data.get('name', ''), 80)
@@ -293,11 +301,16 @@ def api_reorder_doc_sections():
     return jsonify({'status': 'reordered'})
 
 @app.route('/api/docs/upload', methods=['POST'])
-@admin_required
+@auth.require_api_key_or_admin
 def api_upload_doc():
     section_id = request.form.get('section_id', type=int)
     title = sanitize(request.form.get('title', ''), 150)
     file = request.files.get('file')
+    # Manuals flag + device name — e.g. is_manual=1, device="Shure AD4Q".
+    # Purely additive: existing riders/guides callers that don't send these
+    # keep working exactly as before (is_manual defaults to 0).
+    is_manual = request.form.get('is_manual', '0') in ('1', 'true', 'True')
+    device = sanitize(request.form.get('device', ''), 120)
 
     if not section_id or not models.get_doc_section(section_id):
         return jsonify({'error': 'Valid section_id required'}), 400
@@ -317,15 +330,26 @@ def api_upload_doc():
     file.save(dest_path)
     size_bytes = os.path.getsize(dest_path)
 
+    # Manuals get their bookmark tree extracted at upload time so the
+    # Manuals TOC view has page-jump links with zero admin data entry — see
+    # pdf_utils.extract_pdf_toc. Not every manual has embedded bookmarks; if
+    # not, page_count still gets set and the manual is viewable, just
+    # without a jump-list.
+    page_count, toc = (0, [])
+    if is_manual:
+        page_count, toc = pdf_utils.extract_pdf_toc(dest_path)
+
     user = auth.current_user()
     doc_id = models.create_document(
         section_id, title, stored_filename,
         orig_filename=orig_filename, size_bytes=size_bytes,
-        uploaded_by=(user.get('name') if user else '')
+        uploaded_by=(user.get('name') if user else 'api'),
+        is_manual=is_manual, device=device,
+        page_count=page_count, toc_json=json.dumps(toc)
     )
-    models.log_action(user['id'] if user else None, user['name'] if user else '',
+    models.log_action(user['id'] if user else None, user['name'] if user else 'api',
                        'upload_document', target=str(doc_id), detail=title)
-    return jsonify({'status': 'uploaded', 'id': doc_id}), 201
+    return jsonify({'status': 'uploaded', 'id': doc_id, 'page_count': page_count, 'toc_entries': len(toc)}), 201
 
 @app.route('/api/docs/<int:doc_id>', methods=['DELETE'])
 @admin_required
@@ -395,7 +419,7 @@ def tools_page(name):
 @app.route('/admin/users')
 @admin_required
 def admin_users_page():
-    return render_template('admin_users.html', users=models.list_users(),
+    return render_template('admin_users.html', active='admin_users', users=models.list_users(),
                             invites=models.get_pending_invites())
 
 @app.route('/admin/venues')
@@ -769,6 +793,19 @@ def kb_page(slug):
     import markdown as md_lib
     body_html = md_lib.markdown(page['body_markdown'], extensions=['tables', 'fenced_code'])
     return render_template('kb_page.html', active='kb', page=page, body_html=body_html)
+
+@app.route('/manuals')
+@login_required
+def manuals_index():
+    return render_template('manuals_index.html', active='kb', sections=models.list_manuals_grouped())
+
+@app.route('/manuals/<int:doc_id>')
+@login_required
+def manuals_toc(doc_id):
+    doc = models.get_manual_toc(doc_id)
+    if not doc:
+        return render_template('token_invalid.html', reason='manual not found'), 404
+    return render_template('manual_toc.html', active='kb', doc=doc)
 
 @app.route('/api/kb/pages', methods=['GET'])
 @require_api_key_or_session

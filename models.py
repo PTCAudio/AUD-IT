@@ -335,6 +335,32 @@ def init_db():
     except:
         pass
 
+    # Manuals: same documents table, flagged rather than a new table, so
+    # they share storage/serving/admin plumbing with the existing riders &
+    # system-guide PDFs. toc_json holds the flattened bookmark outline
+    # extracted at upload time (see pdf_utils.extract_pdf_toc) — a list of
+    # {title, page, depth}, page is the 1-indexed PDF page for #page=N links.
+    try:
+        db.execute("ALTER TABLE documents ADD COLUMN is_manual INTEGER NOT NULL DEFAULT 0")
+        db.commit()
+    except:
+        pass
+    try:
+        db.execute("ALTER TABLE documents ADD COLUMN device TEXT NOT NULL DEFAULT ''")
+        db.commit()
+    except:
+        pass
+    try:
+        db.execute("ALTER TABLE documents ADD COLUMN page_count INTEGER NOT NULL DEFAULT 0")
+        db.commit()
+    except:
+        pass
+    try:
+        db.execute("ALTER TABLE documents ADD COLUMN toc_json TEXT NOT NULL DEFAULT '[]'")
+        db.commit()
+    except:
+        pass
+
     # Indexes
     db.executescript('''
         CREATE INDEX IF NOT EXISTS idx_tasks_space ON tasks(space);
@@ -584,7 +610,8 @@ def get_document(doc_id):
     db.close()
     return dict(row) if row else None
 
-def create_document(section_id, title, filename, orig_filename='', size_bytes=0, sort_order=None, uploaded_by=''):
+def create_document(section_id, title, filename, orig_filename='', size_bytes=0, sort_order=None, uploaded_by='',
+                     is_manual=0, device='', page_count=0, toc_json='[]'):
     db = get_db()
     if sort_order is None:
         max_order = db.execute(
@@ -592,13 +619,54 @@ def create_document(section_id, title, filename, orig_filename='', size_bytes=0,
         ).fetchone()['m']
         sort_order = (max_order or 0) + 1
     cur = db.execute('''INSERT INTO documents
-        (section_id, title, filename, orig_filename, size_bytes, sort_order, uploaded_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?)''',
-        (section_id, title, filename, orig_filename, size_bytes, sort_order, uploaded_by))
+        (section_id, title, filename, orig_filename, size_bytes, sort_order, uploaded_by,
+         is_manual, device, page_count, toc_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (section_id, title, filename, orig_filename, size_bytes, sort_order, uploaded_by,
+         int(bool(is_manual)), device, page_count, toc_json))
     db.commit()
     doc_id = cur.lastrowid
     db.close()
     return doc_id
+
+
+def list_manuals_grouped():
+    """Same shape as list_documents_grouped(), filtered to is_manual=1 rows
+    only, plus each document carries page_count/device/toc (parsed) for the
+    Manuals library view. Sections with no manuals are omitted."""
+    db = get_db()
+    sections = db.execute(
+        'SELECT * FROM doc_sections ORDER BY sort_order, name'
+    ).fetchall()
+    result = []
+    for s in sections:
+        docs = db.execute(
+            'SELECT * FROM documents WHERE section_id = ? AND is_manual = 1 ORDER BY sort_order, title',
+            (s['id'],)
+        ).fetchall()
+        if not docs:
+            continue
+        result.append({
+            'id': s['id'],
+            'name': s['name'],
+            'sort_order': s['sort_order'],
+            'documents': [dict(d) for d in docs],
+        })
+    db.close()
+    return result
+
+
+def get_manual_toc(doc_id):
+    """Returns the document row with toc_json parsed into a Python list, or
+    None if the doc doesn't exist / isn't flagged as a manual."""
+    doc = get_document(doc_id)
+    if not doc or not doc.get('is_manual'):
+        return None
+    try:
+        doc['toc'] = json.loads(doc.get('toc_json') or '[]')
+    except (ValueError, TypeError):
+        doc['toc'] = []
+    return doc
 
 def delete_document(doc_id):
     """Returns the stored filename (so the caller can remove it from disk)

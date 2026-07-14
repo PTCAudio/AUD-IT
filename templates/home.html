@@ -1,67 +1,136 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PTC Audio — Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Lora:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <style>
-:root{--bk:#0a0a0a;--red:#E82C2A;--grey:#888}
-*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:#111;color:#eee;font:17.5px/1.35 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;display:flex;flex-direction:column}
-#top{background:var(--bk);border-bottom:3px solid var(--red);padding:10px 25px;display:flex;align-items:center;gap:15px;flex-wrap:wrap;flex:0 0 auto}
-#top b{font-size:21px;letter-spacing:1px}#top .r{color:var(--red)}
-#crumb{padding:7.5px 25px;color:var(--grey);font-size:16px;flex:0 0 auto}#crumb a{color:var(--red);text-decoration:none;cursor:pointer}
-#stage{padding:0 25px 15px;max-width:1375px;margin:0 auto;width:100%;flex:1 1 auto;overflow:auto}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:12.5px;margin-top:7.5px}
-.tile{background:#1c1c1c;border:1px solid #2c2c2c;border-left:5px solid var(--red);border-radius:8px;padding:12.5px 15px;cursor:pointer;transition:.12s}
-.tile:hover{background:#262626;transform:translateY(-2px)}
-.tile b{display:block;font-size:18px}.tile span{color:var(--grey);font-size:15px}
-a.tile{display:block;color:#eee;text-decoration:none}
-.card{background:#1c1c1c;border:1px solid #2c2c2c;border-radius:8px;padding:15px 20px;margin-top:12.5px}
-.card h2{margin:0 0 10px;font-size:20px;border-bottom:2px solid var(--red);padding-bottom:6px}
-table{border-collapse:collapse;width:100%;font-size:16px}
-td{padding:5px 12.5px;border-bottom:1px solid #2a2a2a;vertical-align:top}
-td:first-child{color:var(--grey);white-space:nowrap;width:38%}
-td:last-child{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15.5px}
-.warn{background:#2a1414;border-left:4px solid var(--red);padding:7.5px 15px;margin-top:10px;font-size:15.5px;border-radius:0 6px 6px 0}
-.note{background:#1d1d14;border-left:4px solid #c9a227;padding:7.5px 15px;margin-top:10px;font-size:15.5px;border-radius:0 6px 6px 0}
-.card ol{padding-left:25px}.card li{margin:5px 0}
-.card a{color:var(--red)}
-#q{width:100%;max-width:500px;margin:10px 0 2.5px;padding:8.5px 15px;font-size:17.5px;background:#1c1c1c;border:1px solid #333;border-radius:6px;color:#fff}
-#foot{padding:7.5px 25px;color:#666;font-size:14px;text-align:center;flex:0 0 auto}
-.sec{color:var(--red);font-weight:700;margin:17.5px 0 0;font-size:15px;letter-spacing:1.5px}
-#jessBtn{position:fixed;right:22px;bottom:22px;background:var(--red);color:#fff;border:none;border-radius:30px;padding:13px 22px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:50;letter-spacing:.3px}
-#jessBtn:hover{background:#ff3b39}
-#jessPanel{position:fixed;right:22px;bottom:78px;width:380px;max-width:calc(100vw - 44px);height:min(520px,70vh);background:#161616;border:1px solid #333;border-top:3px solid var(--red);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.5);display:none;flex-direction:column;overflow:hidden;z-index:50}
-#jessPanel.open{display:flex}
-#jessHead{padding:10px 14px;border-bottom:1px solid #2c2c2c;display:flex;align-items:center;gap:8px;flex:0 0 auto}
-#jessHead b{font-size:15px}
-#jessHead .r{color:var(--red)}
-#jessModeSel{margin-left:auto;display:flex;border:1px solid #333;border-radius:5px;overflow:hidden;font-size:11.5px}
-#jessModeSel div{padding:3px 8px;cursor:pointer;color:#999}
-#jessModeSel div.on{background:var(--red);color:#fff}
-#jessPop,#jessClose{cursor:pointer;color:#888;font-size:16px;padding:0 4px;flex:0 0 auto}
-#jessClose{font-size:18px}
-#jessLog{flex:1 1 auto;overflow-y:auto;padding:12px 14px;font-size:14.5px;line-height:1.42}
-.jmsg{margin-bottom:14px}
-.jmsg .who{font-size:11px;letter-spacing:.5px;color:#777;margin-bottom:3px;text-transform:uppercase}
-.jmsg.q .who{color:var(--red)}
-.jmsg .body{white-space:pre-wrap}
-.jmsg.err .body{color:#ff8080}
-.jmsg.pending .body{color:#888;font-style:italic}
-#jessRow{flex:0 0 auto;border-top:1px solid #2c2c2c;padding:10px;display:flex;gap:8px}
-#jessQ{flex:1;background:#1c1c1c;border:1px solid #333;border-radius:6px;color:#fff;padding:8px 10px;font-size:14.5px}
-#jessSend{background:var(--red);color:#fff;border:none;border-radius:6px;padding:0 14px;cursor:pointer;font-weight:700}
-#jessSend:disabled{opacity:.5;cursor:default}
+/* ===== Home-page-specific layer — sits on top of the shared design
+   system (style.css vars/fonts) instead of re-declaring its own palette,
+   so this page finally looks like the rest of the suite. ===== */
+body{display:flex;flex-direction:column}
+.hdr-nav .nav-tab.active{color:var(--red);border-bottom-color:var(--red)}
+#crumb{padding:10px 22px 0;color:var(--mut);font-family:var(--mono);font-size:11.5px;letter-spacing:.02em}
+#crumb a{color:var(--red);text-decoration:none;cursor:pointer}
+#crumb a:hover{color:var(--rlt)}
+#stage{padding:6px 22px 28px;max-width:1400px;margin:0 auto;width:100%;flex:1 1 auto}
+
+.sec{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;margin:26px 0 10px;display:flex;align-items:center;gap:8px}
+.sec:first-child{margin-top:14px}
+.sec .ic{font-size:13px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.tile{background:var(--sur);border:1px solid var(--b1);border-top:3px solid var(--red);border-radius:4px;padding:14px 16px;cursor:pointer;transition:.15s;display:block;color:var(--txt);text-decoration:none}
+.tile:hover{background:var(--pan);border-color:var(--b2);transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.tile b{display:block;font-family:var(--disp);font-size:19px;letter-spacing:.02em;color:var(--wht);line-height:1.2}
+.tile span{display:block;margin-top:4px;font-family:var(--mono);font-size:11px;color:var(--mut);letter-spacing:.01em}
+.tile .row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.tile .flag{font-family:var(--mono);font-size:10px;color:var(--amb);letter-spacing:.04em;white-space:nowrap}
+
+/* dashboard strip — quick-glance ops status, sits above VENUES */
+#pulse{display:flex;gap:12px;flex-wrap:wrap;margin-top:4px}
+.pulse-card{flex:1 1 200px;background:var(--sur);border:1px solid var(--b1);border-radius:4px;padding:14px 16px}
+.pulse-card b{display:block;font-family:var(--disp);font-size:26px;letter-spacing:.02em;line-height:1}
+.pulse-card span{font-family:var(--mono);font-size:10px;color:var(--mut);letter-spacing:.1em;text-transform:uppercase}
+.pulse-card.ok b{color:var(--grn2)}
+.pulse-card.warn b{color:var(--amb2)}
+
+.card{background:var(--sur);border:1px solid var(--b1);border-radius:4px;padding:18px 22px;margin-top:14px}
+.card h2{margin:0 0 14px;font-family:var(--disp);font-size:22px;letter-spacing:.03em;color:var(--wht);border-bottom:2px solid var(--red);padding-bottom:9px}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+td{padding:7px 14px;border-bottom:1px solid var(--b1);vertical-align:top;font-family:var(--serif)}
+td:first-child{color:var(--mut);white-space:nowrap;width:34%;font-family:var(--mono);font-size:11.5px;letter-spacing:.02em;text-transform:uppercase}
+td:last-child{font-family:var(--mono);font-size:12.5px;color:var(--txt)}
+tr:last-child td{border-bottom:none}
+.warn{background:rgba(200,16,46,.09);border-left:3px solid var(--red);color:var(--txt);padding:9px 14px;margin-top:10px;font-family:var(--mono);font-size:12px;line-height:1.5;border-radius:0 4px 4px 0}
+.note{background:rgba(235,152,78,.09);border-left:3px solid var(--amb);color:var(--txt);padding:9px 14px;margin-top:10px;font-family:var(--mono);font-size:12px;line-height:1.5;border-radius:0 4px 4px 0}
+.venue-head{margin:6px 0 4px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.venue-head b{font-family:var(--disp);font-size:28px;letter-spacing:.02em;color:var(--wht)}
+.venue-head span{font-family:var(--mono);font-size:12px;color:var(--mut)}
+
+.doc-tile{border:none;border-top:none;padding:9px 0;border-bottom:1px solid var(--b1);border-radius:0;display:flex;align-items:center;gap:8px}
+.doc-tile:last-child{border-bottom:none}
+.doc-tile:hover{background:transparent;transform:none;box-shadow:none;color:var(--rlt)}
+.doc-tile .ic{color:var(--amb2)}
+
+#q{width:100%;max-width:520px;margin:4px 0 4px;padding:9px 14px;font-family:var(--mono);font-size:13px;background:var(--pan);border:1px solid var(--b2);border-radius:4px;color:var(--txt)}
+#q:focus{outline:none;border-color:var(--red)}
+#foot{padding:12px 22px;color:var(--mut);font-family:var(--mono);font-size:10.5px;text-align:center;flex:0 0 auto;letter-spacing:.02em}
+
 /* Search box + Ask Jess hidden for now — dialing in relevance was eating
    time better spent on the foundation. Code left intact underneath so it's
    a one-line revert (delete this rule) rather than a rebuild. */
 #q,#jessBtn,#jessPanel{display:none !important}
+
+#jessBtn{position:fixed;right:22px;bottom:22px;background:var(--red);color:#fff;border:none;border-radius:30px;padding:13px 22px;font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.03em;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:50}
+#jessBtn:hover{background:var(--rlt)}
+#jessPanel{position:fixed;right:22px;bottom:78px;width:380px;max-width:calc(100vw - 44px);height:min(520px,70vh);background:var(--sur);border:1px solid var(--b1);border-top:3px solid var(--red);border-radius:4px;box-shadow:0 8px 30px rgba(0,0,0,.5);display:none;flex-direction:column;overflow:hidden;z-index:50}
+#jessPanel.open{display:flex}
+#jessHead{padding:10px 14px;border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:8px;flex:0 0 auto;font-family:var(--mono)}
+#jessHead b{font-size:13px;font-family:var(--disp);letter-spacing:.03em}
+#jessModeSel{margin-left:auto;display:flex;border:1px solid var(--b2);border-radius:4px;overflow:hidden;font-size:10px}
+#jessModeSel div{padding:3px 8px;cursor:pointer;color:var(--mut)}
+#jessModeSel div.on{background:var(--red);color:#fff}
+#jessPop,#jessClose{cursor:pointer;color:var(--mut);font-size:15px;padding:0 4px;flex:0 0 auto}
+#jessLog{flex:1 1 auto;overflow-y:auto;padding:12px 14px;font-family:var(--mono);font-size:12.5px;line-height:1.5}
+.jmsg{margin-bottom:14px}
+.jmsg .who{font-size:9.5px;letter-spacing:.1em;color:var(--mut);margin-bottom:3px;text-transform:uppercase}
+.jmsg.q .who{color:var(--red)}
+.jmsg .body{white-space:pre-wrap}
+.jmsg.err .body{color:var(--rlt)}
+.jmsg.pending .body{color:var(--mut);font-style:italic}
+#jessRow{flex:0 0 auto;border-top:1px solid var(--b1);padding:10px;display:flex;gap:8px}
+#jessQ{flex:1;background:var(--pan);border:1px solid var(--b2);border-radius:4px;color:var(--txt);padding:8px 10px;font-family:var(--mono);font-size:12.5px}
+#jessSend{background:var(--red);color:#fff;border:none;border-radius:4px;padding:0 14px;cursor:pointer;font-family:var(--mono);font-weight:500}
+#jessSend:disabled{opacity:.5;cursor:default}
+
+@media(max-width:768px){
+  /* shell.html's #hdr is a fixed-height, non-wrapping flex row — fine with
+     one nav tab, but this page carries four (Home/Tasks/KB/Users) plus the
+     sign-out button, which overflows a phone viewport. Let it wrap to a
+     second row and drop the fixed height so it can grow. */
+  #hdr{height:auto;flex-wrap:wrap;padding:8px 10px;row-gap:6px}
+  .hdr-nav{flex-wrap:wrap;height:auto;order:3;flex-basis:100%;justify-content:flex-start}
+  .nav-tab{height:32px;padding:0 10px;font-size:10px}
+  #stage{padding:6px 12px 24px}
+  #crumb{padding:8px 12px 0}
+  .venue-head b{font-size:22px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  #pulse{gap:8px}
+  .pulse-card{flex-basis:calc(50% - 4px)}
+  .pulse-card b{font-size:22px}
+  td:first-child{white-space:normal;width:40%}
+}
+@media(max-width:420px){
+  .pulse-card{flex-basis:100%}
+}
 </style></head><body>
-<div id="top"><b>PTC <span class="r">AUDIO</span></b><span style="color:#888;font-size:13px">department home · The Phoenix Theatre Company</span></div>
+
+<header id="hdr">
+  <div class="hdr-left">
+    <div>
+      <div class="hdr-title">PTC <span style="color:var(--red)">AUDIO</span></div>
+      <div class="hdr-sub">Phoenix Theatre Company — Department Home</div>
+    </div>
+  </div>
+  <nav class="hdr-nav">
+    <a href="/home" class="nav-tab active">&#x2302; Home</a>
+    <a href="/tasks" class="nav-tab">&#x2611; Tasks & Journal</a>
+    <a href="/kb" class="nav-tab">&#x1F4D6; Knowledge Base</a>
+    {% if is_admin %}<a href="/admin/users" class="nav-tab">&#x1F464; Users</a>{% endif %}
+  </nav>
+  <div class="hdr-actions">
+    <a href="/logout" class="btn" title="Sign out">&#x23FB;</a>
+  </div>
+</header>
+
 <div id="crumb"></div><div id="stage"></div>
 <div id="foot">Matthew Gibney · Audio Supervisor · m.gibney@phoenixtheatre.com — facts current as of 2026-07-09</div>
 
-<button id="jessBtn" onclick="jessToggle()">💬 Ask Jess</button>
+<button id="jessBtn" onclick="jessToggle()">&#x1F4AC; Ask Jess</button>
 <div id="jessPanel">
- <div id="jessHead"><b>Ask <span class="r">Jess</span></b>
-  <span style="margin-left:auto;color:#777;font-size:10px;letter-spacing:.5px">KB SEARCH</span>
-  <span id="jessClose" onclick="jessToggle()">✕</span></div>
+ <div id="jessHead"><b>Ask <span style="color:var(--red)">Jess</span></b>
+  <span style="margin-left:auto;color:var(--mut);font-size:9px;letter-spacing:.1em">KB SEARCH</span>
+  <span id="jessClose" onclick="jessToggle()">&#x2715;</span></div>
  <div id="jessLog"><div class="jmsg"><div class="who">jess</div><div class="body">Search the Knowledge Base — gear, network, procedures, shows, budget. Type a keyword or two and hit enter.</div></div></div>
  <div id="jessRow"><input id="jessQ" placeholder="search the KB…" onkeydown="if(event.key==='Enter')jessAsk()"><button id="jessSend" onclick="jessAsk()">Search</button></div>
 </div>
@@ -97,8 +166,8 @@ function jessAppendResults(pages,q){const log=document.getElementById('jessLog')
    wrap.appendChild(a);
    if(p.snippet){
     const s=document.createElement('div');
-    s.style.color='#aaa';
-    s.style.fontSize='13px';
+    s.style.color='var(--mut)';
+    s.style.fontSize='11.5px';
     s.style.marginTop='2px';
     s.textContent=p.snippet;
     wrap.appendChild(s);
@@ -146,15 +215,37 @@ const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
 // General office links — every logged-in staff account authenticates separately
 // with these services in their own browser session; this app never sees or
 // passes along Microsoft/Tallie credentials, it's just a bookmark.
-const ADMIN=[["Outlook Mail","https://outlook.cloud.microsoft/mail/"],["Tallie Expense Reports","https://usetallie.com/x9/Expense/Tile"]];
+const ADMIN=[
+ ["Outlook Mail","https://outlook.cloud.microsoft/mail/","department email"],
+ ["Tallie Expense Reports","https://usetallie.com/x9/Expense/Tile","submit & track reimbursements"]
+];
 // Infra/admin-only links — only shown to admin accounts.
-const ADMIN_ONLY=[["Manage Users","/admin/users"],["Manage Venue Data","/admin/venues"],["Manage Documents","/admin/docs"],["Render Dashboard","https://dashboard.render.com/"],["Chrome Remote Desktop","https://remotedesktop.google.com/access/"]];
-const TOOLS=[["Task Manager","/tasks"],["Knowledge Base","/kb"],["Inventory","/tools/inventory"],["QuoteBuilder","/tools/quotebuilder"],["Season Calendar","/tools/season-calendar"],["CL5 Patch Generator","/tools/cl5-patch-generator"],["Lens Throw Calculator","/tools/lens-throw-calculator"]];
+const ADMIN_ONLY=[
+ ["Manage Users","/admin/users","add, remove, reset staff accounts"],
+ ["Manage Venue Data","/admin/venues","edit the venue/system facts shown on Home"],
+ ["Manage Documents","/admin/docs","upload & organize riders, guides, reports"],
+ ["Render Dashboard","https://dashboard.render.com/","app hosting — logs, deploys, env vars"],
+ ["Chrome Remote Desktop","https://remotedesktop.google.com/access/","remote into the booth machines"]
+];
+// Server-supplied count of not-done rows in the tasks table (see /home route
+// in app.py) — surfaced as a flag on the Task Manager tile, same pattern as
+// the per-venue warn counts below.
+const OPEN_TASKS = {{ open_tasks }};
+const TOOLS=[
+ ["Task Manager","/tasks","department to-dos & show journal"],
+ ["Knowledge Base","/kb","gear manuals with page-jump TOCs, plus network & procedure notes"],
+ ["Inventory","/tools/inventory","track owned & rented equipment"],
+ ["QuoteBuilder","/tools/quotebuilder","build rental/purchase quotes"],
+ ["Season Calendar","/tools/season-calendar","shows, load-ins & strikes by date"],
+ ["CL5 Patch Generator","/tools/cl5-patch-generator","builds the QLab MIDI hex string that switches a CL5 input patch"],
+ ["Lens Throw Calculator","/tools/lens-throw-calculator","projector throw distance & lens picks"]
+];
 /* ===== app ===== */
-const COLORS={venues:'#E82C2A',tools:'#2C9BE8',admin:'#C9A227',docs:'#E8892C'};
-function sec(label,color){return `<div class="sec" style="color:${color}">${label}</div>`}
+const COLORS={venues:'var(--red)',tools:'#4a9be8',admin:'var(--amb2)',docs:'#e88a2c'};
+function sec(label,color,icon){return `<div class="sec" style="color:${color}"><span class="ic">${icon||''}</span>${label}</div>`}
 const crumb=document.getElementById('crumb'),stage=document.getElementById('stage');
 function db(){return STAFF}
+function countFlags(){let n=0;const D=db();for(const v in D)for(const s in D[v]){if(s==='_d')continue;n+=D[v][s].warns.length}return n}
 function home(){
  // home() fully replaces #stage, including the #q search box itself — if
  // that happens while the user is mid-keystroke (doSearch calls home() for
@@ -168,13 +259,26 @@ function home(){
 
  crumb.innerHTML='<a onclick="home()">Home</a>';
  let h='<input id="q" placeholder="search everything…" oninput="doSearch(this.value)">';
- h+=sec('VENUES & SYSTEMS',COLORS.venues)+'<div class="grid">'+Object.keys(db()).map(v=>`<div class="tile" style="border-left-color:${COLORS.venues}" onclick="venue('${v}')"><b>${v}</b><span>${db()[v]._d}</span></div>`).join('')+'</div>';
- h+=sec('TOOLS',COLORS.tools)+'<div class="grid">'+TOOLS.map(t=>`<a class="tile" style="border-left-color:${COLORS.tools}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
- h+=sec('ADMIN',COLORS.admin)+'<div class="grid">'+ADMIN.map(t=>`<a class="tile" style="border-left-color:${COLORS.admin}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
+
+ const flags=countFlags(), venueCount=Object.keys(db()).length, docCount=DOCS_RAW.reduce((n,g)=>n+g.documents.length,0);
+ h+=`<div id="pulse">
+  <div class="pulse-card ${flags?'warn':'ok'}"><b>${flags}</b><span>open flags across venues</span></div>
+  <div class="pulse-card ${OPEN_TASKS?'warn':'ok'}"><b>${OPEN_TASKS}</b><span>open tasks</span></div>
+  <div class="pulse-card"><b>${venueCount}</b><span>venues &amp; shared systems</span></div>
+  <div class="pulse-card"><b>${docCount}</b><span>reference documents</span></div>
+ </div>`;
+
+ h+=sec('VENUES & SYSTEMS',COLORS.venues,'&#x1F50A;')+'<div class="grid">'+Object.keys(db()).map(v=>{
+   const vf=Object.keys(db()[v]).filter(k=>k!=='_d').reduce((n,s)=>n+db()[v][s].warns.length,0);
+   return `<div class="tile" onclick="venue('${v}')"><div class="row"><b>${v}</b>${vf?`<span class="flag">&#x26A0; ${vf}</span>`:''}</div><span>${db()[v]._d}</span></div>`}).join('')+'</div>';
+ h+=sec('TOOLS',COLORS.tools,'&#x1F527;')+'<div class="grid">'+TOOLS.map(t=>{
+   const flag=t[0]==='Task Manager'&&OPEN_TASKS?`<span class="flag" style="color:${COLORS.tools}">${OPEN_TASKS} open</span>`:'';
+   return `<a class="tile" style="border-top-color:${COLORS.tools}" href="${t[1]}" target="_blank"><div class="row"><b>${t[0]}</b>${flag}</div><span>${t[2]}</span></a>`}).join('')+'</div>';
+ h+=sec('ADMIN',COLORS.admin,'&#x1F4CE;')+'<div class="grid">'+ADMIN.map(t=>`<a class="tile" style="border-top-color:${COLORS.admin}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>${t[2]}</span></a>`).join('')+'</div>';
  if(IS_ADMIN){
-  h+=sec('ADMIN ONLY',COLORS.admin)+'<div class="grid">'+ADMIN_ONLY.map(t=>`<a class="tile" style="border-left-color:${COLORS.admin}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>opens in new tab</span></a>`).join('')+'</div>';
+  h+=sec('ADMIN ONLY',COLORS.admin,'&#x1F510;')+'<div class="grid">'+ADMIN_ONLY.map(t=>`<a class="tile" style="border-top-color:${COLORS.admin}" href="${t[1]}" target="_blank"><b>${t[0]}</b><span>${t[2]}</span></a>`).join('')+'</div>';
  }
- h+=sec('DOCUMENTS',COLORS.docs)+`<div class="grid"><div class="tile" style="border-left-color:${COLORS.docs}" onclick="docs()"><b>📄 Documents</b><span>${DOCS_RAW.reduce((n,g)=>n+g.documents.length,0)} files · browse all</span></div></div>`;
+ h+=sec('DOCUMENTS',COLORS.docs,'&#x1F4C4;')+`<div class="grid"><div class="tile" style="border-top-color:${COLORS.docs}" onclick="docs()"><b>Documents</b><span>${docCount} files · browse all</span></div></div>`;
  stage.innerHTML=h;
 
  if(hadFocus){
@@ -184,24 +288,24 @@ function home(){
   if(prevSel) q.setSelectionRange(prevSel[0],prevSel[1]);
  }
 }
-function docs(){crumb.innerHTML='<a onclick="home()">Home</a> › <b style="color:#eee">Documents</b>';
+function docs(){crumb.innerHTML='<a onclick="home()">Home</a> › <b style="color:var(--wht)">Documents</b>';
  stage.innerHTML=DOCS_RAW.map(g=>{
-  return `<div class="card" style="border-top:2px solid ${COLORS.docs}"><h2 style="border-bottom-color:${COLORS.docs}">${g.name}</h2>${g.documents.map(d=>`<a class="tile" style="border:none;padding:6px 0" href="/docs/file/${d.id}" target="_blank">📄 ${d.title}</a>`).join('')}</div>`}).join('')}
-function venue(v){crumb.innerHTML=`<a onclick="home()">Home</a> › <b style="color:#eee">${v}</b>`;
+  return `<div class="card" style="border-top:2px solid ${COLORS.docs}"><h2 style="border-bottom-color:${COLORS.docs}">${g.name}</h2>${g.documents.map(d=>`<a class="tile doc-tile" href="/docs/file/${d.id}" target="_blank"><span class="ic">&#x1F4C4;</span> ${d.title}</a>`).join('')}</div>`}).join('')}
+function venue(v){crumb.innerHTML=`<a onclick="home()">Home</a> › <b style="color:var(--wht)">${v}</b>`;
  const systems=Object.keys(db()[v]).filter(k=>k!=='_d');
- let h=`<div style="margin:7.5px 0 2.5px"><b style="font-size:23px">${v}</b><span style="color:var(--grey);font-size:15px;margin-left:10px">${db()[v]._d}</span></div>`;
+ let h=`<div class="venue-head"><b>${v}</b><span>${db()[v]._d}</span></div>`;
  h+=systems.map(s=>card(v,s,true)).join('');
  stage.innerHTML=h}
 function card(v,s,short){const d=db()[v][s];
- return `<div class="card"><h2>${short?s:v+' — '+s}</h2><table>${d.rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>`+
- d.warns.map(w=>`<div class="warn">⚠ ${w}</div>`).join('')+
+ return `<div class="card"><h2>${short?s:v+' — '+s}</h2><div class="tblwrap"><table>${d.rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table></div>`+
+ d.warns.map(w=>`<div class="warn">&#x26A0; ${w}</div>`).join('')+
  d.notes.map(n=>`<div class="note">${n}</div>`).join('')+`</div>`}
 function doSearch(t){t=t.trim().toLowerCase();if(t.length<2){home();return}
  let out='';const D=db();
  for(const v in D)for(const s in D[v]){if(s==='_d')continue;const d=D[v][s];
   const blob=(s+' '+d.rows.flat().join(' ')+' '+d.warns.join(' ')+' '+d.notes.join(' ')).toLowerCase();
   if(t.split(/\s+/).every(x=>blob.includes(x)))out+=card(v,s)}
- stage.querySelectorAll('.card,.grid,.sec').forEach(e=>e.remove());
+ stage.querySelectorAll('.card,.grid,.sec,#pulse').forEach(e=>e.remove());
  stage.insertAdjacentHTML('beforeend',out||'<div class="card">no matches</div>')}
 home();
 </script></body></html>

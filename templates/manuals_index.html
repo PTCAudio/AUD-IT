@@ -1,0 +1,48 @@
+{% extends "shell.html" %}
+{% block title %}Manuals{% endblock %}
+
+{% block head %}
+<style>
+#man-main{padding:20px 24px;max-width:960px;margin:0 auto}
+.view-title{font-family:var(--disp);font-size:28px;letter-spacing:.06em;color:var(--wht);margin-bottom:4px}
+.view-sub{font-family:var(--mono);font-size:10px;color:var(--mut);letter-spacing:.05em;margin-bottom:22px}
+.man-section-label{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--red);margin:24px 0 10px}
+.man-section-label:first-of-type{margin-top:0}
+.man-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.man-tile{display:block;background:var(--pan);border:1px solid var(--b1);border-top:3px solid var(--red);border-radius:4px;padding:14px 16px;text-decoration:none;transition:all .15s}
+.man-tile:hover{border-color:var(--b2);background:var(--sur);transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.man-tile b{display:block;font-family:var(--disp);font-size:17px;letter-spacing:.02em;color:var(--wht);line-height:1.25}
+.man-tile .dev{display:block;margin-top:3px;font-family:var(--mono);font-size:10.5px;color:var(--mut)}
+.man-tile .meta{display:block;margin-top:6px;font-family:var(--mono);font-size:9.5px;color:var(--red);letter-spacing:.03em}
+.man-empty{color:var(--mut);font-family:var(--mono);font-size:11px;padding:16px 0}
+.kb-jump{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--pan);border:1px solid var(--b1);border-radius:3px;padding:10px 14px;margin-top:22px;font-family:var(--mono);font-size:11px;color:var(--mut)}
+.kb-jump a{color:var(--red);text-decoration:none}
+.kb-jump a:hover{color:var(--rlt)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="man-main">
+  <div class="view-title">Manuals</div>
+  <div class="view-sub">Vendor documentation — click a manual for its table of contents, click any entry to jump straight to that page</div>
+
+  {% if not sections %}
+  <div class="man-empty">No manuals uploaded yet. Upload PDFs from /admin/docs with "Manual" checked, or run scripts/import_manuals.py.</div>
+  {% else %}
+    {% for s in sections %}
+      <div class="man-section-label">{{ s.name }}</div>
+      <div class="man-grid">
+        {% for d in s.documents %}
+        <a class="man-tile" href="{{ url_for('manuals_toc', doc_id=d.id) }}">
+          <b>{{ d.device or d.title }}</b>
+          {% if d.device %}<span class="dev">{{ d.title }}</span>{% endif %}
+          <span class="meta">{{ d.page_count }} pages{% if d.toc_json and d.toc_json != '[]' %} &middot; TOC{% endif %}</span>
+        </a>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="kb-jump"><span>Looking for internal notes, network write-ups, or procedures instead?</span><a href="{{ url_for('kb_index') }}">Knowledge Base notes &rarr;</a></div>
+</div>
+{% endblock %}

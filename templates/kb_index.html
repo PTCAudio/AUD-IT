@@ -13,6 +13,10 @@
 .kb-row-title{color:var(--txt);font-size:13px}
 .kb-row-updated{font-family:var(--mono);font-size:9px;color:var(--mut)}
 .kb-empty{color:var(--mut);font-family:var(--mono);font-size:11px;padding:20px 0}
+.kb-manuals-promo{display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--pan);border:1px solid var(--b1);border-top:3px solid var(--red);border-radius:4px;padding:16px 18px;margin-bottom:26px}
+.kb-manuals-promo b{font-family:var(--disp);font-size:19px;letter-spacing:.03em;color:var(--wht);display:block}
+.kb-manuals-promo span{font-family:var(--mono);font-size:10.5px;color:var(--mut);display:block;margin-top:3px}
+.kb-manuals-promo a.btnp{flex-shrink:0}
 </style>
 {% endblock %}
 
@@ -21,6 +25,12 @@
   <div class="view-title">Knowledge Base</div>
   <div class="view-sub">AUD-IT — compiled Wiki, synced from Raw/</div>
 
+  <div class="kb-manuals-promo">
+    <div><b>Manuals</b><span>Vendor PDFs with clickable, page-jump tables of contents</span></div>
+    <a class="btn btnp" href="{{ url_for('manuals_index') }}">Browse Manuals &rarr;</a>
+  </div>
+
+  <div class="kb-section-label" style="margin-top:0">Notes</div>
   {% if not pages %}
   <div class="kb-empty">No pages synced yet. Run sync_wiki_to_db.py to backfill from the local Wiki.</div>
   {% else %}
