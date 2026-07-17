@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from flask_wtf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+import bleach
 import models
 import auth
 import email_utils
@@ -78,6 +79,27 @@ def _set_security_headers(response):
 MAX_TEXT = 500
 MAX_NOTES = 5000
 MAX_BODY = 5000
+
+# KB pages render markdown -> HTML and display it with |safe (see kb_page()
+# below), so the HTML output has to be sanitized first — Python-Markdown
+# passes raw HTML straight through untouched, which would otherwise let a
+# <script> tag or onclick= handler in a KB page's body execute for anyone
+# who views it. bleach strips anything not on this allowlist (tags AND
+# attributes) — normal text, quotes, ampersands, etc. are untouched since
+# those aren't HTML markup; only actual tags/attributes get filtered.
+KB_ALLOWED_TAGS = [
+    'p', 'br', 'hr', 'h1', 'h2', 'h3', 'h4',
+    'strong', 'em', 'b', 'i', 'u', 'del', 'code', 'pre',
+    'ul', 'ol', 'li', 'blockquote',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td',
+    'a',
+]
+KB_ALLOWED_ATTRS = {
+    'a': ['href', 'title'],
+    'th': ['align'],
+    'td': ['align'],
+}
+KB_ALLOWED_PROTOCOLS = ['http', 'https', 'mailto']
 
 # ══════════════════════════════════
 # INPUT VALIDATION
@@ -903,7 +925,9 @@ def kb_page(slug):
     if not page:
         return render_template('token_invalid.html', reason='kb page not found'), 404
     import markdown as md_lib
-    body_html = md_lib.markdown(page['body_markdown'], extensions=['tables', 'fenced_code'])
+    raw_html = md_lib.markdown(page['body_markdown'], extensions=['tables', 'fenced_code'])
+    body_html = bleach.clean(raw_html, tags=KB_ALLOWED_TAGS, attributes=KB_ALLOWED_ATTRS,
+                              protocols=KB_ALLOWED_PROTOCOLS, strip=True)
     return render_template('kb_page.html', active='kb', page=page, body_html=body_html)
 
 @app.route('/manuals')
@@ -925,7 +949,7 @@ def api_kb_list():
     return jsonify(models.list_kb_pages())
 
 @app.route('/api/kb/pages', methods=['POST'])
-@require_api_key_or_session
+@require_api_key_or_admin
 def api_kb_upsert():
     data = request.get_json() or {}
     page = validate_kb_page(data)
@@ -946,7 +970,7 @@ def api_kb_get(slug):
     return jsonify(page)
 
 @app.route('/api/kb/pages/<slug>', methods=['DELETE'])
-@require_api_key_or_session
+@require_api_key_or_admin
 def api_kb_delete(slug):
     if not models.get_kb_page(slug):
         return jsonify({'error': 'Page not found'}), 404
