@@ -81,6 +81,13 @@ async def list_shows():
 
 
 @mcp.tool()
+async def list_documents():
+    """List document sections and the documents/manuals within each — title,
+    filename, size, upload date, and whether it's a manual (has a TOC)."""
+    return await request("GET", "/api/docs/sections")
+
+
+@mcp.tool()
 async def create_show(
     name: str,
     space: str = "general",
