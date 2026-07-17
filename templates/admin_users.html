@@ -59,6 +59,7 @@ table.usr-table td{padding:10px;border-bottom:1px solid #222;vertical-align:midd
           <td class="usr-actions">
             <button onclick="toggleRole({{ u.id }}, '{{ u.role }}')">{{ 'Make user' if u.role=='admin' else 'Make admin' }}</button>
             <button onclick="toggleActive({{ u.id }}, {{ u.is_active|int }})">{{ 'Deactivate' if u.is_active else 'Reactivate' }}</button>
+            {% if not u.is_active %}<button onclick="deleteUser({{ u.id }}, '{{ u.name }}')">Delete</button>{% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -96,6 +97,11 @@ async function toggleRole(id,currentRole){
 async function toggleActive(id,isActive){
   var res=await api('PUT','/api/users/'+id+'/active',{active: isActive?false:true});
   if(res){toast('Updated');setTimeout(function(){location.reload()},600);}
+}
+async function deleteUser(id,name){
+  if(!confirm('Permanently delete '+name+'\'s account? This cannot be undone.'))return;
+  var res=await api('DELETE','/api/users/'+id);
+  if(res){toast(name+' deleted');setTimeout(function(){location.reload()},600);}
 }
 async function cancelInvite(token){
   if(!confirm('Cancel this invite? The link will stop working.'))return;

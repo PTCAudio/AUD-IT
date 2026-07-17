@@ -795,6 +795,21 @@ def api_set_user_active(user_id):
     models.log_action(admin['id'], admin['name'], 'active' if active else 'deactivated', target=str(user_id))
     return jsonify({'status': 'updated'})
 
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@admin_required
+def api_delete_user(user_id):
+    admin = auth.current_user()
+    if user_id == admin['id']:
+        return jsonify({'error': "You can't delete your own account"}), 400
+    target = models.get_user_by_id(user_id)
+    if not target:
+        return jsonify({'error': 'User not found'}), 404
+    if target['is_active']:
+        return jsonify({'error': 'Deactivate the account before deleting it'}), 400
+    models.delete_user(user_id)
+    models.log_action(admin['id'], admin['name'], 'user_deleted', target=target['email'])
+    return jsonify({'status': 'deleted'})
+
 @app.route('/api/audit-log', methods=['GET'])
 @admin_required
 def api_audit_log():

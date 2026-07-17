@@ -1982,6 +1982,18 @@ def set_user_active(user_id, active):
     db.close()
 
 
+def delete_user(user_id):
+    """Permanently delete a user account. Cleans up any reset tokens tied
+    to them so a stale token can't later reference a nonexistent user.
+    Audit log entries are untouched — actor_name is stored denormalized
+    there, so history stays readable after the account is gone."""
+    db = get_db()
+    db.execute('DELETE FROM password_reset_tokens WHERE user_id=?', (user_id,))
+    db.execute('DELETE FROM users WHERE id=?', (user_id,))
+    db.commit()
+    db.close()
+
+
 def touch_last_login(user_id):
     db = get_db()
     db.execute("UPDATE users SET last_login_at=datetime('now') WHERE id=?", (user_id,))
