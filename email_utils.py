@@ -6,6 +6,7 @@ Postmark + DNS (SPF/DKIM/DMARC) are set up.
 """
 import os
 import requests
+import auth
 
 POSTMARK_API_KEY = os.environ.get('POSTMARK_API_KEY', '')
 EMAIL_FROM = os.environ.get('EMAIL_FROM', 'noreply@ptc-audio.com')
@@ -53,11 +54,35 @@ def send_invite_email(to_email, name, token):
       <h2 style="color:#c8102e;">AUD-IT Tasks</h2>
       <p>Hi {name},</p>
       <p>You've been invited to the Phoenix Theatre Company Audio Department's
-      task manager. Click below to set your password and get started.</p>
+      task manager. It's where the department tracks tasks, shows, the daily
+      journal/hours log, and the department knowledge base — click below to
+      set your password and get started.</p>
       <p><a href="{link}" style="background:#c8102e;color:#fff;padding:12px 20px;
       text-decoration:none;border-radius:4px;display:inline-block;">Accept Invite</a></p>
       <p style="color:#888;font-size:13px;">This link expires in 72 hours.
       If you weren't expecting this, you can ignore this email.</p>
+      <p style="color:#888;font-size:13px;">Your password needs to be at least
+      {auth.PASSWORD_MIN_LEN} characters, with at least one uppercase letter,
+      one lowercase letter, one number, and one special character
+      (e.g. ! @ # $ %).</p>
+    </div>
+    '''
+    return send_email(to_email, subject, html)
+
+
+def send_task_assigned_email(to_email, name, task_text, space='', assigned_by_name=''):
+    link = f'{APP_BASE_URL}/home'
+    subject = 'New task assigned — AUD-IT'
+    assigned_by = f' by {assigned_by_name}' if assigned_by_name else ''
+    html = f'''
+    <div style="font-family:Georgia,serif;max-width:480px;margin:0 auto;">
+      <h2 style="color:#c8102e;">AUD-IT Tasks</h2>
+      <p>Hi {name},</p>
+      <p>You've been assigned a task{assigned_by}:</p>
+      <p style="background:#f5f5f5;border-left:3px solid #c8102e;padding:10px 14px;
+      font-size:15px;">{task_text}</p>
+      <p><a href="{link}" style="background:#c8102e;color:#fff;padding:12px 20px;
+      text-decoration:none;border-radius:4px;display:inline-block;">View in AUD-IT</a></p>
     </div>
     '''
     return send_email(to_email, subject, html)

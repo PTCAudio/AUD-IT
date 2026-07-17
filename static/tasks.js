@@ -45,7 +45,9 @@ async function loadAll(){
     return {id:r.id, text:r.text, space:r.space, show:r.show_id||'',
             pri:r.priority, urg:r.urgency, date:r.due_date||'',
             notes:r.notes||'', done:!!r.done, created:r.created_at,
-            updated:r.updated_at||r.created_at, sort_order:r.sort_order};
+            updated:r.updated_at||r.created_at, sort_order:r.sort_order,
+            created_by_name:r.created_by_name||'',
+            assignee_id:r.assignee_id||null, assignee_name:r.assignee_name||''};
   });
   shows = (s||[]).map(function(r){
     return {id:r.id, name:r.name, space:r.space,
@@ -56,7 +58,7 @@ async function loadAll(){
             hours:r.hours||{}, totalHours:r.total_hours||0, author:r.author||'Matthew', created:r.created_at};
   });
   hoursLog = h||[];
-  team = (tm||[]).map(function(r){return {id:r.id, name:r.name, color:r.color||'#888078', archived:!!r.archived}});
+  team = (tm||[]).map(function(r){return {id:r.id, name:r.name, color:r.color||'#888078', archived:!!r.archived, email:r.email||''}});
 
   // Seed lastSeen for any views we haven't visited yet (first time setup)
   var now=new Date().toISOString();
@@ -161,6 +163,13 @@ function buildAddSelects(){
   updateShowSelect();
   gi('newUrg').onchange=function(){gi('newDate').style.display=this.value==='date'?'block':'none';if(this.value==='date'&&!gi('newDate').value)gi('newDate').value=new Date().toLocaleDateString('en-CA');};
   gi('newSpace').onchange=function(){updateShowSelect()};
+  if(gi('newAssignee')){
+    var prev=gi('newAssignee').value;
+    var ah='<option value="">Unassigned</option>';
+    getActiveTeam().forEach(function(m){ah+='<option value="'+m.id+'">'+esc(m.name)+'</option>';});
+    gi('newAssignee').innerHTML=ah;
+    if(prev) gi('newAssignee').value=prev;
+  }
 }
 
 function updateShowSelect(){
@@ -174,12 +183,15 @@ function updateShowSelect(){
 /* ── ADD TASK ── */
 async function addTask(){
   var text=gi('newTask').value.trim();if(!text)return;
+  var assigneeId=gi('newAssignee')&&gi('newAssignee').value?parseInt(gi('newAssignee').value,10):null;
+  var assignee=assigneeId?team.find(function(m){return m.id===assigneeId}):null;
   var task={id:uid(),text:text,space:gi('newSpace').value,show:gi('newShow').value||'',
     pri:gi('newPri').value,urg:gi('newUrg').value,
-    date:gi('newUrg').value==='date'?gi('newDate').value:'',notes:'',done:false,sort_order:tasks.length};
+    date:gi('newUrg').value==='date'?gi('newDate').value:'',notes:'',done:false,sort_order:tasks.length,
+    assignee_id:assigneeId,assignee_name:assignee?assignee.name:''};
   await api('POST','/api/tasks',task);
   tasks.push(task);
-  gi('newTask').value='';gi('newPri').value='none';gi('newUrg').value='soon';gi('newDate').style.display='none';
+  gi('newTask').value='';gi('newPri').value='none';gi('newUrg').value='soon';gi('newDate').style.display='none';if(gi('newAssignee'))gi('newAssignee').value='';
   if(currentView.startsWith('show:')){var sh=shows.find(function(s){return s.id===currentView.split(':')[1]});if(sh){gi('newSpace').value=sh.space;updateShowSelect();gi('newShow').value=sh.id;}}else if(currentView.startsWith('space:'))gi('newSpace').value=currentView.split(':')[1];
   buildSidebar();renderTasks();gi('newTask').focus();toast('Task added');
 }
@@ -252,6 +264,31 @@ function showCtx(e,type,taskId){
   setTimeout(function(){document.addEventListener('click',closeCtx,{once:true})},10);
 }
 function closeCtx(){var el=gi('ctx-active');if(el)el.remove();}
+
+/* ── ASSIGNEE CTX ── */
+function showAssigneeCtx(e,taskId){
+  e.stopPropagation();closeCtx();
+  var menu=document.createElement('div');menu.className='ctx-menu';menu.id='ctx-active';
+  var opts=[{id:null,label:'Unassigned',color:'#888'}].concat(getActiveTeam().map(function(m){return {id:m.id,label:m.name,color:m.color};}));
+  opts.forEach(function(o){
+    var opt=document.createElement('div');opt.className='ctx-option';
+    opt.innerHTML='<span class="dot" style="background:'+o.color+'"></span>'+esc(o.label);
+    opt.onclick=function(ev){ev.stopPropagation();setAssignee(taskId,o.id);closeCtx();};
+    menu.appendChild(opt);
+  });
+  document.body.appendChild(menu);
+  var rect=e.target.getBoundingClientRect();
+  menu.style.top=Math.min(rect.bottom+4,window.innerHeight-menu.offsetHeight-8)+'px';
+  menu.style.left=Math.min(rect.left,window.innerWidth-menu.offsetWidth-8)+'px';
+  setTimeout(function(){document.addEventListener('click',closeCtx,{once:true})},10);
+}
+async function setAssignee(taskId,memberId){
+  var t=tasks.find(function(x){return x.id===taskId});if(!t)return;
+  var member=memberId?team.find(function(m){return m.id===memberId}):null;
+  t.assignee_id=member?member.id:null;t.assignee_name=member?member.name:'';
+  await api('PUT','/api/tasks/'+taskId,{assignee_id:memberId||0});
+  renderTasks();
+}
 function confirmDate(){var d=gi('modalDate').value;if(d&&dateCallback){dateCallback(d);dateCallback=null;}closeModal('dateModal');}
 
 /* ── DRAG ── */
@@ -329,6 +366,7 @@ function renderTask(t){
   h+='<span class="task-badges">';
   h+='<span class="task-urg '+urgCls+'" onclick="showCtx(event,\'urg\',\''+t.id+'\')">'+urgLabel+'</span>';
   h+='<span class="task-pri '+PRI_CLS[t.pri]+'" onclick="showCtx(event,\'pri\',\''+t.id+'\')">'+PRI_LBL[t.pri]+'</span>';
+  h+='<span class="task-assignee" onclick="showAssigneeCtx(event,\''+t.id+'\')" title="Assign to..." style="'+(t.assignee_name?'color:'+getTeamColor(t.assignee_name):'')+'">'+(t.assignee_name?esc(t.assignee_name):'Unassigned')+'</span>';
   h+='</span>';
   if(dateAdded) h+='<span class="task-date-added">'+dateAdded+'</span>';
   if(t.created_by_name) h+='<span class="task-date-added" title="Created by">by '+esc(t.created_by_name)+'</span>';
@@ -667,6 +705,7 @@ function renderTeamList(){
   active.forEach(function(m){
     h+='<div class="show-manage-item"><div class="sb-dot" style="background:'+m.color+'"></div>';
     h+='<span>'+esc(m.name)+'</span>';
+    h+='<input type="email" value="'+esc(m.email||'')+'" placeholder="email" style="flex:1;min-width:0;font-size:10px;padding:4px 6px" onblur="updateTeamEmail('+m.id+',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()">';
     h+='<input type="color" value="'+m.color+'" style="width:24px;height:24px;border:none;cursor:pointer;background:none" onchange="updateTeamColor('+m.id+',this.value)">';
     h+='<button onclick="archiveTeamMember('+m.id+')" title="Archive">&#x2193;</button>';
     h+='<button onclick="deleteTeamMember('+m.id+',\''+esc(m.name)+'\')" title="Delete">&#x2715;</button>';
@@ -689,10 +728,11 @@ function renderTeamList(){
 async function addTeamMember(){
   var name=gi('newTeamName').value.trim();
   if(!name){toast('Enter a name');return;}
+  var email=gi('newTeamEmail')?gi('newTeamEmail').value.trim():'';
   var color=COLORS[team.length%COLORS.length];
-  var res=await api('POST','/api/team',{name:name,color:color});
+  var res=await api('POST','/api/team',{name:name,color:color,email:email});
   if(res&&res.error){toast(res.error);return;}
-  gi('newTeamName').value='';
+  gi('newTeamName').value='';if(gi('newTeamEmail'))gi('newTeamEmail').value='';
   await loadAll();renderTeamList();toast(name+' added');
 }
 
@@ -700,6 +740,14 @@ async function updateTeamColor(id,color){
   await api('PUT','/api/team/'+id,{color:color});
   var m=team.find(function(t){return t.id===id});if(m)m.color=color;
   renderTeamList();
+}
+
+async function updateTeamEmail(id,email){
+  email=email.trim();
+  var m=team.find(function(t){return t.id===id});if(m&&m.email===email)return;
+  await api('PUT','/api/team/'+id,{email:email});
+  if(m)m.email=email;
+  toast('Email updated');
 }
 
 async function archiveTeamMember(id){

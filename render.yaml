@@ -9,6 +9,8 @@ services:
         generateValue: true
       - key: API_KEY
         sync: false
+      - key: API_KEY_SECONDARY
+        sync: false
       - key: POSTMARK_API_KEY
         sync: false
       - key: EMAIL_FROM

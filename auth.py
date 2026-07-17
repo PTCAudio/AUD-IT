@@ -30,6 +30,27 @@ def verify_password(password, password_hash):
     return check_password_hash(password_hash, password)
 
 
+PASSWORD_MIN_LEN = 10
+PASSWORD_SPECIAL_CHARS = '!@#$%^&*()_+-=[]{}|;:,.<>?/~`'
+
+
+def validate_password(password):
+    """Traditional complexity policy: minimum length plus at least one
+    uppercase letter, one lowercase letter, one digit, and one special
+    character. Returns an error string, or None if the password passes."""
+    if len(password) < PASSWORD_MIN_LEN:
+        return f'Password must be at least {PASSWORD_MIN_LEN} characters.'
+    if not any(c.isupper() for c in password):
+        return 'Password must include at least one uppercase letter.'
+    if not any(c.islower() for c in password):
+        return 'Password must include at least one lowercase letter.'
+    if not any(c.isdigit() for c in password):
+        return 'Password must include at least one number.'
+    if not any(c in PASSWORD_SPECIAL_CHARS for c in password):
+        return 'Password must include at least one special character (e.g. ! @ # $ %).'
+    return None
+
+
 # ══════════════════════════════════
 # TOKENS (random, DB-backed, revocable)
 # ══════════════════════════════════
@@ -135,15 +156,33 @@ def admin_required(f):
     return decorated
 
 
+def _valid_api_key(key):
+    """Checks an incoming X-API-Key against API_KEY and, if set,
+    API_KEY_SECONDARY — supports zero-downtime key rotation.
+
+    Rotation flow: generate a new key, set it as API_KEY_SECONDARY (leave
+    the current API_KEY as-is) and redeploy. Both keys work while you
+    update every client (e.g. the MCP server's .env) at your own pace.
+    Once everything's confirmed on the new key, promote it to API_KEY and
+    remove API_KEY_SECONDARY. There's never a window where a stale client
+    is locked out mid-rotation."""
+    import os
+    if not key:
+        return False
+    api_key = os.environ.get('API_KEY', '')
+    secondary_key = os.environ.get('API_KEY_SECONDARY', '')
+    if api_key and key == api_key:
+        return True
+    if secondary_key and key == secondary_key:
+        return True
+    return False
+
+
 def require_api_key_or_session(f):
     """For machine-to-machine API access (e.g. MCP server) OR a logged-in browser session."""
-    import os
-
     @wraps(f)
     def decorated(*args, **kwargs):
-        key = request.headers.get('X-API-Key')
-        api_key = os.environ.get('API_KEY', '')
-        if key and api_key and key == api_key:
+        if _valid_api_key(request.headers.get('X-API-Key')):
             return f(*args, **kwargs)
         if session.get('user_id'):
             return f(*args, **kwargs)
@@ -156,13 +195,9 @@ def require_api_key_or_admin(f):
     admin — for routes (like inventory writes) where regular logged-in
     users should stay read-only in the UI, while a machine credential
     (e.g. the MCP server) is trusted at admin-equivalent level."""
-    import os
-
     @wraps(f)
     def decorated(*args, **kwargs):
-        key = request.headers.get('X-API-Key')
-        api_key = os.environ.get('API_KEY', '')
-        if key and api_key and key == api_key:
+        if _valid_api_key(request.headers.get('X-API-Key')):
             return f(*args, **kwargs)
         # Live DB role check, not session['role'] — see admin_required above
         # for why the cached session snapshot can go stale.
