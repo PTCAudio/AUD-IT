@@ -37,7 +37,15 @@ def send_email(to_email, subject, html_body, text_body=None):
         'Content-Type': 'application/json',
         'X-Postmark-Server-Token': POSTMARK_API_KEY,
     }
-    resp = requests.post(POSTMARK_URL, json=payload, headers=headers, timeout=10)
+    try:
+        resp = requests.post(POSTMARK_URL, json=payload, headers=headers, timeout=10)
+    except requests.RequestException as e:
+        print(f'[EMAIL ERROR] Postmark request failed for {to_email}: {e}')
+        return False
+    if not resp.ok:
+        print(f'[EMAIL ERROR] Postmark rejected send to {to_email} — status {resp.status_code}: {resp.text}')
+    else:
+        print(f'[EMAIL SENT] To: {to_email} — Subject: {subject}')
     return resp.ok
 
 
