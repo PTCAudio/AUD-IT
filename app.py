@@ -56,6 +56,7 @@ def validate_task(data):
         'notes': sanitize(data.get('notes', ''), MAX_NOTES),
         'done': bool(data.get('done')),
         'sort_order': int(data.get('sort_order', 0)) if str(data.get('sort_order', 0)).isdigit() else 0,
+        'assignee_id': int(data['assignee_id']) if str(data.get('assignee_id', '')).isdigit() else None,
     }
 
 def validate_show(data):
@@ -126,8 +127,9 @@ def accept_invite(token):
     if request.method == 'POST':
         password = request.form.get('password', '')
         confirm = request.form.get('confirm', '')
-        if len(password) < 8:
-            error = 'Password must be at least 8 characters.'
+        pw_error = auth.validate_password(password)
+        if pw_error:
+            error = pw_error
         elif password != confirm:
             error = 'Passwords do not match.'
         else:
@@ -168,8 +170,9 @@ def reset_password(token):
     if request.method == 'POST':
         password = request.form.get('password', '')
         confirm = request.form.get('confirm', '')
-        if len(password) < 8:
-            error = 'Password must be at least 8 characters.'
+        pw_error = auth.validate_password(password)
+        if pw_error:
+            error = pw_error
         elif password != confirm:
             error = 'Passwords do not match.'
         else:
@@ -501,7 +504,13 @@ def api_create_task():
     user = auth.current_user()
     created_by = user['id'] if user else None
     created_by_name = user['name'] if user else ''
-    task_id = models.create_task(data, created_by=created_by, created_by_name=created_by_name)
+    assignee = models.get_team_member(data.get('assignee_id')) if data.get('assignee_id') else None
+    task_id = models.create_task(data, created_by=created_by, created_by_name=created_by_name,
+                                  assignee_id=assignee['id'] if assignee else None,
+                                  assignee_name=assignee['name'] if assignee else '')
+    if assignee and assignee.get('email'):
+        email_utils.send_task_assigned_email(assignee['email'], assignee['name'], data['text'],
+                                              space=data.get('space', ''), assigned_by_name=created_by_name)
     return jsonify({'status': 'created', 'id': task_id}), 201
 
 @app.route('/api/tasks/cleanup-blank-ids', methods=['POST'])
@@ -547,7 +556,24 @@ def api_update_task(task_id):
     if 'notes' in data: clean['notes'] = sanitize(data['notes'], MAX_NOTES)
     if 'done' in data: clean['done'] = data['done']
     if 'sort_order' in data: clean['sort_order'] = data['sort_order']
+    new_assignee = None
+    assignee_changed = False
+    if 'assignee_id' in data:
+        raw = data['assignee_id']
+        existing = models.get_task(task_id)
+        prev_assignee_id = existing['assignee_id'] if existing else None
+        member = models.get_team_member(int(raw)) if str(raw or '').isdigit() else None
+        clean['assignee_id'] = member['id'] if member else None
+        clean['assignee_name'] = member['name'] if member else ''
+        if member and member['id'] != prev_assignee_id:
+            new_assignee = member
+            assignee_changed = True
     models.update_task(task_id, clean)
+    if assignee_changed and new_assignee and new_assignee.get('email'):
+        task_text = clean.get('text') or (models.get_task(task_id) or {}).get('text', '')
+        user = auth.current_user()
+        email_utils.send_task_assigned_email(new_assignee['email'], new_assignee['name'], task_text,
+                                              assigned_by_name=user['name'] if user else '')
     return jsonify({'status': 'updated'})
 
 @app.route('/api/tasks/<task_id>', methods=['DELETE'])
@@ -616,9 +642,10 @@ def api_create_team():
     data = request.get_json()
     name = sanitize(data.get('name', ''), 50)
     color = sanitize(data.get('color', '#888078'), 10)
+    email = sanitize(data.get('email', ''), 120)
     if not name:
         return jsonify({'error': 'Name required'}), 400
-    if models.create_team_member(name, color):
+    if models.create_team_member(name, color, email):
         return jsonify({'status': 'created'}), 201
     return jsonify({'error': 'Name already exists'}), 409
 
@@ -630,6 +657,7 @@ def api_update_team(member_id):
     if 'name' in data: clean['name'] = sanitize(data['name'], 50)
     if 'color' in data: clean['color'] = sanitize(data['color'], 10)
     if 'archived' in data: clean['archived'] = int(bool(data['archived']))
+    if 'email' in data: clean['email'] = sanitize(data['email'], 120)
     models.update_team_member(member_id, clean)
     return jsonify({'status': 'updated'})
 

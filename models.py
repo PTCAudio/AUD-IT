@@ -335,6 +335,24 @@ def init_db():
     except:
         pass
 
+    try:
+        db.execute("ALTER TABLE tasks ADD COLUMN assignee_id INTEGER")
+        db.commit()
+    except:
+        pass
+
+    try:
+        db.execute("ALTER TABLE tasks ADD COLUMN assignee_name TEXT DEFAULT ''")
+        db.commit()
+    except:
+        pass
+
+    try:
+        db.execute("ALTER TABLE team_members ADD COLUMN email TEXT DEFAULT ''")
+        db.commit()
+    except:
+        pass
+
     # Manuals: same documents table, flagged rather than a new table, so
     # they share storage/serving/admin plumbing with the existing riders &
     # system-guide PDFs. toc_json holds the flattened bookmark outline
@@ -1393,6 +1411,13 @@ def get_all_tasks():
     return [dict(r) for r in rows]
 
 
+def get_task(task_id):
+    db = get_db()
+    row = db.execute('SELECT * FROM tasks WHERE id=?', (task_id,)).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+
 def repair_blank_task_ids():
     """One-time data repair — see api_cleanup_blank_task_ids in app.py for
     why this exists. sqlite has no rowid on the tasks table's `id` (it's a
@@ -1407,16 +1432,16 @@ def repair_blank_task_ids():
     return len(rows)
 
 
-def create_task(data, created_by=None, created_by_name=''):
+def create_task(data, created_by=None, created_by_name='', assignee_id=None, assignee_name=''):
     db = get_db()
     task_id = data.get('id') or str(uuid.uuid4())[:12]
-    db.execute('''INSERT INTO tasks (id, text, space, show_id, priority, urgency, due_date, notes, done, sort_order, created_by, created_by_name)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
+    db.execute('''INSERT INTO tasks (id, text, space, show_id, priority, urgency, due_date, notes, done, sort_order, created_by, created_by_name, assignee_id, assignee_name)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (task_id, data.get('text', ''), data.get('space', 'general'),
          data.get('show', ''), data.get('pri', 'none'),
          data.get('urg', 'soon'), data.get('date', ''),
          data.get('notes', ''), 0, data.get('sort_order', 0),
-         created_by, created_by_name))
+         created_by, created_by_name, assignee_id, assignee_name))
     db.commit()
     db.close()
     return task_id
@@ -1448,7 +1473,8 @@ def update_task(task_id, data):
     field_map = {
         'text': 'text', 'space': 'space', 'show': 'show_id',
         'pri': 'priority', 'urg': 'urgency', 'date': 'due_date',
-        'notes': 'notes', 'done': 'done', 'sort_order': 'sort_order'
+        'notes': 'notes', 'done': 'done', 'sort_order': 'sort_order',
+        'assignee_id': 'assignee_id', 'assignee_name': 'assignee_name'
     }
     for js_key, db_key in field_map.items():
         if js_key in data:
@@ -1528,10 +1554,21 @@ def get_team():
     return [dict(r) for r in rows]
 
 
-def create_team_member(name, color='#888078'):
+def get_team_member(member_id):
+    """Look up a single team member by id. Used to resolve assignee_name
+    when a task is assigned via id (see api_create_task/api_update_task)."""
+    if not member_id:
+        return None
+    db = get_db()
+    row = db.execute('SELECT * FROM team_members WHERE id=?', (member_id,)).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+
+def create_team_member(name, color='#888078', email=''):
     db = get_db()
     try:
-        db.execute('INSERT INTO team_members (name, color) VALUES (?,?)', (name, color))
+        db.execute('INSERT INTO team_members (name, color, email) VALUES (?,?,?)', (name, color, email))
         db.commit()
     except:
         db.close()
@@ -1544,7 +1581,7 @@ def update_team_member(member_id, data):
     db = get_db()
     fields = []
     values = []
-    for key in ['name', 'color', 'archived']:
+    for key in ['name', 'color', 'archived', 'email']:
         if key in data:
             fields.append(f'{key}=?')
             values.append(data[key])

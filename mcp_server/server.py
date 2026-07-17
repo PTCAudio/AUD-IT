@@ -170,6 +170,7 @@ async def create_task(
     urg: str = "soon",
     date: str = "",
     notes: str = "",
+    assignee_id: Optional[int] = None,
 ):
     """Create a new task.
 
@@ -177,6 +178,7 @@ async def create_task(
     urg: 'now' | 'today' | 'week' | 'soon' | 'date'
     show: id of a show from list_shows (optional, leave blank for general tasks).
     date: due date as YYYY-MM-DD, only meaningful when urg='date'.
+    assignee_id: id of a team member from list_team to assign this task to (optional).
     """
     payload = {
         "id": new_id(),
@@ -187,6 +189,7 @@ async def create_task(
         "urg": urg,
         "date": date,
         "notes": notes,
+        "assignee_id": assignee_id,
     }
     return await request("POST", "/api/tasks", json=payload)
 
@@ -203,8 +206,12 @@ async def update_task(
     notes: Optional[str] = None,
     done: Optional[bool] = None,
     sort_order: Optional[int] = None,
+    assignee_id: Optional[int] = None,
 ):
-    """Update fields on an existing task, including marking it done/not done."""
+    """Update fields on an existing task, including marking it done/not done.
+
+    assignee_id: id of a team member from list_team to assign this task to.
+    Pass 0 to unassign (clears the current assignee)."""
     payload = clean(locals())
     payload.pop("task_id", None)
     return await request("PUT", f"/api/tasks/{task_id}", json=payload)
@@ -287,9 +294,10 @@ async def list_team():
 
 
 @mcp.tool()
-async def create_team_member(name: str, color: str = "#888078"):
-    """Add a new team/crew member."""
-    return await request("POST", "/api/team", json={"name": name, "color": color})
+async def create_team_member(name: str, color: str = "#888078", email: str = ""):
+    """Add a new team/crew member. email is optional but required for that
+    person to receive task-assignment emails."""
+    return await request("POST", "/api/team", json={"name": name, "color": color, "email": email})
 
 
 @mcp.tool()
@@ -298,8 +306,9 @@ async def update_team_member(
     name: Optional[str] = None,
     color: Optional[str] = None,
     archived: Optional[bool] = None,
+    email: Optional[str] = None,
 ):
-    """Update a team member's name, color, or archived status."""
+    """Update a team member's name, color, archived status, or email."""
     payload = clean(locals())
     payload.pop("member_id", None)
     return await request("PUT", f"/api/team/{member_id}", json=payload)
