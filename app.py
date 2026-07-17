@@ -16,6 +16,9 @@ from flask import (Flask, request, jsonify, render_template,
                    abort)
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from flask_wtf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import models
 import auth
 import email_utils
@@ -27,6 +30,50 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-me')
 API_KEY = os.environ.get('API_KEY', '')
 app.config['MAX_CONTENT_LENGTH'] = 150 * 1024 * 1024  # 150MB — vendor gear manuals (RIVAGE PM OM is ~93MB) run far bigger than the riders/guides this was originally sized for
+
+# Session cookie hardening. SESSION_COOKIE_SECURE defaults on (cookie only
+# sent over HTTPS, which is all Render traffic anyway) but can be disabled
+# via env var for local `python app.py` testing over plain http://localhost.
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'true').lower() != 'false'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# CSRF protection for the browser-facing HTML forms (login, invite/reset
+# password, etc). /api/* routes are exempted below — they're same-origin
+# JSON fetch() calls (see static/tasks.js's api() helper), which the
+# browser already blocks cross-site via CORS since there's no
+# Access-Control-Allow-Origin header, and they're also reachable via a
+# machine X-API-Key credential (the MCP server) that has no session/CSRF
+# token to send. A CSRF token would break that path without adding real
+# protection on top of what CORS already provides for the JSON routes.
+csrf = CSRFProtect(app)
+
+limiter = Limiter(get_remote_address, app=app, default_limits=[])
+
+
+@app.after_request
+def _set_security_headers(response):
+    """Baseline hardening headers. CSP keeps 'unsafe-inline' for script/style
+    because the existing templates rely heavily on inline onclick= handlers
+    and inline style= attributes (tasks.html especially) — removing that
+    would break the UI outright and isn't worth the risk here. Still blocks
+    loading scripts/objects from arbitrary external origins and framing by
+    other sites, which is the bulk of the real-world value."""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "object-src 'none'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'"
+    )
+    return response
 
 MAX_TEXT = 500
 MAX_NOTES = 5000
@@ -96,6 +143,7 @@ require_api_key_or_admin = auth.require_api_key_or_admin
 FORGOT_PASSWORD_GENERIC_MSG = 'If an account exists for that email, a reset link is on its way.'
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit('10 per minute')
 def login():
     error = None
     if request.method == 'POST':
@@ -118,6 +166,7 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/accept-invite/<token>', methods=['GET', 'POST'])
+@limiter.limit('10 per minute')
 def accept_invite(token):
     invite = auth.validate_invite(token)
     if not invite:
@@ -147,6 +196,7 @@ def accept_invite(token):
     return render_template('accept_invite.html', invite=invite, error=error)
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
+@limiter.limit('5 per minute')
 def forgot_password():
     message = None
     if request.method == 'POST':
@@ -161,6 +211,7 @@ def forgot_password():
     return render_template('forgot_password.html', message=message)
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
+@limiter.limit('10 per minute')
 def reset_password(token):
     reset = auth.validate_reset_token(token)
     if not reset:
@@ -1135,6 +1186,13 @@ def bootstrap_admin():
     if email and password:
         models.create_user(email, name, auth.hash_password(password), role='admin')
         print(f'[bootstrap] Created first admin account: {email}')
+
+# Exempt every /api/* route from CSRF token checks — see the comment by
+# CSRFProtect(app) above for why. Applied here, after every @app.route has
+# registered, rather than one-by-one on ~90 route functions.
+for _rule in app.url_map.iter_rules():
+    if _rule.rule.startswith('/api/'):
+        csrf.exempt(app.view_functions[_rule.endpoint])
 
 with app.app_context():
     models.init_db()

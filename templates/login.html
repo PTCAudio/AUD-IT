@@ -30,6 +30,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Lora',Georgia,serif;min-
   <div class="login-error">{{ error }}</div>
   {% endif %}
   <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="email" name="email" class="login-input" placeholder="Email" autofocus autocomplete="username">
     <input type="password" name="password" class="login-input" placeholder="Password" autocomplete="current-password">
     <button type="submit" class="login-btn">Enter</button>
