@@ -244,6 +244,15 @@ tr:hover .r-acts{opacity:1}
 .p-sel-btns{display:flex;gap:8px;margin-bottom:10px}
 .p-count{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px}
 .p-count span{color:var(--red);font-weight:500}
+.item-list{max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:3px;padding:4px}
+.item-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:3px;font-family:var(--mono);font-size:11px;color:var(--text);cursor:pointer}
+.item-row:hover{background:var(--red-bg)}
+.item-row.off{opacity:.4}
+.item-row input{accent-color:var(--red);width:13px;height:13px;cursor:pointer;flex-shrink:0}
+.item-row .ir-qty{color:var(--muted);width:26px;text-align:right;flex-shrink:0}
+.item-row .ir-mk{flex-shrink:0}
+.item-row .ir-desc{color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item-empty{font-family:var(--mono);font-size:11px;color:var(--muted);padding:10px;text-align:center}
 /* PRINT DOC */
 #pr{display:none;background:#fff;font-family:Georgia,serif;color:#111}
 #pr.on{display:block}
@@ -489,17 +498,35 @@ tr:hover .r-acts{opacity:1}
   </div>
 
   <div class="p-sect">
+    <span class="lbl">Status</span>
+    <div class="p-sel-btns">
+      <button class="btn" onclick="selAllStatuses(true)">All</button>
+      <button class="btn" onclick="selStatusOnly('available')">Available only</button>
+    </div>
+    <div class="st-checks" id="statusChecks"></div>
+  </div>
+
+  <div class="p-sect">
     <span class="lbl">Filter by make / model <span class="lbl-opt">optional</span></span>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <div class="p-fg" style="flex:1;min-width:140px;margin-top:0">
         <label>Make (e.g. Shure)</label>
-        <input type="text" id="po-make" placeholder="Leave blank for all" oninput="updatePrintCount()">
+        <input type="text" id="po-make" placeholder="Leave blank for all" oninput="refreshPrintFilters()">
       </div>
       <div class="p-fg" style="flex:1;min-width:140px;margin-top:0">
         <label>Model / keyword (e.g. SM57)</label>
-        <input type="text" id="po-model" placeholder="Leave blank for all" oninput="updatePrintCount()">
+        <input type="text" id="po-model" placeholder="Leave blank for all" oninput="refreshPrintFilters()">
       </div>
     </div>
+  </div>
+
+  <div class="p-sect">
+    <span class="lbl">Items on the list <span class="lbl-opt">uncheck to exclude</span></span>
+    <div class="p-sel-btns">
+      <button class="btn" onclick="selAllItems(true)">All</button>
+      <button class="btn" onclick="selAllItems(false)">None</button>
+    </div>
+    <div class="item-list" id="itemList"></div>
   </div>
 
   <div class="p-sect">
@@ -1583,15 +1610,18 @@ function handleJsonImport(event){
 }
 
 // ═══════════════════ PRINT SYSTEM ═══════════════════
+let poExcluded=new Set();
 function openPrint(){
   document.getElementById('po-make').value='';
   document.getElementById('po-model').value='';
   document.getElementById('po-title').value='';
   document.getElementById('po-note').value='';
+  poExcluded=new Set();
   buildScopeSelect();
   buildCatGrid();
+  buildStatusGrid();
   setLayout('clean');
-  updatePrintCount();
+  refreshPrintFilters();
   document.getElementById('printOv').classList.add('open');
 }
 function closePrint(){ document.getElementById('printOv').classList.remove('open'); }
@@ -1628,7 +1658,7 @@ function onScopeChange(){
     if(sc.type==='space'){const sp=SPACES.find(s=>s.id===sc.id); if(sp) t.value=`${sp.name} — Venue System`;}
     else if(sc.type==='show'){const sh=S.shows.find(s=>s.id===sc.id); if(sh) t.value=`${sh.name} — Equipment List`;}
   }
-  updatePrintCount();
+  refreshPrintFilters();
 }
 
 let printLayout='clean';
@@ -1645,13 +1675,64 @@ function buildCatGrid(){
   const cats=[...new Set(S.items.map(i=>i.cat).filter(Boolean))].sort();
   document.getElementById('catGrid').innerHTML=cats.map(c=>`
     <label class="cat-cb on">
-      <input type="checkbox" class="cat-inp" data-cat="${esc(c)}" checked onchange="toggleCatCb(this);updatePrintCount()">
+      <input type="checkbox" class="cat-inp" data-cat="${esc(c)}" checked onchange="toggleCatCb(this);refreshPrintFilters()">
       ${esc(c)}
     </label>`).join('');
 }
 function toggleCatCb(el){ el.closest('.cat-cb').classList.toggle('on',el.checked); }
-function selAllCats(val){ document.querySelectorAll('.cat-inp').forEach(cb=>{cb.checked=val;toggleCatCb(cb);}); updatePrintCount(); }
+function selAllCats(val){ document.querySelectorAll('.cat-inp').forEach(cb=>{cb.checked=val;toggleCatCb(cb);}); refreshPrintFilters(); }
 function getSelCats(){ return [...document.querySelectorAll('.cat-inp:checked')].map(c=>c.dataset.cat); }
+
+// ── Status filter ──
+function buildStatusGrid(){
+  document.getElementById('statusChecks').innerHTML=SK.map(k=>`
+    <label class="st-ck">
+      <input type="checkbox" class="status-inp" data-st="${k}" checked onchange="refreshPrintFilters()">
+      <span class="sdot-s" style="background:var(--c-${k==='available'?'avail':k})"></span>
+      ${esc(PS_LBL[k]||k)}
+    </label>`).join('');
+}
+function getSelStatuses(){ return [...document.querySelectorAll('.status-inp:checked')].map(c=>c.dataset.st); }
+function selAllStatuses(val){ document.querySelectorAll('.status-inp').forEach(cb=>cb.checked=val); refreshPrintFilters(); }
+function selStatusOnly(st){ document.querySelectorAll('.status-inp').forEach(cb=>cb.checked=(cb.dataset.st===st)); refreshPrintFilters(); }
+
+// ── Per-item exclusion ──
+function notExcluded(it){ return !poExcluded.has(it.id); }
+function buildItemList(){
+  const scope=getScope();
+  const items=scopeItemsRaw(scope);
+  const box=document.getElementById('itemList');
+  if(!items.length){ box.innerHTML='<div class="item-empty">No items match the filters above.</div>'; return; }
+  box.innerHTML=items.map(it=>{
+    const on=notExcluded(it);
+    const qty=itemDisplayQty(it,scope);
+    return `<label class="item-row ${on?'':'off'}" data-iid="${it.id}">
+      <input type="checkbox" ${on?'checked':''} onchange="toggleItemExcl(${it.id},this.checked)">
+      <span class="ir-qty">${qty}</span>
+      <span class="ir-mk">${esc(it.make)} ${esc(it.model)}</span>
+      <span class="ir-desc">${esc(it.desc||'')}</span>
+    </label>`;
+  }).join('');
+}
+function itemDisplayQty(it,scope){
+  if(scope.type==='space') return (it.spaceQty||{})[scope.id]||0;
+  if(scope.type==='show') return (it.showQty||{})[scope.id]||0;
+  if(scope.type==='shared') return designerQty(it);
+  return it.qty||0;
+}
+function toggleItemExcl(id,checked){
+  if(checked) poExcluded.delete(id); else poExcluded.add(id);
+  const row=document.querySelector(`.item-row[data-iid="${id}"]`);
+  if(row) row.classList.toggle('off',!checked);
+  updatePrintCount();
+}
+function selAllItems(val){
+  const scope=getScope();
+  scopeItemsRaw(scope).forEach(it=>{ if(val) poExcluded.delete(it.id); else poExcluded.add(it.id); });
+  buildItemList();
+  updatePrintCount();
+}
+function refreshPrintFilters(){ buildItemList(); updatePrintCount(); }
 
 // What's free to pull: owned minus dead stock minus everything committed elsewhere.
 function designerQty(it){
@@ -1668,6 +1749,7 @@ function isVenueSpecific(it){ return SPACES.some(sp=>(it.spaceQty||{})[sp.id]>0)
 
 function passFilters(it){
   if(!getSelCats().includes(it.cat||'')) return false;
+  if(!getSelStatuses().includes(statusOf(it))) return false;
   const mk=(document.getElementById('po-make')?.value||'').trim().toLowerCase();
   const md=(document.getElementById('po-model')?.value||'').trim().toLowerCase();
   if(mk&&!(it.make||'').toLowerCase().includes(mk)) return false;
@@ -1675,21 +1757,34 @@ function passFilters(it){
   return true;
 }
 
-function scopeRows(scope){
+// Items matching scope + category + status + make/model, BEFORE the per-item
+// exclusion list is applied. Used to populate the exclude-items checklist.
+function scopeItemsRaw(scope){
   const base=S.items.filter(passFilters);
+  let items;
+  if(scope.type==='space')       items=base.filter(it=>(it.spaceQty||{})[scope.id]>0);
+  else if(scope.type==='show')   items=base.filter(it=>(it.showQty||{})[scope.id]>0);
+  else if(scope.type==='shared') items=base.filter(it=>!isVenueSpecific(it)&&designerQty(it)>0);
+  else if(scope.type==='venues') items=base.filter(isVenueSpecific);
+  else                            items=base.filter(it=>(it.qty||0)>0);
+  return items.sort((a,b)=>(`${a.make} ${a.model}`).localeCompare(`${b.make} ${b.model}`));
+}
+
+function scopeRows(scope){
+  const items=scopeItemsRaw(scope).filter(notExcluded);
   let rows;
-  if(scope.type==='space')       rows=base.filter(it=>(it.spaceQty||{})[scope.id]>0).map(it=>({it,qty:(it.spaceQty||{})[scope.id]}));
-  else if(scope.type==='show')   rows=base.filter(it=>(it.showQty||{})[scope.id]>0).map(it=>({it,qty:(it.showQty||{})[scope.id]}));
-  else if(scope.type==='shared') rows=base.filter(it=>!isVenueSpecific(it)&&designerQty(it)>0).map(it=>({it,qty:designerQty(it)}));
-  else                           rows=base.filter(it=>(it.qty||0)>0).map(it=>({it,qty:it.qty}));
-  return rows.sort((a,b)=>(`${a.it.make} ${a.it.model}`).localeCompare(`${b.it.make} ${b.it.model}`));
+  if(scope.type==='space')       rows=items.map(it=>({it,qty:(it.spaceQty||{})[scope.id]}));
+  else if(scope.type==='show')   rows=items.map(it=>({it,qty:(it.showQty||{})[scope.id]}));
+  else if(scope.type==='shared') rows=items.map(it=>({it,qty:designerQty(it)}));
+  else                           rows=items.map(it=>({it,qty:it.qty}));
+  return rows;
 }
 
 function updatePrintCount(){
   const scope=getScope();
   let n;
   if(scope.type==='venues'){
-    const base=S.items.filter(passFilters);
+    const base=S.items.filter(it=>passFilters(it)&&notExcluded(it));
     n=base.reduce((s,it)=>s+SPACES.filter(sp=>(it.spaceQty||{})[sp.id]>0).length,0);
   } else n=scopeRows(scope).length;
   document.getElementById('pCount').innerHTML=`<span>${n}</span> line${n!==1?'s':''} will print`;
@@ -1737,7 +1832,7 @@ function doPrint(){
 
   let body='', count=0;
   if(scope.type==='venues'){
-    const base=S.items.filter(passFilters);
+    const base=S.items.filter(it=>passFilters(it)&&notExcluded(it));
     SPACES.forEach(sp=>{
       const rows=base.filter(it=>(it.spaceQty||{})[sp.id]>0)
                      .map(it=>({it,qty:(it.spaceQty||{})[sp.id]}))
