@@ -1714,10 +1714,17 @@ function buildItemList(){
     </label>`;
   }).join('');
 }
+// The quantity to show for an item under the current scope. For 'all'/'venues'
+// this is normally the total owned qty — but if the Status filter has been
+// narrowed to a single status (e.g. "Available only"), show that status's
+// actual unit count instead. Otherwise "Available only" would still print the
+// full owned quantity for items that are only partially available.
 function itemDisplayQty(it,scope){
   if(scope.type==='space') return (it.spaceQty||{})[scope.id]||0;
   if(scope.type==='show') return (it.showQty||{})[scope.id]||0;
   if(scope.type==='shared') return designerQty(it);
+  const sel=getSelStatuses();
+  if(sel.length===1) return (it.units&&it.units[sel[0]])||0;
   return it.qty||0;
 }
 function toggleItemExcl(id,checked){
@@ -1734,16 +1741,13 @@ function selAllItems(val){
 }
 function refreshPrintFilters(){ buildItemList(); updatePrintCount(); }
 
-// What's free to pull: owned minus dead stock minus everything committed elsewhere.
+// What's free to pull. units.available is already computed at save time as
+// qty minus show/space allocations minus dead stock (see computeAvailableFromForm) —
+// don't re-derive it here. Re-subtracting showQty/spaceQty on top of units.inuse
+// double-counted the same allocations and could floor this at 0 even when units
+// were genuinely free (e.g. items allocated to shows still reported 0 designerQty).
 function designerQty(it){
-  const u=it.units||{};
-  if(!it.qty) return u.available||0;
-  const dead=(u.broken||0)+(u.repair||0)+(u.retired||0)+(u.unknown||0);
-  const committed=Object.values(it.showQty||{}).reduce((s,v)=>s+(v||0),0)
-                 +Object.values(it.spaceQty||{}).reduce((s,v)=>s+(v||0),0)
-                 +(u.inuse||0);
-  const free=it.qty-dead-committed;
-  return free>0?free:0;
+  return (it.units&&it.units.available)||0;
 }
 function isVenueSpecific(it){ return SPACES.some(sp=>(it.spaceQty||{})[sp.id]>0); }
 
@@ -1772,12 +1776,7 @@ function scopeItemsRaw(scope){
 
 function scopeRows(scope){
   const items=scopeItemsRaw(scope).filter(notExcluded);
-  let rows;
-  if(scope.type==='space')       rows=items.map(it=>({it,qty:(it.spaceQty||{})[scope.id]}));
-  else if(scope.type==='show')   rows=items.map(it=>({it,qty:(it.showQty||{})[scope.id]}));
-  else if(scope.type==='shared') rows=items.map(it=>({it,qty:designerQty(it)}));
-  else                           rows=items.map(it=>({it,qty:it.qty}));
-  return rows;
+  return items.map(it=>({it,qty:itemDisplayQty(it,scope)}));
 }
 
 function updatePrintCount(){
@@ -1827,7 +1826,8 @@ function defaultTitle(scope){
 function doPrint(){
   const scope=getScope();
   const clean=printLayout==='clean';
-  const qtyLbl = scope.type==='shared' ? 'Avail' : 'Qty';
+  const selSt=getSelStatuses();
+  const qtyLbl = scope.type==='shared' ? 'Avail' : (selSt.length===1 ? (PS_LBL[selSt[0]]||'Qty') : 'Qty');
   const today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
 
   let body='', count=0;
