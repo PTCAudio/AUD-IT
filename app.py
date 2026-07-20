@@ -1016,27 +1016,35 @@ def api_inventory_import():
 # spaceNotes) via models._item_to_tool_shape, so the JS needs no renaming.
 # ══════════════════════════════════
 
-def _item_payload_to_model_data(data):
+def _item_payload_to_model_data(data, partial=False):
     """Convert a request body in the tool's shape (showQty+showNotes as
     separate parallel objects, etc.) into what models.create_item/
     update_item expect (a combined show_allocations/space_allocations
-    dict)."""
-    out = {
-        'line': data.get('line', 0),
-        'qty': data.get('qty', 0),
-        'make': data.get('make', ''),
-        'model': data.get('model', ''),
-        'desc': data.get('desc', ''),
-        'cat': data.get('cat', ''),
-        'subcat': data.get('subcat', ''),
-        'cost': models._safe_float(data.get('cost')),
-        'serial': data.get('serial', ''),
-        'ip': data.get('ip', ''),
-        'loc': data.get('loc', ''),
-        'auditNotes': data.get('auditNotes', ''),
-        'units': data.get('units', {}),
-        'details': data.get('details', {}),
+    dict).
+
+    partial=True (used for PUT/update) only includes keys that were
+    actually present in the request body, each carrying the caller's
+    exact value through untouched. models.update_item() already only
+    writes keys present in the dict it's given — but this function used
+    to unconditionally fill in EVERY field with a '' / 0 / {} default
+    regardless of whether the caller sent it, which made every field
+    "present" and silently blanked out anything the caller omitted on
+    partial updates. partial=False (used for POST/create) keeps the old
+    default-filling behavior, since a newly created item needs every
+    column populated with something.
+    """
+    defaults = {
+        'line': 0, 'qty': 0, 'make': '', 'model': '', 'desc': '', 'cat': '',
+        'subcat': '', 'serial': '', 'ip': '', 'loc': '', 'auditNotes': '',
+        'units': {}, 'details': {},
     }
+    out = {}
+    for key, default in defaults.items():
+        if partial and key not in data:
+            continue
+        out[key] = data.get(key, default)
+    if not partial or 'cost' in data:
+        out['cost'] = models._safe_float(data.get('cost'))
     if 'showQty' in data or 'showNotes' in data:
         out['show_allocations'] = models._merge_qty_notes(data.get('showQty'), data.get('showNotes'))
     if 'spaceQty' in data or 'spaceNotes' in data:
@@ -1063,7 +1071,7 @@ def api_inventory_update_item(item_id):
     if not models.get_item(item_id):
         return jsonify({'error': 'Item not found'}), 404
     data = request.get_json() or {}
-    models.update_item(item_id, _item_payload_to_model_data(data))
+    models.update_item(item_id, _item_payload_to_model_data(data, partial=True))
     return jsonify(models.get_item_for_tool(item_id))
 
 @app.route('/api/inventory/items/<int:item_id>', methods=['DELETE'])
