@@ -1105,6 +1105,40 @@ def api_inventory_purge_item(item_id):
     return jsonify({'status': 'purged'})
 
 # ══════════════════════════════════
+# INVENTORY — close-show gear archive. Shows in the live Inventory tool
+# are still a client-side/localStorage concept (see templates/tools/
+# inventory.html), so show_id here is just whatever string id the client
+# is using for that show — the server doesn't need its own shows table
+# entry to archive against it. "Closing" a show snapshots every item
+# currently allocated to it into show_gear_archive (a permanent record)
+# and then clears those allocations so the qty reads as available again.
+# ══════════════════════════════════
+
+@app.route('/api/inventory/shows/<show_id>/archive-gear', methods=['POST'])
+@require_api_key_or_admin
+def api_inventory_archive_show_gear(show_id):
+    data = request.get_json() or {}
+    show_name = str(data.get('show_name', ''))[:200]
+    archived = models.archive_show_gear(show_id, show_name)
+    user = auth.current_user()
+    models.log_action(user['id'] if user else None, user['name'] if user else 'api-key',
+                       'show_gear_archived',
+                       detail=f"{show_name or show_id}: {len(archived)} item(s), "
+                              f"{sum(a['qty'] for a in archived)} unit(s) returned to available")
+    return jsonify({'status': 'archived', 'count': len(archived),
+                     'total_qty': sum(a['qty'] for a in archived), 'items': archived})
+
+@app.route('/api/inventory/shows/<show_id>/gear-archive', methods=['GET'])
+@require_api_key_or_session
+def api_inventory_show_gear_archive(show_id):
+    return jsonify(models.list_show_gear_archive(show_id))
+
+@app.route('/api/inventory/gear-archive', methods=['GET'])
+@require_api_key_or_session
+def api_inventory_gear_archive_all():
+    return jsonify(models.list_show_gear_archive())
+
+# ══════════════════════════════════
 # VENUE FACT DB (Home page STAFF/GUEST editor)
 # ══════════════════════════════════
 

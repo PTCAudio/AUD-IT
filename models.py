@@ -114,6 +114,26 @@ def init_db():
             UNIQUE(item_id, space_id)
         );
 
+        -- Permanent record of what gear was allocated to a show at the
+        -- moment it was closed out ("Close Show" in the Manage Shows
+        -- modal). Writing here happens at the same time the corresponding
+        -- inventory_item_shows rows are deleted (see archive_show_gear),
+        -- so this table is the only place that history survives — the
+        -- live allocation is intentionally gone so the qty reads as
+        -- available again.
+        CREATE TABLE IF NOT EXISTS show_gear_archive (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            show_id TEXT NOT NULL,
+            show_name TEXT NOT NULL DEFAULT '',
+            item_id INTEGER,
+            item_make TEXT DEFAULT '',
+            item_model TEXT DEFAULT '',
+            item_desc TEXT DEFAULT '',
+            qty INTEGER DEFAULT 0,
+            notes TEXT DEFAULT '',
+            archived_at TEXT DEFAULT (datetime('now'))
+        );
+
         -- ══════════════════════════════════
         -- TASKS
         -- ══════════════════════════════════
@@ -400,6 +420,7 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_inv_category ON inventory_items(category);
         CREATE INDEX IF NOT EXISTS idx_inv_item_shows_item ON inventory_item_shows(item_id);
         CREATE INDEX IF NOT EXISTS idx_inv_item_spaces_item ON inventory_item_spaces(item_id);
+        CREATE INDEX IF NOT EXISTS idx_show_gear_archive_show ON show_gear_archive(show_id);
         CREATE INDEX IF NOT EXISTS idx_doc_sections_sort ON doc_sections(sort_order);
         CREATE INDEX IF NOT EXISTS idx_documents_section ON documents(section_id);
     ''')
@@ -1307,6 +1328,59 @@ def set_item_shows(item_id, show_map):
                        (item_id, show_id, qty, notes))
     db.commit()
     db.close()
+
+
+def archive_show_gear(show_id, show_name=''):
+    """Close out a show: snapshot every item currently allocated to it
+    (make/model/desc/qty/notes) into show_gear_archive as a permanent
+    record, then delete those allocations from inventory_item_shows AND
+    credit the freed qty back onto each item's units_json.available —
+    'available' is a stored count (not derived from inventory_item_shows
+    at read time), so without this step the item would just report a lower
+    in-use count rather than actually reading as available again. Returns
+    the list of archived rows (empty list if the show had no gear
+    allocated)."""
+    db = get_db()
+    rows = db.execute('''
+        SELECT ish.item_id, ish.qty, ish.notes,
+               i.make, i.model, i.description, i.units_json
+        FROM inventory_item_shows ish
+        JOIN inventory_items i ON i.id = ish.item_id
+        WHERE ish.show_id = ?
+    ''', (show_id,)).fetchall()
+    archived = []
+    for r in rows:
+        db.execute('''INSERT INTO show_gear_archive
+            (show_id, show_name, item_id, item_make, item_model, item_desc, qty, notes)
+            VALUES (?,?,?,?,?,?,?,?)''',
+            (show_id, show_name, r['item_id'], r['make'], r['model'], r['description'], r['qty'], r['notes']))
+        archived.append({
+            'item_id': r['item_id'], 'make': r['make'], 'model': r['model'],
+            'desc': r['description'], 'qty': r['qty'], 'notes': r['notes'],
+        })
+        units = json.loads(r['units_json'] or '{}')
+        units['available'] = (units.get('available') or 0) + (r['qty'] or 0)
+        db.execute("UPDATE inventory_items SET units_json=?, updated_at=datetime('now') WHERE id=?",
+                   (json.dumps(units), r['item_id']))
+    db.execute('DELETE FROM inventory_item_shows WHERE show_id = ?', (show_id,))
+    db.commit()
+    db.close()
+    return archived
+
+
+def list_show_gear_archive(show_id=None):
+    """Return archived gear records, newest first. Filtered to one show if
+    show_id is given, otherwise the full history across all shows."""
+    db = get_db()
+    if show_id:
+        rows = db.execute(
+            'SELECT * FROM show_gear_archive WHERE show_id=? ORDER BY archived_at DESC, id DESC',
+            (show_id,)).fetchall()
+    else:
+        rows = db.execute(
+            'SELECT * FROM show_gear_archive ORDER BY archived_at DESC, id DESC').fetchall()
+    db.close()
+    return [dict(r) for r in rows]
 
 
 def get_item_spaces(item_id):

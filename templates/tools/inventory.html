@@ -307,7 +307,7 @@ tr:hover .r-acts{opacity:1}
 .season-toggle{font-family:var(--mono);font-size:10px;padding:3px 10px;border:1px solid var(--border2);border-radius:3px;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
 .season-toggle.on{border-color:var(--red-dim);color:var(--red);background:var(--red-bg)}
 .season-toggle:hover{border-color:var(--red-dim);color:var(--red)}
-.show-row{display:grid;grid-template-columns:160px 110px 110px 110px 110px 28px;align-items:center;gap:8px;padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:3px;margin-bottom:5px}
+.show-row{display:grid;grid-template-columns:140px 100px 100px 100px 100px 56px 28px;align-items:center;gap:8px;padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:3px;margin-bottom:5px}
 .show-row.inactive{opacity:.45}
 .show-row-name{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600}
 .sp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.15)}
@@ -318,8 +318,22 @@ tr:hover .r-acts{opacity:1}
 .show-row select option{background:var(--panel)}
 .show-del{width:24px;height:24px;border:1px solid transparent;border-radius:3px;background:none;cursor:pointer;color:var(--muted);font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .12s}
 .show-del:hover{color:var(--c-broken);border-color:rgba(192,57,43,.4)}
-.shows-col-hdrs{display:grid;grid-template-columns:160px 110px 110px 110px 110px 28px;gap:8px;padding:0 10px;margin-bottom:4px}
+.show-close-btn{font-family:var(--mono);font-size:9px;letter-spacing:.05em;padding:5px 6px;border:1px solid var(--border2);border-radius:3px;background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .12s}
+.show-close-btn:hover{color:#eb984e;border-color:rgba(230,126,34,.4);background:rgba(230,126,34,.08)}
+.shows-col-hdrs{display:grid;grid-template-columns:140px 100px 100px 100px 100px 56px 28px;gap:8px;padding:0 10px;margin-bottom:4px}
 .shows-col-hdrs span{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+/* Closed/archived shows */
+.archive-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 0;margin:18px 0 8px;border-bottom:1px solid var(--border)}
+.archive-lbl{font-family:var(--display);font-size:14px;letter-spacing:.1em;color:var(--muted)}
+.archive-row{padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:3px;margin-bottom:5px}
+.archive-row-top{display:flex;align-items:center;gap:8px}
+.archive-row-name{font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600;flex:1}
+.archive-row-meta{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.archive-row-acts{display:flex;gap:6px;flex-shrink:0}
+.archive-empty{font-family:var(--mono);font-size:11px;color:var(--muted);font-style:italic;padding:8px 0}
+.archive-items summary{font-family:var(--mono);font-size:10px;color:var(--muted);cursor:pointer;margin-top:6px}
+.archive-items ul{margin:6px 0 0;padding-left:16px;font-family:var(--mono);font-size:11px;color:var(--text)}
+.archive-items li{margin-bottom:2px}
 .add-show-row{display:flex;gap:8px;margin-top:10px;align-items:center}
 .add-show-row input{font-family:var(--mono);font-size:12px;padding:7px 10px;border:1px solid var(--border2);border-radius:3px;background:var(--panel);color:var(--text);outline:none;flex:1}
 .add-show-row input:focus{border-color:var(--red)}
@@ -547,7 +561,7 @@ tr:hover .r-acts{opacity:1}
 <div class="shows-ov" id="showsOv" onclick="if(event.target===this)closeManageShows()">
 <div class="shows-modal">
   <div class="m-title">Productions</div>
-  <div class="m-sub">Manage show schedule and seasons. Load-in through close defines the conflict window.</div>
+  <div class="m-sub">Manage show schedule and seasons. Load-in through close defines the conflict window. Use <b>Close</b> on a show that's ending — it returns everything allocated to it back to Available stock and moves the show to the archive below.</div>
   <div id="showsBody"></div>
   <div class="add-show-row" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
     <input id="newShowName" placeholder="Show name…" onkeydown="if(event.key==='Enter')addShow()">
@@ -2059,9 +2073,12 @@ function saveShowsAndClose(){
 
 function renderShowsModal(){
   const body=document.getElementById('showsBody');
-  const seasons=[...new Set(_showsDraft.map(s=>s.season))].sort();
-  body.innerHTML=seasons.map(season=>{
-    const shows=_showsDraft.filter(s=>s.season===season);
+  const openDraft=_showsDraft.filter(s=>!s.closed);
+  const closedDraft=_showsDraft.filter(s=>s.closed)
+    .sort((a,b)=>(b.closedAt||'').localeCompare(a.closedAt||''));
+  const seasons=[...new Set(openDraft.map(s=>s.season))].sort();
+  const seasonsHtml=seasons.map(season=>{
+    const shows=openDraft.filter(s=>s.season===season);
     const anyActive=shows.some(s=>s.active);
     return `<div>
       <div class="season-hdr">
@@ -2069,7 +2086,7 @@ function renderShowsModal(){
         <button class="season-toggle${anyActive?' on':''}" onclick="toggleSeason('${season}')">${anyActive?'Active':'Inactive'}</button>
       </div>
       <div class="shows-col-hdrs">
-        <span>Show</span><span>Load-In</span><span>Opens</span><span>Closes</span><span>Space</span><span></span>
+        <span>Show</span><span>Load-In</span><span>Opens</span><span>Closes</span><span>Space</span><span></span><span></span>
       </div>
       ${shows.map(sh=>{
         const spObj=SPACES.find(sp=>sp.id===sh.space);
@@ -2085,14 +2102,38 @@ function renderShowsModal(){
           <option value="">—</option>
           ${spaceOpts}
         </select>
+        <button class="show-close-btn" title="Close show — archive its gear and return everything to available" onclick="closeShowGear('${sh.id}')">Close</button>
         <button class="show-del" title="Remove show" onclick="removeShow('${sh.id}')">✕</button>
       </div>`;}).join('')}
     </div>`;
   }).join('');
+
+  const archiveHtml=!closedDraft.length?'':`
+    <div class="archive-hdr"><span class="archive-lbl">Closed Shows</span></div>
+    ${closedDraft.map(sh=>{
+      const gear=sh.archivedGear||[];
+      const totalQty=gear.reduce((s,g)=>s+(g.qty||0),0);
+      const when=sh.closedAt?new Date(sh.closedAt).toLocaleDateString():'';
+      return `<div class="archive-row">
+        <div class="archive-row-top">
+          <div class="archive-row-name">${esc(sh.name)}</div>
+          <div class="archive-row-meta">Closed ${when} · ${gear.length} line(s), ${totalQty} unit(s) returned to available</div>
+          <div class="archive-row-acts">
+            <button class="show-close-btn" onclick="reopenShow('${sh.id}')">Reopen</button>
+            <button class="show-del" title="Delete show record permanently" onclick="removeShow('${sh.id}')">✕</button>
+          </div>
+        </div>
+        ${gear.length?`<details class="archive-items"><summary>Gear archived (${gear.length})</summary><ul>${gear.map(g=>`<li>${g.qty}× ${esc(g.make)} ${esc(g.model)}${g.notes?' — '+esc(g.notes):''}</li>`).join('')}</ul></details>`
+          :'<div class="archive-empty">No gear was allocated when this show closed.</div>'}
+      </div>`;
+    }).join('')}
+  `;
+
+  body.innerHTML=seasonsHtml+archiveHtml;
 }
 
 function toggleSeason(season){
-  const shows=_showsDraft.filter(s=>s.season===season);
+  const shows=_showsDraft.filter(s=>s.season===season&&!s.closed);
   const anyActive=shows.some(s=>s.active);
   shows.forEach(s=>s.active=!anyActive);
   renderShowsModal();
@@ -2102,6 +2143,51 @@ function removeShow(id){
   if(!requireAdmin())return;
   if(!confirm('Remove this show? Any gear allocations for it will be lost on next save.')) return;
   _showsDraft=_showsDraft.filter(s=>s.id!==id);
+  const savedSh=S.shows.find(s=>s.id===id);
+  if(savedSh){ S.shows=S.shows.filter(s=>s.id!==id); saveShows(); }
+  renderShowsModal();
+}
+
+// ═══════════════════ CLOSE SHOW — archive gear, return to available ═══════════════════
+async function closeShowGear(id){
+  if(!requireAdmin())return;
+  const sh=_showsDraft.find(s=>s.id===id);
+  if(!sh)return;
+  if(!confirm(`Close "${sh.name}"?\n\nThis archives a permanent record of the gear currently allocated to it and returns all of it to available stock. The show moves to the Closed Shows archive below — this can't be undone.`)) return;
+
+  let res;
+  try{
+    res=await itemsApi('POST','/api/inventory/shows/'+encodeURIComponent(id)+'/archive-gear',{show_name:sh.name});
+  }catch(e){
+    alert('Could not close this show: '+e.message);
+    return;
+  }
+
+  // Reload items so freed-up allocations read as available immediately
+  try{
+    S.items=(await itemsApi('GET','/api/inventory/items')).map(migrate);
+  }catch(e){ /* items reload is best-effort; the close itself already succeeded */ }
+
+  const closedAt=new Date().toISOString();
+  sh.closed=true; sh.active=false; sh.closedAt=closedAt; sh.archivedGear=res.items||[];
+  const savedSh=S.shows.find(s=>s.id===id);
+  if(savedSh) Object.assign(savedSh,{closed:true,active:false,closedAt,archivedGear:res.items||[]});
+  saveShows();
+
+  buildFilters(); render();
+  renderShowsModal();
+  toast(res.count
+    ? `Show closed — ${res.count} line(s), ${res.total_qty} unit(s) returned to available.`
+    : 'Show closed — no gear was allocated to it.');
+}
+
+function reopenShow(id){
+  if(!requireAdmin())return;
+  const sh=_showsDraft.find(s=>s.id===id);
+  if(!sh)return;
+  sh.closed=false;
+  const savedSh=S.shows.find(s=>s.id===id);
+  if(savedSh){ savedSh.closed=false; saveShows(); }
   renderShowsModal();
 }
 
