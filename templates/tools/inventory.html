@@ -2153,7 +2153,7 @@ async function closeShowGear(id){
   if(!requireAdmin())return;
   const sh=_showsDraft.find(s=>s.id===id);
   if(!sh)return;
-  if(!confirm(`Close "${sh.name}"?\n\nThis archives a permanent record of the gear currently allocated to it and returns all of it to available stock. The show moves to the Closed Shows archive below — this can't be undone.`)) return;
+  if(!confirm(`Close "${sh.name}"?\n\nThis archives a permanent record of the gear currently allocated to it and returns all of it to available stock. The show moves to the Closed Shows archive below, where you can reopen it — but reopening doesn't automatically re-allocate the gear that was returned. If any of it gets used elsewhere in the meantime, you'd need to reassign it by hand.`)) return;
 
   let res;
   try{
