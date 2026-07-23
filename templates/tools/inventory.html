@@ -873,16 +873,18 @@ async function loadShows(){
     S.shows=loadLegacyLocalShows();
     return;
   }
+  // NOTE: this used to auto-migrate this browser's cached localStorage
+  // shows to the server the first time it saw an empty /api/shows response.
+  // That's been removed — an empty table can mean "genuinely fresh" but it
+  // can also mean "something went wrong server-side," and silently
+  // overwriting the shared record with one browser's stale local cache
+  // caused real data loss (wrong ids that orphaned existing tasks/gear
+  // allocations, plus fabricated placeholder dates). If the server table
+  // ever looks unexpectedly empty, it must be restored deliberately
+  // (via the MCP shows tools or directly), never auto-repopulated from
+  // whatever a browser happens to have cached.
   if(!rows.length){
-    // One-time migration: the server table is empty but this browser still
-    // has the old localStorage show list — push it up so it becomes the
-    // shared record from now on (and so MCP-created shows start appearing
-    // here too, going forward).
-    const legacy=loadLegacyLocalShows();
-    if(legacy.length){
-      for(const sh of legacy){ await upsertShowOnServer(sh); }
-      try{ rows=await itemsApi('GET','/api/shows'); }catch(e){ rows=[]; }
-    }
+    console.warn('[shows] Server returned zero shows. Not auto-migrating from localStorage — see comment above load Shows().');
   }
   S.shows=rows.map(serverShowToClient);
 }
