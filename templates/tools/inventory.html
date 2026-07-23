@@ -789,7 +789,6 @@ async function itemsApi(method, url, body){
   if(res.status===204) return null;
   return res.json();
 }
-function saveShows(){ try{localStorage.setItem(SHOWS_KEY,JSON.stringify(S.shows));}catch(e){} }
 function saveCats(){ try{localStorage.setItem(CATS_KEY,JSON.stringify(S.cats));}catch(e){} }
 
 function loadCats(){
@@ -802,7 +801,53 @@ function loadCats(){
   }catch(e){ S.cats=[...CATS_SEED]; }
 }
 
-function loadShows(){
+// ═══════════════════ SHOWS — server-backed (/api/shows) ═══════════════════
+// Shows used to live only in this browser's localStorage, which is why
+// shows added elsewhere (e.g. via the AUD-IT MCP tools, or on a different
+// computer) never showed up here and why the same-named show could carry
+// different dates in different places. Shows now live in the real `shows`
+// table in the database — the same one the MCP create_show/update_show/
+// list_shows tools read and write — so this panel, the MCP tools, and any
+// other client all see one shared list.
+//
+// Client-side shape is kept the same as before (loadIn/open/close/season/
+// active/space/closed/closedAt) so the gantt/filter code elsewhere in this
+// file didn't need to change — only these load/save functions translate to
+// and from the server's field names (load_in/open_date/close_date/archived).
+function serverShowToClient(r){
+  return {
+    id: r.id,
+    name: r.name,
+    season: r.season || '',
+    active: !!r.active,
+    loadIn: r.load_in || null,
+    open: r.open_date || null,
+    close: r.close_date || null,
+    space: r.space || '',
+    closed: !!r.archived,
+    closedAt: r.closed_at || null,
+  };
+}
+
+async function upsertShowOnServer(sh){
+  const payload={
+    id: sh.id, name: sh.name, space: sh.space||'',
+    load_in: sh.loadIn||'', open_date: sh.open||'', close_date: sh.close||'',
+    season: sh.season||'', active: sh.active?1:0,
+    archived: sh.closed?1:0, closed_at: sh.closedAt||'',
+  };
+  try{
+    await itemsApi('POST','/api/shows',payload);
+  }catch(e){
+    // Most likely the id already exists server-side — fall back to an
+    // update so migrations/restores are safe to re-run.
+    try{ await itemsApi('PUT','/api/shows/'+encodeURIComponent(sh.id),payload); }catch(e2){ /* best effort */ }
+  }
+}
+
+function loadLegacyLocalShows(){
+  // Reconstructs whatever this browser had in localStorage under the old
+  // scheme, purely so it can be migrated to the server once.
   try{
     const raw=localStorage.getItem(SHOWS_KEY);
     const saved=raw?JSON.parse(raw):[];
@@ -810,17 +855,40 @@ function loadShows(){
     const tombstones=new Set(tombRaw?JSON.parse(tombRaw):[]);
     const savedMap={};
     saved.forEach(s=>{ savedMap[s.id]=s; });
-    // Rebuild in SHOWS_SEED order, but skip any seed shows the user has deleted
-    S.shows=SHOWS_SEED
+    let shows=SHOWS_SEED
       .filter(sh=>!tombstones.has(sh.id))
       .map(sh=>{const merged=savedMap[sh.id]?{...sh,...savedMap[sh.id]}:{...sh}; if(merged.space===undefined) merged.space=''; return merged;});
-    // Append any user-added shows not in seed
-    saved.filter(s=>!SHOWS_SEED.find(seed=>seed.id===s.id)).forEach(s=>{if(s.space===undefined) s.space=''; S.shows.push(s);});
-  }catch(e){ S.shows=SHOWS_SEED.map(s=>({...s})); }
+    saved.filter(s=>!SHOWS_SEED.find(seed=>seed.id===s.id)).forEach(s=>{if(s.space===undefined) s.space=''; shows.push(s);});
+    return shows;
+  }catch(e){ return SHOWS_SEED.map(s=>({...s})); }
+}
+
+async function loadShows(){
+  let rows=null;
+  try{
+    rows=await itemsApi('GET','/api/shows');
+  }catch(e){
+    // Server unreachable — fall back to whatever this browser cached last,
+    // rather than showing an empty Productions panel.
+    S.shows=loadLegacyLocalShows();
+    return;
+  }
+  if(!rows.length){
+    // One-time migration: the server table is empty but this browser still
+    // has the old localStorage show list — push it up so it becomes the
+    // shared record from now on (and so MCP-created shows start appearing
+    // here too, going forward).
+    const legacy=loadLegacyLocalShows();
+    if(legacy.length){
+      for(const sh of legacy){ await upsertShowOnServer(sh); }
+      try{ rows=await itemsApi('GET','/api/shows'); }catch(e){ rows=[]; }
+    }
+  }
+  S.shows=rows.map(serverShowToClient);
 }
 
 async function load(){
-  loadShows();
+  await loadShows();
   loadCats();
   // Items are database-backed now — the DB is the single source of truth
   // (real inventory data already migrated in), so there's no more local
@@ -1605,12 +1673,8 @@ function handleJsonImport(event){
       const result=await itemsApi('POST','/api/inventory/import',payload);
       S.items=(await itemsApi('GET','/api/inventory/items')).map(migrate);
       if(payload.shows&&Array.isArray(payload.shows)){
-        S.shows=payload.shows;
-        // Rebuild tombstones from whatever seed shows are missing in the restore
-        const ids=new Set(S.shows.map(s=>s.id));
-        const tomb=SHOWS_SEED.filter(sh=>!ids.has(sh.id)).map(sh=>sh.id);
-        try{localStorage.setItem(SHOWS_KEY+'_deleted',JSON.stringify(tomb));}catch(e){}
-        saveShows();
+        for(const sh of payload.shows){ await upsertShowOnServer(sh); }
+        await loadShows();
       }
       buildFilters(); S.page=0; render();
       let msg=`✓ Restored ${result.items_imported} items from backup.`;
@@ -1974,9 +2038,18 @@ function checkProdConflicts(){
 
 // ═══════════════════ MANAGE SHOWS MODAL ═══════════════════
 let _showsDraft=[];
+let _gearArchiveByShow={};
 
-function openManageShows(){
+async function openManageShows(){
   _showsDraft=S.shows.map(s=>({...s}));
+  // Gear-archive history lives server-side (show_gear_archive) rather than
+  // on the show record itself, so pull it once per modal-open and group it
+  // by show id for the Closed Shows section below.
+  try{
+    const rows=await itemsApi('GET','/api/inventory/gear-archive');
+    _gearArchiveByShow={};
+    rows.forEach(r=>{ (_gearArchiveByShow[r.show_id]=_gearArchiveByShow[r.show_id]||[]).push(r); });
+  }catch(e){ _gearArchiveByShow={}; }
   renderShowsModal();
   document.getElementById('showsOv').classList.add('open');
 }
@@ -2046,9 +2119,9 @@ async function purgeDeletedItem(id,label){
   }
 }
 
-function saveShowsAndClose(){
+async function saveShowsAndClose(){
   if(!IS_ADMIN){closeManageShows();return;}
-  // collect date edits from inputs
+  // collect date/space edits from inputs
   _showsDraft.forEach(sh=>{
     const li=document.getElementById('si-li-'+sh.id);
     const op=document.getElementById('si-op-'+sh.id);
@@ -2059,12 +2132,18 @@ function saveShowsAndClose(){
     if(cl) sh.close =cl.value||null;
     if(sp) sh.space =sp.value||'';
   });
-  // Tombstone any seed shows the user has removed so they don't come back on reload
-  const draftIds=new Set(_showsDraft.map(s=>s.id));
-  const tombstones=SHOWS_SEED.filter(sh=>!draftIds.has(sh.id)).map(sh=>sh.id);
-  try{localStorage.setItem(SHOWS_KEY+'_deleted',JSON.stringify(tombstones));}catch(e){}
-  S.shows=_showsDraft;
-  saveShows();
+  // Push only the shows that actually changed vs. what's currently loaded.
+  const before={};
+  S.shows.forEach(sh=>{ before[sh.id]=sh; });
+  const puts=_showsDraft.filter(sh=>before[sh.id]).map(sh=>{
+    const b=before[sh.id];
+    if(b.loadIn===sh.loadIn && b.open===sh.open && b.close===sh.close && b.space===sh.space) return null;
+    return itemsApi('PUT','/api/shows/'+encodeURIComponent(sh.id),{
+      load_in:sh.loadIn||'', open_date:sh.open||'', close_date:sh.close||'', space:sh.space||'',
+    }).catch(e=>{ toast(`Could not save ${sh.name}: ${e.message}`); });
+  }).filter(Boolean);
+  await Promise.all(puts);
+  await loadShows();
   buildFilters();
   render(); // refresh gantt
   closeManageShows();
@@ -2111,9 +2190,11 @@ function renderShowsModal(){
   const archiveHtml=!closedDraft.length?'':`
     <div class="archive-hdr"><span class="archive-lbl">Closed Shows</span></div>
     ${closedDraft.map(sh=>{
-      const gear=sh.archivedGear||[];
+      const gear=_gearArchiveByShow[sh.id]||[];
       const totalQty=gear.reduce((s,g)=>s+(g.qty||0),0);
-      const when=sh.closedAt?new Date(sh.closedAt).toLocaleDateString():'';
+      let when='';
+      if(sh.closedAt){ when=new Date(sh.closedAt).toLocaleDateString(); }
+      else if(gear.length){ when=new Date(gear[0].archived_at.replace(' ','T')).toLocaleDateString(); }
       return `<div class="archive-row">
         <div class="archive-row-top">
           <div class="archive-row-name">${esc(sh.name)}</div>
@@ -2123,7 +2204,7 @@ function renderShowsModal(){
             <button class="show-del" title="Delete show record permanently" onclick="removeShow('${sh.id}')">✕</button>
           </div>
         </div>
-        ${gear.length?`<details class="archive-items"><summary>Gear archived (${gear.length})</summary><ul>${gear.map(g=>`<li>${g.qty}× ${esc(g.make)} ${esc(g.model)}${g.notes?' — '+esc(g.notes):''}</li>`).join('')}</ul></details>`
+        ${gear.length?`<details class="archive-items"><summary>Gear archived (${gear.length})</summary><ul>${gear.map(g=>`<li>${g.qty}× ${esc(g.item_make)} ${esc(g.item_model)}${g.notes?' — '+esc(g.notes):''}</li>`).join('')}</ul></details>`
           :'<div class="archive-empty">No gear was allocated when this show closed.</div>'}
       </div>`;
     }).join('')}
@@ -2132,20 +2213,32 @@ function renderShowsModal(){
   body.innerHTML=seasonsHtml+archiveHtml;
 }
 
-function toggleSeason(season){
+async function toggleSeason(season){
   const shows=_showsDraft.filter(s=>s.season===season&&!s.closed);
   const anyActive=shows.some(s=>s.active);
-  shows.forEach(s=>s.active=!anyActive);
+  const newActive=!anyActive;
+  shows.forEach(s=>s.active=newActive);
   renderShowsModal();
+  await Promise.all(shows.map(s=>
+    itemsApi('PUT','/api/shows/'+encodeURIComponent(s.id),{active:newActive?1:0})
+      .catch(e=>toast(`Could not update ${s.name}: ${e.message}`))
+  ));
+  const idx={}; S.shows.forEach(s=>idx[s.id]=s);
+  shows.forEach(s=>{ if(idx[s.id]) idx[s.id].active=newActive; });
 }
 
-function removeShow(id){
+async function removeShow(id){
   if(!requireAdmin())return;
-  if(!confirm('Remove this show? Any gear allocations for it will be lost on next save.')) return;
+  if(!confirm('Remove this show? Any gear allocations for it will be lost.')) return;
+  const sh=_showsDraft.find(s=>s.id===id);
   _showsDraft=_showsDraft.filter(s=>s.id!==id);
-  const savedSh=S.shows.find(s=>s.id===id);
-  if(savedSh){ S.shows=S.shows.filter(s=>s.id!==id); saveShows(); }
   renderShowsModal();
+  try{
+    await itemsApi('DELETE','/api/shows/'+encodeURIComponent(id));
+    S.shows=S.shows.filter(s=>s.id!==id);
+  }catch(e){
+    toast(`Could not remove ${sh?sh.name:'show'}: ${e.message}`);
+  }
 }
 
 // ═══════════════════ CLOSE SHOW — archive gear, return to available ═══════════════════
@@ -2169,10 +2262,13 @@ async function closeShowGear(id){
   }catch(e){ /* items reload is best-effort; the close itself already succeeded */ }
 
   const closedAt=new Date().toISOString();
-  sh.closed=true; sh.active=false; sh.closedAt=closedAt; sh.archivedGear=res.items||[];
-  const savedSh=S.shows.find(s=>s.id===id);
-  if(savedSh) Object.assign(savedSh,{closed:true,active:false,closedAt,archivedGear:res.items||[]});
-  saveShows();
+  sh.closed=true; sh.active=false; sh.closedAt=closedAt;
+  _gearArchiveByShow[id]=(res.items||[]).map(g=>({item_make:g.make,item_model:g.model,notes:g.notes,qty:g.qty,archived_at:closedAt}));
+  try{
+    await itemsApi('PUT','/api/shows/'+encodeURIComponent(id),{archived:1,active:0,closed_at:closedAt});
+    const savedSh=S.shows.find(s=>s.id===id);
+    if(savedSh) Object.assign(savedSh,{closed:true,active:false,closedAt});
+  }catch(e){ toast(`Gear archived, but couldn't mark the show closed: ${e.message}`); }
 
   buildFilters(); render();
   renderShowsModal();
@@ -2181,29 +2277,43 @@ async function closeShowGear(id){
     : 'Show closed — no gear was allocated to it.');
 }
 
-function reopenShow(id){
+async function reopenShow(id){
   if(!requireAdmin())return;
   const sh=_showsDraft.find(s=>s.id===id);
   if(!sh)return;
   sh.closed=false;
-  const savedSh=S.shows.find(s=>s.id===id);
-  if(savedSh){ savedSh.closed=false; saveShows(); }
+  try{
+    await itemsApi('PUT','/api/shows/'+encodeURIComponent(id),{archived:0,active:1});
+    const savedSh=S.shows.find(s=>s.id===id);
+    if(savedSh){ savedSh.closed=false; savedSh.active=true; }
+  }catch(e){ toast(`Could not reopen ${sh.name}: ${e.message}`); }
   renderShowsModal();
 }
 
-function addShow(){
+async function addShow(){
   if(!requireAdmin())return;
   const nameEl=document.getElementById('newShowName');
   const seasonEl=document.getElementById('newShowSeason');
   const name=nameEl.value.trim();
   if(!name){nameEl.focus();return;}
-  _showsDraft.push({
+  const newShow={
     id:'s_'+Date.now(),
     name,
     season:seasonEl.value,
     active:seasonEl.value==='25-26',
     loadIn:null,open:null,close:null,space:''
-  });
+  };
+  try{
+    await itemsApi('POST','/api/shows',{
+      id:newShow.id, name:newShow.name, season:newShow.season,
+      active:newShow.active?1:0, space:'',
+    });
+  }catch(e){
+    toast(`Could not add ${name}: ${e.message}`);
+    return;
+  }
+  _showsDraft.push(newShow);
+  S.shows.push(newShow);
   nameEl.value='';
   renderShowsModal();
 }

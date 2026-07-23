@@ -138,6 +138,9 @@ def validate_show(data):
         'load_in': sanitize(data.get('load_in', ''), 10),
         'open_date': sanitize(data.get('open_date', ''), 10),
         'close_date': sanitize(data.get('close_date', ''), 10),
+        'season': sanitize(data.get('season', ''), 20),
+        'active': int(bool(data.get('active', 1))),
+        'closed_at': sanitize(data.get('closed_at', ''), 40),
     }
 
 def validate_journal(data):
@@ -521,13 +524,34 @@ def api_create_show():
     data = validate_show(request.get_json())
     if not data['name']:
         return jsonify({'error': 'Show name required'}), 400
+    if not data['id']:
+        data['id'] = uuid.uuid4().hex[:12]
     models.create_show(data)
-    return jsonify({'status': 'created'}), 201
+    return jsonify({'status': 'created', 'id': data['id']}), 201
 
 @app.route('/api/shows/<show_id>', methods=['PUT'])
 @require_api_key_or_session
 def api_update_show(show_id):
-    data = request.get_json()
+    raw = request.get_json() or {}
+    data = {}
+    if 'name' in raw:
+        data['name'] = sanitize(raw.get('name', ''), 100)
+    if 'space' in raw:
+        data['space'] = sanitize(raw.get('space', 'general'), 50)
+    if 'archived' in raw:
+        data['archived'] = int(bool(raw.get('archived', 0)))
+    if 'load_in' in raw:
+        data['load_in'] = sanitize(raw.get('load_in', ''), 10)
+    if 'open_date' in raw:
+        data['open_date'] = sanitize(raw.get('open_date', ''), 10)
+    if 'close_date' in raw:
+        data['close_date'] = sanitize(raw.get('close_date', ''), 10)
+    if 'season' in raw:
+        data['season'] = sanitize(raw.get('season', ''), 20)
+    if 'active' in raw:
+        data['active'] = int(bool(raw.get('active', 1)))
+    if 'closed_at' in raw:
+        data['closed_at'] = sanitize(raw.get('closed_at', ''), 40)
     models.update_show(show_id, data)
     return jsonify({'status': 'updated'})
 

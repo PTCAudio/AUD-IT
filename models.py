@@ -51,6 +51,9 @@ def init_db():
             load_in TEXT DEFAULT '',
             open_date TEXT DEFAULT '',
             close_date TEXT DEFAULT '',
+            season TEXT DEFAULT '',
+            active INTEGER NOT NULL DEFAULT 1,
+            closed_at TEXT DEFAULT '',
             created_at TEXT DEFAULT (datetime('now'))
         );
 
@@ -369,6 +372,24 @@ def init_db():
 
     try:
         db.execute("ALTER TABLE team_members ADD COLUMN email TEXT DEFAULT ''")
+        db.commit()
+    except:
+        pass
+
+    try:
+        db.execute("ALTER TABLE shows ADD COLUMN season TEXT DEFAULT ''")
+        db.commit()
+    except:
+        pass
+
+    try:
+        db.execute("ALTER TABLE shows ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
+        db.commit()
+    except:
+        pass
+
+    try:
+        db.execute("ALTER TABLE shows ADD COLUMN closed_at TEXT DEFAULT ''")
         db.commit()
     except:
         pass
@@ -1418,10 +1439,15 @@ def get_all_shows():
 
 def create_show(data):
     db = get_db()
-    db.execute('INSERT INTO shows (id, name, space, archived, load_in, open_date, close_date) VALUES (?,?,?,?,?,?,?)',
+    # INSERT OR IGNORE: keeps client-side migrations (localStorage -> server)
+    # idempotent if two browsers race to migrate the same legacy show id at
+    # once, rather than raising a primary-key IntegrityError.
+    db.execute('INSERT OR IGNORE INTO shows (id, name, space, archived, load_in, open_date, close_date, season, active, closed_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
         (data['id'], data['name'], data.get('space', 'general'),
          data.get('archived', 0), data.get('load_in', ''),
-         data.get('open_date', ''), data.get('close_date', '')))
+         data.get('open_date', ''), data.get('close_date', ''),
+         data.get('season', ''), data.get('active', 1),
+         data.get('closed_at', '')))
     db.commit()
     db.close()
 
@@ -1430,7 +1456,7 @@ def update_show(show_id, data):
     db = get_db()
     fields = []
     values = []
-    for key in ['name', 'space', 'archived', 'load_in', 'open_date', 'close_date']:
+    for key in ['name', 'space', 'archived', 'load_in', 'open_date', 'close_date', 'season', 'active', 'closed_at']:
         if key in data:
             fields.append(f'{key}=?')
             values.append(data[key])
