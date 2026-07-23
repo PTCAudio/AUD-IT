@@ -4,3 +4,4 @@ __pycache__/
 audit_suite.db
 audit_suite.db-wal
 audit_suite.db-shm
+.fuse_hidden*
