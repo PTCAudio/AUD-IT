@@ -1432,7 +1432,14 @@ def set_item_spaces(item_id, space_map):
 
 def get_all_shows():
     db = get_db()
-    rows = db.execute('SELECT * FROM shows ORDER BY name').fetchall()
+    # Chronological by load-in date (the field that actually drives the
+    # conflict window), with shows that have no date yet pushed to the end
+    # rather than sorting alphabetically — both Productions and the Tasks
+    # sidebar just render whatever order this returns.
+    rows = db.execute('''
+        SELECT * FROM shows
+        ORDER BY (load_in = '' OR load_in IS NULL), load_in, name
+    ''').fetchall()
     db.close()
     return [dict(r) for r in rows]
 

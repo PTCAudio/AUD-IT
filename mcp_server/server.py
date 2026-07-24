@@ -95,11 +95,16 @@ async def create_show(
     open_date: str = "",
     close_date: str = "",
     archived: bool = False,
+    season: str = "",
+    active: bool = True,
 ):
     """Create a new show/production.
 
     space: which venue/space it belongs to (e.g. 'stephenson', 'hormel', 'hardes', 'general').
     load_in / open_date / close_date: dates as YYYY-MM-DD strings.
+    season: e.g. '25-26', '26-27'. Leave blank for a one-off Event rather
+        than a season-bound show (Productions/Tasks group these separately).
+    active: whether the show/event is currently active (defaults True).
     """
     payload = {
         "id": new_id(),
@@ -109,6 +114,8 @@ async def create_show(
         "open_date": open_date,
         "close_date": close_date,
         "archived": archived,
+        "season": season,
+        "active": active,
     }
     return await request("POST", "/api/shows", json=payload)
 
@@ -122,8 +129,14 @@ async def update_show(
     load_in: Optional[str] = None,
     open_date: Optional[str] = None,
     close_date: Optional[str] = None,
+    season: Optional[str] = None,
+    active: Optional[bool] = None,
 ):
-    """Update fields on an existing show. Only pass the fields you want to change."""
+    """Update fields on an existing show. Only pass the fields you want to change.
+
+    season: e.g. '25-26', '26-27'. Pass '' to make it a blank-season Event
+        instead of a season-bound show.
+    """
     payload = clean(locals())
     payload.pop("show_id", None)
     return await request("PUT", f"/api/shows/{show_id}", json=payload)
