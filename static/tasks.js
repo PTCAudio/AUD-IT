@@ -59,7 +59,8 @@ async function loadAll(){
   });
   shows = (s||[]).map(function(r){
     return {id:r.id, name:r.name, space:normalizeShowSpace(r.space),
-            archived:!!r.archived, loadIn:r.load_in, openDate:r.open_date, closeDate:r.close_date};
+            archived:!!r.archived, loadIn:r.load_in, openDate:r.open_date, closeDate:r.close_date,
+            season:r.season||''};
   });
   journal = (j||[]).map(function(r){
     return {id:r.id, date:r.date, body:r.body,
@@ -108,21 +109,40 @@ function buildSidebar(){
   });
   gi('space-nav').innerHTML=spNav;
 
-  var shNav='';
+  // A show with no season set is an Event (a one-off like a gala or
+  // benefit that isn't tied to a season) — same underlying record and
+  // view ('show:'+id), just listed under its own sidebar heading so it
+  // doesn't get lost among actual productions.
   var active=shows.filter(function(s){return !s.archived});
-  active.forEach(function(sh){
+  var showsOnly=active.filter(function(s){return s.season});
+  var eventsOnly=active.filter(function(s){return !s.season});
+
+  function renderShowRow(sh){
     var sp=SPACES.find(function(s){return s.id===sh.space})||SPACES[3];
     var showTasks=tasks.filter(function(t){return t.show===sh.id});
     var cnt=showTasks.filter(function(t){return !t.done}).length;
     var cls=currentView==='show:'+sh.id?' active':'';
     var dot=hasNewActivity('show:'+sh.id, showTasks)&&currentView!=='show:'+sh.id;
-    shNav+='<div class="sb-item'+cls+'" data-view="show:'+sh.id+'" onclick="setView(\'show:'+sh.id+'\')">';
-    shNav+='<div class="sb-dot" style="background:'+sp.color+'"></div>'+esc(sh.name);
-    if(dot) shNav+='<span class="sb-new-dot"></span>';
-    shNav+='<span class="sb-count">'+cnt+'</span></div>';
-  });
-  if(!active.length) shNav='<div style="padding:4px 10px;font-family:var(--mono);font-size:10px;color:var(--mut);font-style:italic">No active shows</div>';
+    var row='<div class="sb-item'+cls+'" data-view="show:'+sh.id+'" onclick="setView(\'show:'+sh.id+'\')">';
+    row+='<div class="sb-dot" style="background:'+sp.color+'"></div>'+esc(sh.name);
+    if(dot) row+='<span class="sb-new-dot"></span>';
+    row+='<span class="sb-count">'+cnt+'</span></div>';
+    return row;
+  }
+
+  var shNav=showsOnly.map(renderShowRow).join('');
+  if(!showsOnly.length) shNav='<div style="padding:4px 10px;font-family:var(--mono);font-size:10px;color:var(--mut);font-style:italic">No active shows</div>';
   gi('show-nav').innerHTML=shNav;
+
+  var eventsSection=gi('events-section'), eventsDivider=gi('events-divider');
+  if(eventsOnly.length){
+    gi('event-nav').innerHTML=eventsOnly.map(renderShowRow).join('');
+    eventsSection.style.display='';
+    eventsDivider.style.display='';
+  } else {
+    eventsSection.style.display='none';
+    eventsDivider.style.display='none';
+  }
 
   gi('cnt-all').textContent=tasks.filter(function(t){return !t.done}).length;
   gi('cnt-journal').textContent=journal.length;
@@ -167,7 +187,7 @@ function updateHeader(){
 
 function buildAddSelects(){
   var h='';SPACES.forEach(function(sp){h+='<option value="'+sp.id+'">'+sp.name+'</option>';});
-  gi('newSpace').innerHTML=h;gi('newShowSpace').innerHTML=h;
+  gi('newSpace').innerHTML=h;
   updateShowSelect();
   gi('newUrg').onchange=function(){gi('newDate').style.display=this.value==='date'?'block':'none';if(this.value==='date'&&!gi('newDate').value)gi('newDate').value=new Date().toLocaleDateString('en-CA');};
   gi('newSpace').onchange=function(){updateShowSelect()};
@@ -392,14 +412,13 @@ function fmtDateLong(d){try{return new Date(d+'T00:00:00').toLocaleDateString('e
 function getDayOfWeek(d){try{return new Date(d+'T00:00:00').toLocaleDateString('en-US',{weekday:'long'});}catch(e){return ''}}
 
 /* ── SHOWS ── */
+// Shows are added from Inventory's Productions panel now (it's the only
+// place that knows the real space codes and keeps gear allocations in
+// sync) — this modal only manages existing shows: archive/unarchive/
+// delete. There used to be an "Add Show" form here too, but it wrote
+// shows with the wrong space format and duplicated what Inventory already
+// does correctly.
 function openShowModal(){renderShowList();gi('showModal').classList.add('open');}
-async function addShow(){
-  var name=gi('newShowName').value.trim();if(!name)return;
-  var sh={id:uid(),name:name,space:gi('newShowSpace').value,archived:false};
-  await api('POST','/api/shows',sh);
-  shows.push(sh);gi('newShowName').value='';
-  buildSidebar();buildAddSelects();renderShowList();toast('"'+name+'" added');
-}
 async function archiveShow(id){var sh=shows.find(function(s){return s.id===id});if(!sh)return;sh.archived=true;await api('PUT','/api/shows/'+id,{archived:1});buildSidebar();buildAddSelects();renderShowList();toast('"'+sh.name+'" archived');}
 async function unarchiveShow(id){var sh=shows.find(function(s){return s.id===id});if(!sh)return;sh.archived=false;await api('PUT','/api/shows/'+id,{archived:0});buildSidebar();buildAddSelects();renderShowList();toast('"'+sh.name+'" restored');}
 async function deleteShow(id){

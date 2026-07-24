@@ -568,6 +568,7 @@ tr:hover .r-acts{opacity:1}
     <select id="newShowSeason">
       <option value="25-26">25–26</option>
       <option value="26-27">26–27</option>
+      <option value="">Event (no season)</option>
     </select>
     <button class="btn btn-p" onclick="addShow()">+ Add</button>
   </div>
@@ -2157,14 +2158,22 @@ function renderShowsModal(){
   const openDraft=_showsDraft.filter(s=>!s.closed);
   const closedDraft=_showsDraft.filter(s=>s.closed)
     .sort((a,b)=>(b.closedAt||'').localeCompare(a.closedAt||''));
+  // A show with no season set isn't unscheduled/broken — it's an Event
+  // (a one-off like a gala or benefit that doesn't belong to a season).
+  // Blank season sorts first alphabetically, so Events shows up above the
+  // real seasons, which is intentional — it's not tied to a season by
+  // definition.
   const seasons=[...new Set(openDraft.map(s=>s.season))].sort();
   const seasonsHtml=seasons.map(season=>{
     const shows=openDraft.filter(s=>s.season===season);
     const anyActive=shows.some(s=>s.active);
+    const isEvents=season==='';
+    const groupLabel=isEvents?'Events':`${season} Season`;
+    const groupKey=isEvents?'__events__':season;
     return `<div>
       <div class="season-hdr">
-        <span class="season-lbl">${season} Season</span>
-        <button class="season-toggle${anyActive?' on':''}" onclick="toggleSeason('${season}')">${anyActive?'Active':'Inactive'}</button>
+        <span class="season-lbl">${groupLabel}</span>
+        <button class="season-toggle${anyActive?' on':''}" onclick="toggleSeason('${groupKey}')">${anyActive?'Active':'Inactive'}</button>
       </div>
       <div class="shows-col-hdrs">
         <span>Show</span><span>Load-In</span><span>Opens</span><span>Closes</span><span>Space</span><span></span><span></span>
@@ -2216,7 +2225,8 @@ function renderShowsModal(){
 }
 
 async function toggleSeason(season){
-  const shows=_showsDraft.filter(s=>s.season===season&&!s.closed);
+  const actualSeason=season==='__events__'?'':season;
+  const shows=_showsDraft.filter(s=>s.season===actualSeason&&!s.closed);
   const anyActive=shows.some(s=>s.active);
   const newActive=!anyActive;
   shows.forEach(s=>s.active=newActive);
@@ -2302,7 +2312,7 @@ async function addShow(){
     id:'s_'+Date.now(),
     name,
     season:seasonEl.value,
-    active:seasonEl.value==='25-26',
+    active:seasonEl.value==='25-26'||seasonEl.value==='',
     loadIn:null,open:null,close:null,space:''
   };
   try{

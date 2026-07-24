@@ -284,8 +284,13 @@
     </div>
     <div class="sb-divider"></div>
     <div class="sb-section">
-      <div class="sb-label">SHOWS <button onclick="openShowModal()" title="Manage Shows">+</button></div>
+      <div class="sb-label">SHOWS <button onclick="openShowModal()" title="Manage Shows">⚙</button></div>
       <div id="show-nav" class="sb-shows-list"></div>
+    </div>
+    <div class="sb-divider" id="events-divider" style="display:none"></div>
+    <div class="sb-section" id="events-section" style="display:none">
+      <div class="sb-label">EVENTS</div>
+      <div id="event-nav" class="sb-shows-list"></div>
     </div>
     <div class="sb-divider"></div>
     <div class="sb-section">
@@ -351,13 +356,8 @@
 <div class="modal-bg" id="showModal">
   <div class="modal">
     <h2>Manage Shows</h2>
-    <div class="fg">
-      <label>Add New Show</label>
-      <div style="display:flex;gap:6px">
-        <input type="text" id="newShowName" placeholder="Show name" onkeydown="if(event.key==='Enter')addShow()" style="flex:1">
-        <select id="newShowSpace" style="width:140px"></select>
-        <button class="btn btnp" onclick="addShow()" style="height:34px">+ Add</button>
-      </div>
+    <div class="fg" style="color:var(--mut);font-size:12px">
+      Shows are now added from the Inventory app's Productions panel, so gear allocations and schedule dates stay in sync. You can still archive, restore, or delete existing shows below.
     </div>
     <div class="fg"><label>Current Shows</label><div id="showList"></div></div>
     <div style="margin-top:8px">
