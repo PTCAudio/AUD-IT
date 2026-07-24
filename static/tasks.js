@@ -8,6 +8,14 @@ var SPACES = [
   {id:'hardes', name:'Hardes', color:'#3498db'},
   {id:'general', name:'General / Dept', color:'#888078'}
 ];
+// The Inventory app's Productions panel is the source of truth for which
+// venue a show is in, but it stores that as its own short codes (sp1/sp2/
+// sp3) rather than these SPACES ids. Translate on the way in here so every
+// show — including ones added later — gets the right color dot and shows
+// up correctly in the show-picker dropdown, without needing a data fix
+// every time a new show is added.
+var SHOW_SPACE_ALIAS = {sp1:'stephenson', sp2:'hormel', sp3:'hardes'};
+function normalizeShowSpace(sp){ return SHOW_SPACE_ALIAS[sp] || sp; }
 var PRI_CLS={high:'pri-high',med:'pri-med',low:'pri-low',none:'pri-none'};
 var PRI_LBL={high:'High',med:'Med',low:'Low',none:'—'};
 var PRI_ORDER={high:0,med:1,low:2,none:3};
@@ -50,7 +58,7 @@ async function loadAll(){
             assignee_id:r.assignee_id||null, assignee_name:r.assignee_name||''};
   });
   shows = (s||[]).map(function(r){
-    return {id:r.id, name:r.name, space:r.space,
+    return {id:r.id, name:r.name, space:normalizeShowSpace(r.space),
             archived:!!r.archived, loadIn:r.load_in, openDate:r.open_date, closeDate:r.close_date};
   });
   journal = (j||[]).map(function(r){
