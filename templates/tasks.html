@@ -28,7 +28,7 @@
 .sb-shows-list{max-height:200px;overflow-y:auto}
 
 /* ── MAIN ── */
-#main{padding:20px 24px;max-width:900px}
+#main{padding:20px 24px;max-width:1400px;width:100%;margin:0 auto}
 .view-title{font-family:var(--disp);font-size:28px;letter-spacing:.06em;color:var(--wht);margin-bottom:4px}
 .view-sub{font-family:var(--mono);font-size:10px;color:var(--mut);letter-spacing:.05em;margin-bottom:18px}
 
@@ -45,7 +45,10 @@
 .add-row input[type=text]{flex:1;min-width:200px;font-family:var(--mono);font-size:12px;padding:8px 12px;border:1px solid var(--b2);border-radius:3px;background:var(--pan);color:var(--txt);outline:none}
 .add-row input:focus{border-color:var(--red)}
 .add-row input::placeholder{color:var(--mut)}
-.add-row select{font-family:var(--mono);font-size:11px;padding:6px 8px;border:1px solid var(--b2);border-radius:3px;background:var(--pan);color:var(--txt);outline:none;cursor:pointer}
+.add-row select{font-family:var(--mono);font-size:11px;padding:6px 22px 6px 8px;border:1px solid var(--b2);border-radius:3px;background:var(--pan);color:var(--txt);outline:none;cursor:pointer;flex:0 0 auto;max-width:100%}
+.add-row select#newSpace,.add-row select#newShow{min-width:110px}
+.add-row select#newAssignee{min-width:100px}
+.add-row select#newUrg{min-width:95px}
 .add-row select option{background:var(--pan)}
 
 /* ── FILTERS ── */
