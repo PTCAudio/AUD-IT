@@ -73,7 +73,21 @@
   .modal-btn.danger { border-color:#ef4444; color:#ef4444; background:transparent; }
   .modal-btn.danger:hover { background:rgba(239,68,68,0.1); }
   .modal-error { color:#ef4444; font-size:12px; margin-top:8px; display:none; }
+  .chip-del { margin-left:6px; font-weight:400; opacity:0.6; }
+  .chip-del:hover { opacity:1; color:#ef4444; }
+  #printScopeLabel { display:none; }
   @media(max-width:600px) { .header,.controls,.content { padding-left:16px; padding-right:16px; } .event-row { grid-template-columns:60px 1fr; gap:8px; } }
+  @media print {
+    body { background:#fff; color:#000; }
+    .controls, .add-event-btn, .view-toggle, .evt-actions, .modal-overlay { display:none !important; }
+    .header { border-bottom-color:#000; }
+    .header h1, .year-divider, .month-label, .cal-month-header { color:#000; }
+    #printScopeLabel { display:block; font-size:12px; color:#444; padding:0 32px 8px; }
+    .event-row.past-event { opacity:1; }
+    .event-row.today-event { background:none; border-left:none; padding-left:0; }
+    .month-group { break-inside:avoid; }
+    .event-desc, .cal-evt-text { color:#000; }
+  }
 </style>
 </head>
 <body>
@@ -82,6 +96,7 @@
   <span class="subtitle">Important Dates — All Productions</span>
 </div>
 <div class="controls" id="controls"></div>
+<div id="printScopeLabel"></div>
 <div class="content" id="content"></div>
 
 <div class="modal-overlay" id="eventModal">
@@ -126,25 +141,10 @@
 
 <script>
 const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
-const SHOWS = [
-  {id:"lesmis",name:"Les Misérables",short:"LMS",color:"#94a3b8",bg:"rgba(148,163,184,0.12)"},
-  {id:"murder",name:"Murder for Two",short:"M42",color:"#c084fc",bg:"rgba(192,132,252,0.12)"},
-  {id:"suffs",name:"Suffs",short:"SUF",color:"#a78bfa",bg:"rgba(167,139,250,0.12)"},
-  {id:"gala",name:"Gala",short:"GLA",color:"#fbbf24",bg:"rgba(251,191,36,0.12)"},
-  {id:"poppins",name:"Mary Poppins",short:"POP",color:"#6bcb77",bg:"rgba(107,203,119,0.12)"},
-  {id:"nwf",name:"New Works Fest",short:"NWF",color:"#d4d4d8",bg:"rgba(212,212,216,0.12)"},
-  {id:"churchill",name:"Churchill/Roosevelt",short:"CHR",color:"#4ecdc4",bg:"rgba(78,205,196,0.12)"},
-  {id:"unlocked",name:"Unlocked",short:"UNL",color:"#22d3ee",bg:"rgba(34,211,238,0.12)"},
-  {id:"spamalot",name:"Spamalot",short:"SPM",color:"#f97316",bg:"rgba(249,115,22,0.12)"},
-  {id:"sweeney",name:"Sweeney Todd",short:"SWT",color:"#ef4444",bg:"rgba(239,68,68,0.12)"},
-  {id:"stagemother",name:"Stage Mother",short:"STM",color:"#38bdf8",bg:"rgba(56,189,248,0.12)"},
-  {id:"camp",name:"Camp",short:"CMP",color:"#86efac",bg:"rgba(134,239,172,0.12)"},
-  {id:"kimbo",name:"Kimberly A Kimbo",short:"KIM",color:"#ffd93d",bg:"rgba(255,217,61,0.12)"},
-  {id:"blonde",name:"Legally Blonde",short:"LGB",color:"#ff69b4",bg:"rgba(255,105,180,0.12)"},
-  {id:"fantasticks",name:"Fantasticks",short:"FAN",color:"#ff6b6b",bg:"rgba(255,107,107,0.12)"},
-  {id:"tba_s",name:"TBA Stephenson",short:"TBA-S",color:"#737373",bg:"rgba(115,115,115,0.12)"},
-  {id:"tba_h",name:"TBA Hormel",short:"TBA-H",color:"#525252",bg:"rgba(82,82,82,0.12)"},
-];
+// Shows now live in the season_shows DB table, not hardcoded here — loaded
+// via loadShows() below so a canceled show can be deleted (and its dates
+// with it) from the UI. See /api/season-shows (GET/DELETE) in app.py.
+let SHOWS = [];
 const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MONTH_IDX={};MONTHS.forEach((m,i)=>MONTH_IDX[m]=i);
 const TODAY=new Date();
@@ -182,6 +182,11 @@ async function apiCall(method,url,body){
   try{payload=await res.json();}catch(e){}
   if(!res.ok){throw new Error((payload&&payload.error)||('Server error: '+res.status));}
   return payload;
+}
+
+async function loadShows(){
+  const rows=await apiCall('GET','/api/season-shows');
+  SHOWS=rows||[];
 }
 
 async function loadEvents(){
@@ -225,7 +230,8 @@ function renderControls(){
   let html='<label>Shows</label>';
   SHOWS.forEach(s=>{
     const active=activeShows.has(s.id)?"active":"";
-    html+=`<span class="show-chip ${active}" style="color:${s.color};border-color:${s.color};background:${active?s.bg:'transparent'}" onclick="toggleShow('${s.id}')">${s.short}</span>`;
+    const delBtn=IS_ADMIN?`<span class="chip-del" title="Cancel/delete this show" onclick="event.stopPropagation();deleteShow('${s.id}')">&times;</span>`:'';
+    html+=`<span class="show-chip ${active}" style="color:${s.color};border-color:${s.color};background:${active?s.bg:'transparent'}" onclick="toggleShow('${s.id}')">${s.short}${delBtn}</span>`;
   });
   html+='<span style="width:12px"></span><label>Dept</label>';
   const dl={all:"All",audio:"Audio",lighting:"LX",scenic:"Scenic",costumes:"Cost",props:"Props",video:"Video","hair/wigs":"H/W",sm:"SM",production:"Prod"};
@@ -234,10 +240,34 @@ function renderControls(){
   });
   html+='<span class="view-toggle">';
   if(IS_ADMIN) html+=`<button class="add-event-btn" onclick="openAddModal()">+ Add Event</button>`;
+  html+=`<button class="filter-btn" onclick="printCalendar()" title="Print the shows currently selected above">Print</button>`;
   html+=`<button class="filter-btn ${viewMode==='timeline'?'active':''}" onclick="setView('timeline')">Timeline</button>`;
   html+=`<button class="filter-btn ${viewMode==='grid'?'active':''}" onclick="setView('grid')">Grid</button>`;
   html+='</span>';
   c.innerHTML=html;
+}
+
+async function deleteShow(id){
+  const s=getShowInfo(id);
+  if(!s)return;
+  const count=EVENTS.filter(e=>e.show===id).length;
+  if(!confirm(`Delete "${s.name}" and its ${count} date(s) from the calendar? This can't be undone.`))return;
+  try{
+    await apiCall('DELETE','/api/season-shows/'+id);
+    activeShows.delete(id);
+    await loadShows();
+    await loadEvents();
+    render();
+  }catch(err){
+    alert(err.message||"Delete failed.");
+  }
+}
+
+function printCalendar(){
+  const selected=SHOWS.filter(s=>activeShows.has(s.id)).map(s=>s.name);
+  document.getElementById("printScopeLabel").textContent=
+    selected.length?("Filtered to: "+selected.join(", ")):"All shows / no filter applied";
+  window.print();
 }
 
 function toggleShow(id){if(activeShows.has(id))activeShows.delete(id);else activeShows.add(id);render();}
@@ -407,6 +437,7 @@ async function quickDeleteEvent(id){
 }
 
 async function init(){
+  await loadShows();
   populateModalSelects();
   await loadEvents();
   render();

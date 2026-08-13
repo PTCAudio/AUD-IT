@@ -1,0 +1,19 @@
+[
+  {"id":"lesmis","name":"Les Misérables","short":"LMS","color":"#94a3b8","bg":"rgba(148,163,184,0.12)","sort_order":0},
+  {"id":"murder","name":"Murder for Two","short":"M42","color":"#c084fc","bg":"rgba(192,132,252,0.12)","sort_order":1},
+  {"id":"suffs","name":"Suffs","short":"SUF","color":"#a78bfa","bg":"rgba(167,139,250,0.12)","sort_order":2},
+  {"id":"gala","name":"Gala","short":"GLA","color":"#fbbf24","bg":"rgba(251,191,36,0.12)","sort_order":3},
+  {"id":"poppins","name":"Mary Poppins","short":"POP","color":"#6bcb77","bg":"rgba(107,203,119,0.12)","sort_order":4},
+  {"id":"nwf","name":"New Works Fest","short":"NWF","color":"#d4d4d8","bg":"rgba(212,212,216,0.12)","sort_order":5},
+  {"id":"churchill","name":"Churchill/Roosevelt","short":"CHR","color":"#4ecdc4","bg":"rgba(78,205,196,0.12)","sort_order":6},
+  {"id":"unlocked","name":"Unlocked","short":"UNL","color":"#22d3ee","bg":"rgba(34,211,238,0.12)","sort_order":7},
+  {"id":"spamalot","name":"Spamalot","short":"SPM","color":"#f97316","bg":"rgba(249,115,22,0.12)","sort_order":8},
+  {"id":"sweeney","name":"Sweeney Todd","short":"SWT","color":"#ef4444","bg":"rgba(239,68,68,0.12)","sort_order":9},
+  {"id":"stagemother","name":"Stage Mother","short":"STM","color":"#38bdf8","bg":"rgba(56,189,248,0.12)","sort_order":10},
+  {"id":"camp","name":"Camp","short":"CMP","color":"#86efac","bg":"rgba(134,239,172,0.12)","sort_order":11},
+  {"id":"kimbo","name":"Kimberly A Kimbo","short":"KIM","color":"#ffd93d","bg":"rgba(255,217,61,0.12)","sort_order":12},
+  {"id":"blonde","name":"Legally Blonde","short":"LGB","color":"#ff69b4","bg":"rgba(255,105,180,0.12)","sort_order":13},
+  {"id":"fantasticks","name":"Fantasticks","short":"FAN","color":"#ff6b6b","bg":"rgba(255,107,107,0.12)","sort_order":14},
+  {"id":"tba_s","name":"TBA Stephenson","short":"TBA-S","color":"#737373","bg":"rgba(115,115,115,0.12)","sort_order":15},
+  {"id":"tba_h","name":"TBA Hormel","short":"TBA-H","color":"#525252","bg":"rgba(82,82,82,0.12)","sort_order":16}
+]

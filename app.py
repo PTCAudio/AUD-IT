@@ -1218,6 +1218,27 @@ def api_whoami():
 # machine credential at admin-equivalent level).
 # ══════════════════════════════════
 
+@app.route('/api/season-shows', methods=['GET'])
+@require_api_key_or_session
+def api_list_season_shows():
+    return jsonify(models.list_season_shows())
+
+@app.route('/api/season-shows/<show_id>', methods=['DELETE'])
+@require_api_key_or_admin
+def api_delete_season_show(show_id):
+    """Cancels a show: hard-deletes it and every one of its dates from the
+    calendar (per Matthew, 2026-08-13 — no undo). The client is expected to
+    confirm with the user before calling this, since it's irreversible."""
+    show = models.get_season_show(show_id)
+    if not show:
+        return jsonify({'error': 'Show not found'}), 404
+    deleted_count = models.delete_season_show(show_id)
+    user = auth.current_user()
+    models.log_action(user['id'] if user else None, user['name'] if user else 'api-key',
+                       'season_show_deleted', target=show_id,
+                       detail=f"{show['name']}: {deleted_count} date(s) removed with it")
+    return jsonify({'status': 'deleted', 'events_deleted': deleted_count})
+
 @app.route('/api/season-events', methods=['GET'])
 @require_api_key_or_session
 def api_list_season_events():

@@ -336,6 +336,16 @@ def init_db():
         -- ══════════════════════════════════
         -- SEASON CALENDAR (Important Dates tool)
         -- ══════════════════════════════════
+        CREATE TABLE IF NOT EXISTS season_shows (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            short TEXT NOT NULL,
+            color TEXT NOT NULL,
+            bg TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
         CREATE TABLE IF NOT EXISTS season_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             show_id TEXT NOT NULL,
@@ -355,6 +365,7 @@ def init_db():
 
     _seed_venues_if_empty(db)
     _seed_documents_if_empty(db)
+    _seed_season_shows_if_empty(db)
     _seed_season_events_if_empty(db)
     _backfill_kb_fts_if_needed(db)
 
@@ -525,6 +536,54 @@ def _seed_venues_if_empty(db):
                      s_order))
                 s_order += 1
     db.commit()
+
+
+def _seed_season_shows_if_empty(db):
+    """One-time seed of the season_shows table from the bundled JSON snapshot
+    of the original hardcoded SHOWS array in templates/tools/season-calendar.html
+    (17 shows, display metadata only — id/name/short/color/bg). Only runs when
+    the table is empty, so it never clobbers a later admin delete."""
+    existing = db.execute('SELECT COUNT(*) AS c FROM season_shows').fetchone()['c']
+    if existing:
+        return
+    base = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(base, 'seed_data', 'season_shows.json')
+    if not os.path.exists(path):
+        return
+    with open(path, 'r', encoding='utf-8') as f:
+        shows = json.load(f)
+    for s in shows:
+        db.execute('''INSERT INTO season_shows (id, name, short, color, bg, sort_order)
+            VALUES (?,?,?,?,?,?)''',
+            (s['id'], s['name'], s['short'], s['color'], s['bg'], s.get('sort_order', 0)))
+    db.commit()
+
+
+def list_season_shows():
+    db = get_db()
+    rows = db.execute('SELECT * FROM season_shows ORDER BY sort_order, name').fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+
+def get_season_show(show_id):
+    db = get_db()
+    row = db.execute('SELECT * FROM season_shows WHERE id=?', (show_id,)).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+
+def delete_season_show(show_id):
+    """Hard delete: removes the show and every one of its season_events
+    (cancellations are permanent, per Matthew, 2026-08-13 — no archive/
+    restore path). Returns the number of events deleted along with the show."""
+    db = get_db()
+    count = db.execute('SELECT COUNT(*) AS c FROM season_events WHERE show_id=?', (show_id,)).fetchone()['c']
+    db.execute('DELETE FROM season_events WHERE show_id=?', (show_id,))
+    db.execute('DELETE FROM season_shows WHERE id=?', (show_id,))
+    db.commit()
+    db.close()
+    return count
 
 
 def _seed_season_events_if_empty(db):
