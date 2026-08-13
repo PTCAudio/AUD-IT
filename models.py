@@ -332,11 +332,30 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
         );
+
+        -- ══════════════════════════════════
+        -- SEASON CALENDAR (Important Dates tool)
+        -- ══════════════════════════════════
+        CREATE TABLE IF NOT EXISTS season_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            show_id TEXT NOT NULL,
+            year INTEGER NOT NULL,
+            month TEXT NOT NULL,
+            day INTEGER NOT NULL,
+            day_end INTEGER,
+            desc TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0,
+            created_by INTEGER,
+            created_by_name TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        );
     ''')
     db.commit()
 
     _seed_venues_if_empty(db)
     _seed_documents_if_empty(db)
+    _seed_season_events_if_empty(db)
     _backfill_kb_fts_if_needed(db)
 
     # Migrations
@@ -506,6 +525,90 @@ def _seed_venues_if_empty(db):
                      s_order))
                 s_order += 1
     db.commit()
+
+
+def _seed_season_events_if_empty(db):
+    """One-time seed of the season_events table from the bundled JSON snapshot
+    of the original hardcoded add("show",year,[...]) calls in
+    templates/tools/season-calendar.html (301 events across all 17 shows,
+    parsed 2026-08-13 when the calendar tool moved from a static file to a
+    DB-backed, admin-editable one). Only runs when the table is empty, so it
+    never clobbers edits made later through the tool's own UI — safe to
+    leave in init_db() permanently."""
+    existing = db.execute('SELECT COUNT(*) AS c FROM season_events').fetchone()['c']
+    if existing:
+        return
+
+    base = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(base, 'seed_data', 'season_events.json')
+    if not os.path.exists(path):
+        return
+    with open(path, 'r', encoding='utf-8') as f:
+        events = json.load(f)
+    for e in events:
+        db.execute('''INSERT INTO season_events (show_id, year, month, day, day_end, desc, sort_order, created_by_name)
+            VALUES (?,?,?,?,?,?,?,?)''',
+            (e['show'], e['year'], e['month'], e['day'], e.get('day_end'), e['desc'],
+             e.get('sort_order', 0), 'seed'))
+    db.commit()
+
+
+# ══════════════════════════════════
+# SEASON CALENDAR CRUD
+# ══════════════════════════════════
+
+def list_season_events():
+    db = get_db()
+    rows = db.execute('SELECT * FROM season_events ORDER BY year, sort_order, id').fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+
+def get_season_event(event_id):
+    db = get_db()
+    row = db.execute('SELECT * FROM season_events WHERE id=?', (event_id,)).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+
+def create_season_event(data, created_by=None, created_by_name=''):
+    db = get_db()
+    max_order = db.execute('SELECT COALESCE(MAX(sort_order),0) AS m FROM season_events').fetchone()['m']
+    cur = db.execute('''INSERT INTO season_events (show_id, year, month, day, day_end, desc, sort_order, created_by, created_by_name)
+        VALUES (?,?,?,?,?,?,?,?,?)''',
+        (data['show'], data['year'], data['month'], data['day'], data.get('day_end'), data['desc'],
+         max_order + 1, created_by, created_by_name))
+    db.commit()
+    event_id = cur.lastrowid
+    db.close()
+    return event_id
+
+
+def update_season_event(event_id, data):
+    db = get_db()
+    fields = []
+    values = []
+    field_map = {
+        'show': 'show_id', 'year': 'year', 'month': 'month',
+        'day': 'day', 'day_end': 'day_end', 'desc': 'desc',
+    }
+    for js_key, db_key in field_map.items():
+        if js_key in data:
+            fields.append(f'{db_key}=?')
+            values.append(data[js_key])
+    if fields:
+        fields.append("updated_at=datetime('now')")
+        values.append(event_id)
+        db.execute(f'UPDATE season_events SET {",".join(fields)} WHERE id=?', values)
+        db.commit()
+    db.close()
+
+
+def delete_season_event(event_id):
+    db = get_db()
+    db.execute('DELETE FROM season_events WHERE id=?', (event_id,))
+    db.commit()
+    db.close()
 
 
 def get_docs_storage_dir():

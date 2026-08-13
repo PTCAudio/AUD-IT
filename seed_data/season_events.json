@@ -1,0 +1,2711 @@
+[
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jan",
+    "day": 15,
+    "day_end": null,
+    "desc": "Scenic/Costume: Prelim Design Conversation",
+    "sort_order": 0
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Feb",
+    "day": 11,
+    "day_end": null,
+    "desc": "Scenic: Prelim ground plan/Skeleton drawings/Scene by Scene Due; Director/Choreo: Cast breakdown",
+    "sort_order": 1
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Mar",
+    "day": 4,
+    "day_end": null,
+    "desc": "Scenic/Props: Final ground plan/Skeleton drawings/Scene by Scene Due",
+    "sort_order": 2
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Mar",
+    "day": 6,
+    "day_end": null,
+    "desc": "Props: Prelim prop list approval due",
+    "sort_order": 3
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Mar",
+    "day": 18,
+    "day_end": null,
+    "desc": "Scenic/Props: Prelim drafting package due",
+    "sort_order": 4
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Apr",
+    "day": 1,
+    "day_end": null,
+    "desc": "Scenic: Final build drawings & paint elevations due; Props: Final furniture drawings & paint elevations due",
+    "sort_order": 5
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "May",
+    "day": 11,
+    "day_end": null,
+    "desc": "Lighting: Prelim light plot due; Makeup/Hair/Wigs: Design Concepts/Prelim Plot Due",
+    "sort_order": 6
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "May",
+    "day": 25,
+    "day_end": null,
+    "desc": "Lighting: Final plot due",
+    "sort_order": 7
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jun",
+    "day": 1,
+    "day_end": null,
+    "desc": "Costume: Rental Package Arrive",
+    "sort_order": 8
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jun",
+    "day": 8,
+    "day_end": null,
+    "desc": "SM Prep Week Starts; Sound: Console Schedule/cue list/qlab file Due",
+    "sort_order": 9
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jun",
+    "day": 15,
+    "day_end": null,
+    "desc": "Scenic/Lighting: Strike & load in starts",
+    "sort_order": 10
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jun",
+    "day": 16,
+    "day_end": null,
+    "desc": "Rehearsals Begin",
+    "sort_order": 11
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jun",
+    "day": 22,
+    "day_end": null,
+    "desc": "Sound: Console File Due",
+    "sort_order": 12
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jun",
+    "day": 23,
+    "day_end": null,
+    "desc": "PR Photos 11:00\u20131:00",
+    "sort_order": 13
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jun",
+    "day": 24,
+    "day_end": 26,
+    "desc": "LX rental equipment onsite",
+    "sort_order": 14
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jun",
+    "day": 27,
+    "day_end": null,
+    "desc": "Sound: Design Script due",
+    "sort_order": 15
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jun",
+    "day": 28,
+    "day_end": null,
+    "desc": "Designer Run; Costumes/Makeup: Final actor pieces list and makeup plots due",
+    "sort_order": 16
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jun",
+    "day": 30,
+    "day_end": null,
+    "desc": "Lighting Focus/Designer Run",
+    "sort_order": 17
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 1,
+    "day_end": null,
+    "desc": "Lighting Focus/Designer Run",
+    "sort_order": 18
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 2,
+    "day_end": null,
+    "desc": "Designer Run",
+    "sort_order": 19
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 3,
+    "day_end": null,
+    "desc": "1st band rehearsal 7\u201310pm",
+    "sort_order": 20
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 5,
+    "day_end": null,
+    "desc": "Designer Run / 2nd band rehearsal 7\u201310pm",
+    "sort_order": 21
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 6,
+    "day_end": null,
+    "desc": "3rd band rehearsal 7\u201310pm",
+    "sort_order": 22
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 7,
+    "day_end": null,
+    "desc": "Sweep/mop 6:00pm; Cast on stage 7:00pm for spacing (safety walk-thru first); Hair/Wigs: Final Plot/Reference Photos Due \u2014 tech schedule change per Karla Frederick, 2026-07-07 (was SM Takeover 10:00)",
+    "sort_order": 23
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 8,
+    "day_end": null,
+    "desc": "Sweep/mop 5:00pm; Cast on stage 6:00pm \u2014 TECH STARTS; actors rung out top of tech once in costume \u2014 tech schedule change per Karla Frederick, 2026-07-07",
+    "sort_order": 24
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 9,
+    "day_end": null,
+    "desc": "10 of 12: sweep/mop 10:00am for an 11:00am start, ends 11:00pm \u2014 tech schedule change per Karla Frederick, 2026-07-07",
+    "sort_order": 25
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 10,
+    "day_end": null,
+    "desc": "10 of 12: sweep/mop 10:00am for an 11:00am start, ends 11:00pm \u2014 tech schedule change per Karla Frederick, 2026-07-07",
+    "sort_order": 26
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 11,
+    "day_end": null,
+    "desc": "Sitz 2:00pm\u201310:00pm \u2014 tech schedule change per Karla Frederick, 2026-07-07 (was part of the 8-of-10 tech block)",
+    "sort_order": 27
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 12,
+    "day_end": null,
+    "desc": "10 of 12: sweep/mop 10:00am for an 11:00am start, ends 11:00pm \u2014 tech schedule change per Karla Frederick, 2026-07-07 (First Dress w/ orchestra was previously slated here; not confirmed under the new plan, pending detailed schedule from Sam)",
+    "sort_order": 28
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 14,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 29
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 15,
+    "day_end": null,
+    "desc": "Preview; Wigs: Maintenance Photos and Information Due",
+    "sort_order": 30
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 16,
+    "day_end": null,
+    "desc": "2nd Preview",
+    "sort_order": 31
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Jul",
+    "day": 17,
+    "day_end": null,
+    "desc": "OPEN; Costumes/Hair/Wigs/Makeup: All Understudy Materials due by 5pm",
+    "sort_order": 32
+  },
+  {
+    "show": "lesmis",
+    "year": 2026,
+    "month": "Oct",
+    "day": 18,
+    "day_end": null,
+    "desc": "CLOSE",
+    "sort_order": 33
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Jun",
+    "day": 1,
+    "day_end": null,
+    "desc": "Scenic: Prelim ground plan/Skeleton drawings Due",
+    "sort_order": 34
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Jun",
+    "day": 15,
+    "day_end": null,
+    "desc": "Scenic/Props: Final ground plan Due; Costumes: Prelim costume plot due/sketches",
+    "sort_order": 35
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Jun",
+    "day": 17,
+    "day_end": null,
+    "desc": "Props: Prelim prop list approval due",
+    "sort_order": 36
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Jun",
+    "day": 29,
+    "day_end": null,
+    "desc": "Scenic/Props: Prelim drafting package due; Costumes: Final Design Due",
+    "sort_order": 37
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Jul",
+    "day": 13,
+    "day_end": null,
+    "desc": "Scenic/Props: Final build drawings due; Video: Prelim video system design due; Sound: Prelim cue list due; Lighting: Prelim light plot due",
+    "sort_order": 38
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Jul",
+    "day": 27,
+    "day_end": null,
+    "desc": "Video: Final video system design due; Lighting: Final plot due; Makeup/Hair/Wigs: Design Concepts Due; Sound: console schedule/cue list/qlab file Due; SM Prep Week Starts",
+    "sort_order": 39
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 3,
+    "day_end": null,
+    "desc": "Scenic/Lighting: Strike & load in starts",
+    "sort_order": 40
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 4,
+    "day_end": null,
+    "desc": "Rehearsals Begin; Video: Prelim video content due",
+    "sort_order": 41
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 10,
+    "day_end": null,
+    "desc": "Sound: Console file Due",
+    "sort_order": 42
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 15,
+    "day_end": null,
+    "desc": "Sound: Design Script Due",
+    "sort_order": 43
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 16,
+    "day_end": null,
+    "desc": "Designer Run; Costumes/Makeup: Final actor pieces list due",
+    "sort_order": 44
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 17,
+    "day_end": null,
+    "desc": "Piano Tuning 9:30am",
+    "sort_order": 45
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 18,
+    "day_end": null,
+    "desc": "Lighting: Focus; Hair/Wigs: Final Plot Due; Video: Final video content due; Designer Run",
+    "sort_order": 46
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 19,
+    "day_end": null,
+    "desc": "SM takeover/Spacing on stage",
+    "sort_order": 47
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 20,
+    "day_end": null,
+    "desc": "Rehearsal on stage/Sitz",
+    "sort_order": 48
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 21,
+    "day_end": 23,
+    "desc": "TECH (3) 8 of 10s",
+    "sort_order": 49
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 25,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 50
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 26,
+    "day_end": null,
+    "desc": "Preview",
+    "sort_order": 51
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 26,
+    "day_end": null,
+    "desc": "Piano Tuning 11am\u201312pm",
+    "sort_order": 52
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 27,
+    "day_end": null,
+    "desc": "2nd Preview",
+    "sort_order": 53
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Aug",
+    "day": 28,
+    "day_end": null,
+    "desc": "OPEN",
+    "sort_order": 54
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Sep",
+    "day": 1,
+    "day_end": null,
+    "desc": "Piano Tuning 9:30\u201310am",
+    "sort_order": 55
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Sep",
+    "day": 9,
+    "day_end": null,
+    "desc": "Piano Tuning 9:30\u201310am",
+    "sort_order": 56
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Sep",
+    "day": 15,
+    "day_end": null,
+    "desc": "Piano Tuning 9:30\u201310am",
+    "sort_order": 57
+  },
+  {
+    "show": "murder",
+    "year": 2026,
+    "month": "Sep",
+    "day": 20,
+    "day_end": null,
+    "desc": "CLOSE",
+    "sort_order": 58
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Jun",
+    "day": 3,
+    "day_end": null,
+    "desc": "Scenic: Prelim ground plan/Skeleton drawings Due; Director/Choreo: Cast breakdown",
+    "sort_order": 59
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Jun",
+    "day": 17,
+    "day_end": null,
+    "desc": "Scenic/Props: Final ground plan/Skeleton drawings Due",
+    "sort_order": 60
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Jun",
+    "day": 19,
+    "day_end": null,
+    "desc": "Props: Prelim prop list approval due",
+    "sort_order": 61
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Jul",
+    "day": 6,
+    "day_end": null,
+    "desc": "Costumes: Prelim costume plot due/sketches",
+    "sort_order": 62
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Jul",
+    "day": 15,
+    "day_end": null,
+    "desc": "Scenic/Props: Prelim drafting package due",
+    "sort_order": 63
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Jul",
+    "day": 27,
+    "day_end": null,
+    "desc": "Costumes: Final Design, Materials & Rough plot Due",
+    "sort_order": 64
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Jul",
+    "day": 29,
+    "day_end": null,
+    "desc": "Scenic: Final build drawings due; Props: Final furniture drawings due",
+    "sort_order": 65
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Aug",
+    "day": 3,
+    "day_end": null,
+    "desc": "Lighting: Prelim light plot due; Sound: Prelim cue list due/prelim design paperwork",
+    "sort_order": 66
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Aug",
+    "day": 31,
+    "day_end": null,
+    "desc": "Lighting: Final plot due; Makeup/Hair/Wigs: Design Concepts Due",
+    "sort_order": 67
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Sep",
+    "day": 14,
+    "day_end": null,
+    "desc": "SM Prep Week Starts; Sound: Console schedule/cue list/qlab file Due",
+    "sort_order": 68
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Sep",
+    "day": 21,
+    "day_end": null,
+    "desc": "Scenic/Lighting: Strike & load in starts",
+    "sort_order": 69
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Sep",
+    "day": 22,
+    "day_end": null,
+    "desc": "Rehearsal START",
+    "sort_order": 70
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Sep",
+    "day": 28,
+    "day_end": null,
+    "desc": "Sound: Console File Due",
+    "sort_order": 71
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Oct",
+    "day": 3,
+    "day_end": null,
+    "desc": "Sound: Design Script Due",
+    "sort_order": 72
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Oct",
+    "day": 4,
+    "day_end": null,
+    "desc": "Designer Run/1st band rehearsal/Band Load in; Costumes/Makeup: Final actor pieces list due",
+    "sort_order": 73
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Oct",
+    "day": 5,
+    "day_end": null,
+    "desc": "2nd band rehearsal",
+    "sort_order": 74
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Oct",
+    "day": 6,
+    "day_end": null,
+    "desc": "Lighting Focus/Designer Run",
+    "sort_order": 75
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Oct",
+    "day": 7,
+    "day_end": null,
+    "desc": "SM Take Over/On-Stage Spacing/Audio Load In; Hair/Wigs: Final Plot Due",
+    "sort_order": 76
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Oct",
+    "day": 8,
+    "day_end": null,
+    "desc": "Audio Deck Load In/Sitz/Wandelprobe",
+    "sort_order": 77
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Oct",
+    "day": 9,
+    "day_end": 11,
+    "desc": "TECH",
+    "sort_order": 78
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Oct",
+    "day": 13,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 79
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Oct",
+    "day": 14,
+    "day_end": null,
+    "desc": "Preview",
+    "sort_order": 80
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Oct",
+    "day": 15,
+    "day_end": null,
+    "desc": "2nd Preview",
+    "sort_order": 81
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Oct",
+    "day": 16,
+    "day_end": null,
+    "desc": "OPEN",
+    "sort_order": 82
+  },
+  {
+    "show": "suffs",
+    "year": 2026,
+    "month": "Nov",
+    "day": 29,
+    "day_end": null,
+    "desc": "CLOSE",
+    "sort_order": 83
+  },
+  {
+    "show": "gala",
+    "year": 2026,
+    "month": "Oct",
+    "day": 27,
+    "day_end": null,
+    "desc": "Gala Rehearsal START",
+    "sort_order": 84
+  },
+  {
+    "show": "gala",
+    "year": 2026,
+    "month": "Nov",
+    "day": 4,
+    "day_end": null,
+    "desc": "Gala Spacing/Sitz",
+    "sort_order": 85
+  },
+  {
+    "show": "gala",
+    "year": 2026,
+    "month": "Nov",
+    "day": 5,
+    "day_end": null,
+    "desc": "Gala TECH",
+    "sort_order": 86
+  },
+  {
+    "show": "gala",
+    "year": 2026,
+    "month": "Nov",
+    "day": 6,
+    "day_end": null,
+    "desc": "GALA",
+    "sort_order": 87
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Aug",
+    "day": 31,
+    "day_end": null,
+    "desc": "Sound: cue list due and prelim design paperwork; Lighting: Prelim light plot due",
+    "sort_order": 88
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Sep",
+    "day": 18,
+    "day_end": null,
+    "desc": "Director/Choreo: Cast breakdown Scene-by-scene",
+    "sort_order": 89
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Sep",
+    "day": 22,
+    "day_end": null,
+    "desc": "Props: Prop list approval due",
+    "sort_order": 90
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Sep",
+    "day": 25,
+    "day_end": null,
+    "desc": "Costumes: Prelim costume plot due",
+    "sort_order": 91
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Sep",
+    "day": 28,
+    "day_end": null,
+    "desc": "Lighting: Final plot due; Costumes: Rental package arrival; Makeup/Hair/Wigs: Design Concepts Due",
+    "sort_order": 92
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Oct",
+    "day": 19,
+    "day_end": null,
+    "desc": "SM Prep Week; Sound: Console Schedule/cue list/qlab file Due; Scenic/Props/Lighting: Rentals arrive & load in starts",
+    "sort_order": 93
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Oct",
+    "day": 27,
+    "day_end": null,
+    "desc": "Rehearsal START / Meet & Greet",
+    "sort_order": 94
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Oct",
+    "day": 29,
+    "day_end": 30,
+    "desc": "Lighting Focus",
+    "sort_order": 95
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Nov",
+    "day": 2,
+    "day_end": null,
+    "desc": "Sound: Console File Due",
+    "sort_order": 96
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Nov",
+    "day": 7,
+    "day_end": null,
+    "desc": "Sound: Design Script due; ZFX load in",
+    "sort_order": 97
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Nov",
+    "day": 8,
+    "day_end": null,
+    "desc": "Designer Run/1st band rehearsal/Band Load in; Costumes/Makeup: Final actor pieces list due",
+    "sort_order": 98
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Nov",
+    "day": 9,
+    "day_end": null,
+    "desc": "2nd band rehearsal",
+    "sort_order": 99
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Nov",
+    "day": 10,
+    "day_end": null,
+    "desc": "Designer Run",
+    "sort_order": 100
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Nov",
+    "day": 11,
+    "day_end": null,
+    "desc": "SM Take Over/On-Stage Spacing/Audio Load In; Hair/Wigs: Final Plot Due",
+    "sort_order": 101
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Nov",
+    "day": 12,
+    "day_end": null,
+    "desc": "Sitz/Wandelprobe",
+    "sort_order": 102
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Nov",
+    "day": 13,
+    "day_end": 15,
+    "desc": "TECH",
+    "sort_order": 103
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Nov",
+    "day": 17,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 104
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Nov",
+    "day": 18,
+    "day_end": null,
+    "desc": "Preview",
+    "sort_order": 105
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Nov",
+    "day": 19,
+    "day_end": null,
+    "desc": "2nd Preview",
+    "sort_order": 106
+  },
+  {
+    "show": "poppins",
+    "year": 2026,
+    "month": "Nov",
+    "day": 20,
+    "day_end": null,
+    "desc": "OPEN",
+    "sort_order": 107
+  },
+  {
+    "show": "poppins",
+    "year": 2027,
+    "month": "Jan",
+    "day": 3,
+    "day_end": null,
+    "desc": "CLOSE",
+    "sort_order": 108
+  },
+  {
+    "show": "nwf",
+    "year": 2026,
+    "month": "Nov",
+    "day": 30,
+    "day_end": null,
+    "desc": "New Works Fest START",
+    "sort_order": 109
+  },
+  {
+    "show": "nwf",
+    "year": 2026,
+    "month": "Dec",
+    "day": 20,
+    "day_end": null,
+    "desc": "New Works Fest CLOSE",
+    "sort_order": 110
+  },
+  {
+    "show": "churchill",
+    "year": 2026,
+    "month": "May",
+    "day": 27,
+    "day_end": null,
+    "desc": "Scenic: Prelim ground plan/Skeleton drawings/Scene by Scene Due",
+    "sort_order": 111
+  },
+  {
+    "show": "churchill",
+    "year": 2026,
+    "month": "Jun",
+    "day": 10,
+    "day_end": null,
+    "desc": "Costumes: Prelim costume plot due/sketches; Scenic/Props: Final ground plan Due; Props: Prelim prop list approval due",
+    "sort_order": 112
+  },
+  {
+    "show": "churchill",
+    "year": 2026,
+    "month": "Jun",
+    "day": 24,
+    "day_end": null,
+    "desc": "Scenic/Props: Prelim drafting package due; Costumes: Final Design, Materials & Rough plot Due",
+    "sort_order": 113
+  },
+  {
+    "show": "churchill",
+    "year": 2026,
+    "month": "Jul",
+    "day": 8,
+    "day_end": null,
+    "desc": "Scenic: Final build drawings & paint elevations due; Props: Final furniture drawings due",
+    "sort_order": 114
+  },
+  {
+    "show": "churchill",
+    "year": 2026,
+    "month": "Aug",
+    "day": 17,
+    "day_end": null,
+    "desc": "Lighting: Final plot due; Makeup/Hair/Wigs: Design Concepts Due",
+    "sort_order": 115
+  },
+  {
+    "show": "churchill",
+    "year": 2026,
+    "month": "Aug",
+    "day": 31,
+    "day_end": null,
+    "desc": "Scenic/Lighting: Load in starts",
+    "sort_order": 116
+  },
+  {
+    "show": "churchill",
+    "year": 2026,
+    "month": "Dec",
+    "day": 7,
+    "day_end": null,
+    "desc": "SM Prep Week Starts",
+    "sort_order": 117
+  },
+  {
+    "show": "churchill",
+    "year": 2026,
+    "month": "Dec",
+    "day": 15,
+    "day_end": null,
+    "desc": "Rehearsal START",
+    "sort_order": 118
+  },
+  {
+    "show": "churchill",
+    "year": 2027,
+    "month": "Jan",
+    "day": 3,
+    "day_end": null,
+    "desc": "Designer Run; Costumes/Makeup: Final actor pieces list due",
+    "sort_order": 119
+  },
+  {
+    "show": "churchill",
+    "year": 2027,
+    "month": "Jan",
+    "day": 5,
+    "day_end": null,
+    "desc": "Lighting Focus/Designer Run",
+    "sort_order": 120
+  },
+  {
+    "show": "churchill",
+    "year": 2027,
+    "month": "Jan",
+    "day": 6,
+    "day_end": null,
+    "desc": "SM Take Over/On-Stage Spacing/Audio Load In; Hair/Wigs: Final Plot Due",
+    "sort_order": 121
+  },
+  {
+    "show": "churchill",
+    "year": 2027,
+    "month": "Jan",
+    "day": 7,
+    "day_end": null,
+    "desc": "TECH",
+    "sort_order": 122
+  },
+  {
+    "show": "churchill",
+    "year": 2027,
+    "month": "Jan",
+    "day": 8,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 123
+  },
+  {
+    "show": "churchill",
+    "year": 2027,
+    "month": "Jan",
+    "day": 9,
+    "day_end": null,
+    "desc": "Preview",
+    "sort_order": 124
+  },
+  {
+    "show": "churchill",
+    "year": 2027,
+    "month": "Jan",
+    "day": 15,
+    "day_end": null,
+    "desc": "OPEN",
+    "sort_order": 125
+  },
+  {
+    "show": "churchill",
+    "year": 2027,
+    "month": "Mar",
+    "day": 28,
+    "day_end": null,
+    "desc": "CLOSE (TBA extension thru May 30)",
+    "sort_order": 126
+  },
+  {
+    "show": "unlocked",
+    "year": 2026,
+    "month": "May",
+    "day": 20,
+    "day_end": null,
+    "desc": "Scenic: Prelim ground plan/Skeleton drawings Due; Director/Choreo: Cast breakdown",
+    "sort_order": 127
+  },
+  {
+    "show": "unlocked",
+    "year": 2026,
+    "month": "Jun",
+    "day": 3,
+    "day_end": null,
+    "desc": "Scenic/Props: Final ground plan/Skeleton drawings Due",
+    "sort_order": 128
+  },
+  {
+    "show": "unlocked",
+    "year": 2026,
+    "month": "Jun",
+    "day": 24,
+    "day_end": null,
+    "desc": "Scenic/Props: Prelim drafting package due; Costumes: Final Design Due",
+    "sort_order": 129
+  },
+  {
+    "show": "unlocked",
+    "year": 2026,
+    "month": "Jul",
+    "day": 17,
+    "day_end": null,
+    "desc": "Props: Prelim prop list approval due",
+    "sort_order": 130
+  },
+  {
+    "show": "unlocked",
+    "year": 2026,
+    "month": "Jul",
+    "day": 29,
+    "day_end": null,
+    "desc": "Scenic: Final build drawings due; Props: Final furniture drawings due",
+    "sort_order": 131
+  },
+  {
+    "show": "unlocked",
+    "year": 2026,
+    "month": "Aug",
+    "day": 5,
+    "day_end": null,
+    "desc": "Lighting: Prelim light plot due",
+    "sort_order": 132
+  },
+  {
+    "show": "unlocked",
+    "year": 2026,
+    "month": "Aug",
+    "day": 26,
+    "day_end": null,
+    "desc": "Lighting: Final plot due",
+    "sort_order": 133
+  },
+  {
+    "show": "unlocked",
+    "year": 2026,
+    "month": "Sep",
+    "day": 28,
+    "day_end": null,
+    "desc": "Costumes: Prelim costume plot due/sketches",
+    "sort_order": 134
+  },
+  {
+    "show": "unlocked",
+    "year": 2026,
+    "month": "Nov",
+    "day": 23,
+    "day_end": null,
+    "desc": "Sound: Prelim cue list due/prelim design paperwork",
+    "sort_order": 135
+  },
+  {
+    "show": "unlocked",
+    "year": 2026,
+    "month": "Dec",
+    "day": 2,
+    "day_end": null,
+    "desc": "Makeup/Hair/Wigs: Design Concepts Due",
+    "sort_order": 136
+  },
+  {
+    "show": "unlocked",
+    "year": 2026,
+    "month": "Dec",
+    "day": 21,
+    "day_end": null,
+    "desc": "SM Prep Week Starts; Sound: Console schedule/cue list/qlab file Due",
+    "sort_order": 137
+  },
+  {
+    "show": "unlocked",
+    "year": 2026,
+    "month": "Dec",
+    "day": 28,
+    "day_end": null,
+    "desc": "Rehearsal START",
+    "sort_order": 138
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Jan",
+    "day": 4,
+    "day_end": null,
+    "desc": "Scenic/Lighting: Strike & load in starts; Sound: Console file Due",
+    "sort_order": 139
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Jan",
+    "day": 16,
+    "day_end": null,
+    "desc": "Sound: Design script Due",
+    "sort_order": 140
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Jan",
+    "day": 17,
+    "day_end": null,
+    "desc": "Designer Run/1st band rehearsal; Costumes/Makeup: Final actor pieces list due",
+    "sort_order": 141
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Jan",
+    "day": 17,
+    "day_end": 18,
+    "desc": "Lighting Focus",
+    "sort_order": 142
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Jan",
+    "day": 18,
+    "day_end": null,
+    "desc": "2nd band rehearsal",
+    "sort_order": 143
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Jan",
+    "day": 19,
+    "day_end": null,
+    "desc": "Designer Run",
+    "sort_order": 144
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Jan",
+    "day": 20,
+    "day_end": null,
+    "desc": "SM Take Over/On-Stage Spacing/Audio Load In; Hair/Wigs: Final Plot Due",
+    "sort_order": 145
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Jan",
+    "day": 21,
+    "day_end": null,
+    "desc": "Sitz/Wandelprobe",
+    "sort_order": 146
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Jan",
+    "day": 22,
+    "day_end": 24,
+    "desc": "TECH",
+    "sort_order": 147
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Jan",
+    "day": 27,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 148
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Jan",
+    "day": 28,
+    "day_end": null,
+    "desc": "Preview",
+    "sort_order": 149
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Jan",
+    "day": 29,
+    "day_end": null,
+    "desc": "SOFT OPEN",
+    "sort_order": 150
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Feb",
+    "day": 5,
+    "day_end": null,
+    "desc": "Press OPEN",
+    "sort_order": 151
+  },
+  {
+    "show": "unlocked",
+    "year": 2027,
+    "month": "Feb",
+    "day": 21,
+    "day_end": null,
+    "desc": "CLOSE",
+    "sort_order": 152
+  },
+  {
+    "show": "spamalot",
+    "year": 2026,
+    "month": "Oct",
+    "day": 5,
+    "day_end": null,
+    "desc": "Scenic: Prelim ground plan/Skeleton drawings Due",
+    "sort_order": 153
+  },
+  {
+    "show": "spamalot",
+    "year": 2026,
+    "month": "Oct",
+    "day": 26,
+    "day_end": null,
+    "desc": "Scenic/Props: Final ground plan/Skeleton drawings Due",
+    "sort_order": 154
+  },
+  {
+    "show": "spamalot",
+    "year": 2026,
+    "month": "Oct",
+    "day": 28,
+    "day_end": null,
+    "desc": "Props: Prelim prop list approval due",
+    "sort_order": 155
+  },
+  {
+    "show": "spamalot",
+    "year": 2026,
+    "month": "Nov",
+    "day": 2,
+    "day_end": null,
+    "desc": "Costumes: Prelim costume plot due",
+    "sort_order": 156
+  },
+  {
+    "show": "spamalot",
+    "year": 2026,
+    "month": "Nov",
+    "day": 9,
+    "day_end": null,
+    "desc": "Scenic/Props: Prelim drafting package due",
+    "sort_order": 157
+  },
+  {
+    "show": "spamalot",
+    "year": 2026,
+    "month": "Nov",
+    "day": 23,
+    "day_end": null,
+    "desc": "Scenic: Final build drawings due; Props: Final furniture drawings due",
+    "sort_order": 158
+  },
+  {
+    "show": "spamalot",
+    "year": 2026,
+    "month": "Dec",
+    "day": 21,
+    "day_end": null,
+    "desc": "Sound: Prelim cue list/design paperwork Due; Lighting: Prelim light plot due; Makeup/Hair/Wigs: Design Concepts Due",
+    "sort_order": 159
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Jan",
+    "day": 4,
+    "day_end": null,
+    "desc": "Costume: Rental Package arrival; Props: Rental package arrival",
+    "sort_order": 160
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Jan",
+    "day": 11,
+    "day_end": null,
+    "desc": "Lighting: Final plot due",
+    "sort_order": 161
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Jan",
+    "day": 18,
+    "day_end": null,
+    "desc": "SM Prep Week Starts; Sound: Console schedule/cue list/qlab file Due",
+    "sort_order": 162
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Jan",
+    "day": 25,
+    "day_end": null,
+    "desc": "Rehearsal START; Scenic/Lighting: Load in starts",
+    "sort_order": 163
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Feb",
+    "day": 1,
+    "day_end": null,
+    "desc": "Sound: Console File Due",
+    "sort_order": 164
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Feb",
+    "day": 6,
+    "day_end": null,
+    "desc": "Sound: Design Script Due",
+    "sort_order": 165
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Feb",
+    "day": 7,
+    "day_end": null,
+    "desc": "Designer Run/1st band rehearsal/Band Load in; Costumes/Makeup: Final actor pieces list due",
+    "sort_order": 166
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Feb",
+    "day": 8,
+    "day_end": null,
+    "desc": "2nd band rehearsal",
+    "sort_order": 167
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Feb",
+    "day": 9,
+    "day_end": null,
+    "desc": "Lighting Focus/Designer Run",
+    "sort_order": 168
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Feb",
+    "day": 10,
+    "day_end": null,
+    "desc": "SM Take Over/On-Stage Spacing/Audio Load In; Hair/Wigs: Final Plot Due",
+    "sort_order": 169
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Feb",
+    "day": 11,
+    "day_end": null,
+    "desc": "Sitz/Wandelprobe",
+    "sort_order": 170
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Feb",
+    "day": 12,
+    "day_end": 14,
+    "desc": "TECH",
+    "sort_order": 171
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Feb",
+    "day": 16,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 172
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Feb",
+    "day": 17,
+    "day_end": null,
+    "desc": "Preview",
+    "sort_order": 173
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Feb",
+    "day": 18,
+    "day_end": null,
+    "desc": "2nd Preview",
+    "sort_order": 174
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "Feb",
+    "day": 19,
+    "day_end": null,
+    "desc": "OPEN",
+    "sort_order": 175
+  },
+  {
+    "show": "spamalot",
+    "year": 2027,
+    "month": "May",
+    "day": 16,
+    "day_end": null,
+    "desc": "CLOSE (TBA Extension thru May 23)",
+    "sort_order": 176
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Jan",
+    "day": 4,
+    "day_end": null,
+    "desc": "Lighting: Prelim light plot due",
+    "sort_order": 177
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Jan",
+    "day": 13,
+    "day_end": null,
+    "desc": "Costumes: Prelim costume plot due",
+    "sort_order": 178
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Jan",
+    "day": 15,
+    "day_end": null,
+    "desc": "Props: Prelim prop list approval due; Scenic: Final ground plan",
+    "sort_order": 179
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Jan",
+    "day": 25,
+    "day_end": null,
+    "desc": "Costumes: Rental package arrival",
+    "sort_order": 180
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Feb",
+    "day": 1,
+    "day_end": null,
+    "desc": "Lighting: Final plot due; Makeup/Hair/Wigs: Design Concepts Due",
+    "sort_order": 181
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Feb",
+    "day": 8,
+    "day_end": null,
+    "desc": "Scenic/Props: Rental package arrival",
+    "sort_order": 182
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Feb",
+    "day": 15,
+    "day_end": null,
+    "desc": "SM Prep Week Starts; Sound: Console schedule/cue list/qlab file Due",
+    "sort_order": 183
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Feb",
+    "day": 22,
+    "day_end": null,
+    "desc": "Scenic/Lighting: Strike & load in starts",
+    "sort_order": 184
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Feb",
+    "day": 23,
+    "day_end": null,
+    "desc": "Rehearsal START",
+    "sort_order": 185
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Feb",
+    "day": 24,
+    "day_end": null,
+    "desc": "Audio load in",
+    "sort_order": 186
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Mar",
+    "day": 1,
+    "day_end": null,
+    "desc": "Sound: Console file due",
+    "sort_order": 187
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Mar",
+    "day": 6,
+    "day_end": null,
+    "desc": "Sound: Design script Due",
+    "sort_order": 188
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Mar",
+    "day": 7,
+    "day_end": null,
+    "desc": "Designer run/1st band rehearsal",
+    "sort_order": 189
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Mar",
+    "day": 7,
+    "day_end": 8,
+    "desc": "Lighting: Focus",
+    "sort_order": 190
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Mar",
+    "day": 8,
+    "day_end": null,
+    "desc": "2nd band rehearsal",
+    "sort_order": 191
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Mar",
+    "day": 9,
+    "day_end": null,
+    "desc": "Designer Run",
+    "sort_order": 192
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Mar",
+    "day": 10,
+    "day_end": null,
+    "desc": "SM Take over/Spacing; Hair/Wigs: Final Plot Due; Costumes/Makeup: Final actor pieces list due",
+    "sort_order": 193
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Mar",
+    "day": 11,
+    "day_end": null,
+    "desc": "Sitz/Wandelprobe",
+    "sort_order": 194
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Mar",
+    "day": 12,
+    "day_end": 14,
+    "desc": "TECH",
+    "sort_order": 195
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Mar",
+    "day": 16,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 196
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Mar",
+    "day": 17,
+    "day_end": null,
+    "desc": "Preview",
+    "sort_order": 197
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Mar",
+    "day": 19,
+    "day_end": null,
+    "desc": "OPEN",
+    "sort_order": 198
+  },
+  {
+    "show": "sweeney",
+    "year": 2027,
+    "month": "Apr",
+    "day": 18,
+    "day_end": null,
+    "desc": "CLOSE",
+    "sort_order": 199
+  },
+  {
+    "show": "stagemother",
+    "year": 2026,
+    "month": "Oct",
+    "day": 5,
+    "day_end": null,
+    "desc": "Scenic: Prelim ground plan/Skeleton drawings Due",
+    "sort_order": 200
+  },
+  {
+    "show": "stagemother",
+    "year": 2026,
+    "month": "Oct",
+    "day": 19,
+    "day_end": null,
+    "desc": "Costumes: Prelim costume plot due/sketches",
+    "sort_order": 201
+  },
+  {
+    "show": "stagemother",
+    "year": 2026,
+    "month": "Nov",
+    "day": 9,
+    "day_end": null,
+    "desc": "Scenic/Props: Final ground plan/Skeleton drawings Due",
+    "sort_order": 202
+  },
+  {
+    "show": "stagemother",
+    "year": 2026,
+    "month": "Nov",
+    "day": 13,
+    "day_end": null,
+    "desc": "Props: Prelim prop list approval due",
+    "sort_order": 203
+  },
+  {
+    "show": "stagemother",
+    "year": 2026,
+    "month": "Dec",
+    "day": 2,
+    "day_end": null,
+    "desc": "Scenic/Props: Prelim drafting package due",
+    "sort_order": 204
+  },
+  {
+    "show": "stagemother",
+    "year": 2026,
+    "month": "Dec",
+    "day": 16,
+    "day_end": null,
+    "desc": "Lighting: Prelim light plot due",
+    "sort_order": 205
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "Jan",
+    "day": 6,
+    "day_end": null,
+    "desc": "Scenic: Final build drawings due; Props: Final furniture drawings due; Costumes: Final Design Due; Video: Prelim video system design due",
+    "sort_order": 206
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "Jan",
+    "day": 18,
+    "day_end": null,
+    "desc": "Lighting: Final plot due; Makeup/Hair/Wigs: Design Concepts Due",
+    "sort_order": 207
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "Mar",
+    "day": 3,
+    "day_end": null,
+    "desc": "Video: Final video system design due; Sound: Prelim cue list due/prelim design paperwork",
+    "sort_order": 208
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "Apr",
+    "day": 12,
+    "day_end": null,
+    "desc": "Sound: Console schedule/cue list/qlab file due; SM Prep Week Starts",
+    "sort_order": 209
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "Apr",
+    "day": 19,
+    "day_end": null,
+    "desc": "Scenic/Lighting: Strike & load in starts",
+    "sort_order": 210
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "Apr",
+    "day": 20,
+    "day_end": null,
+    "desc": "Rehearsal START",
+    "sort_order": 211
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "Apr",
+    "day": 26,
+    "day_end": null,
+    "desc": "Sound: Console file due; Audio Load in/Video load in; Video: Prelim video content due",
+    "sort_order": 212
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "May",
+    "day": 6,
+    "day_end": null,
+    "desc": "Sound: Design script due",
+    "sort_order": 213
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "May",
+    "day": 7,
+    "day_end": null,
+    "desc": "Designer Run; Costumes/Makeup: Final actor pieces list due",
+    "sort_order": 214
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "May",
+    "day": 7,
+    "day_end": 8,
+    "desc": "Lighting Focus",
+    "sort_order": 215
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "May",
+    "day": 9,
+    "day_end": null,
+    "desc": "Designer Run/1st band rehearsal; Video: Final video content due",
+    "sort_order": 216
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "May",
+    "day": 10,
+    "day_end": null,
+    "desc": "2nd band rehearsal",
+    "sort_order": 217
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "May",
+    "day": 11,
+    "day_end": null,
+    "desc": "SM Take Over/Spacing; Hair/Wigs: Final Plot Due",
+    "sort_order": 218
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "May",
+    "day": 12,
+    "day_end": 16,
+    "desc": "TECH",
+    "sort_order": 219
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "May",
+    "day": 15,
+    "day_end": null,
+    "desc": "Sitz/Wandelprobe",
+    "sort_order": 220
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "May",
+    "day": 18,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 221
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "May",
+    "day": 19,
+    "day_end": null,
+    "desc": "Preview",
+    "sort_order": 222
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "May",
+    "day": 23,
+    "day_end": null,
+    "desc": "OPEN",
+    "sort_order": 223
+  },
+  {
+    "show": "stagemother",
+    "year": 2027,
+    "month": "Jun",
+    "day": 20,
+    "day_end": null,
+    "desc": "CLOSE (TBA extension thru Jun 27)",
+    "sort_order": 224
+  },
+  {
+    "show": "camp",
+    "year": 2027,
+    "month": "May",
+    "day": 31,
+    "day_end": null,
+    "desc": "Camp START",
+    "sort_order": 225
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Feb",
+    "day": 1,
+    "day_end": null,
+    "desc": "Scenic: Prelim ground plan/Skeleton drawings Due; Director/Choreo: Cast breakdown",
+    "sort_order": 226
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Feb",
+    "day": 22,
+    "day_end": null,
+    "desc": "Scenic/Props: Final ground plan/Skeleton drawings Due",
+    "sort_order": 227
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Feb",
+    "day": 24,
+    "day_end": null,
+    "desc": "Props: Prelim prop list approval due",
+    "sort_order": 228
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Mar",
+    "day": 8,
+    "day_end": null,
+    "desc": "Scenic/Props: Prelim drafting package due",
+    "sort_order": 229
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Mar",
+    "day": 10,
+    "day_end": null,
+    "desc": "Costumes: Prelim costume plot due/sketches",
+    "sort_order": 230
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Mar",
+    "day": 22,
+    "day_end": null,
+    "desc": "Scenic: Final build drawings due; Props: Final furniture drawings due",
+    "sort_order": 231
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Mar",
+    "day": 31,
+    "day_end": null,
+    "desc": "Costumes: Final Design, Materials & Rough plot Due",
+    "sort_order": 232
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Apr",
+    "day": 12,
+    "day_end": null,
+    "desc": "Sound: cue list due and prelim design paperwork; Lighting: Prelim light plot due",
+    "sort_order": 233
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "May",
+    "day": 3,
+    "day_end": null,
+    "desc": "Lighting: Final plot due; Makeup/Hair/Wigs: Design Concepts Due",
+    "sort_order": 234
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "May",
+    "day": 17,
+    "day_end": null,
+    "desc": "SM Prep Week Starts; Sound: Console Schedule/cue list/qlab file Due",
+    "sort_order": 235
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "May",
+    "day": 24,
+    "day_end": null,
+    "desc": "Scenic/Lighting: Strike & load in starts",
+    "sort_order": 236
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "May",
+    "day": 25,
+    "day_end": null,
+    "desc": "Rehearsal START",
+    "sort_order": 237
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "May",
+    "day": 31,
+    "day_end": null,
+    "desc": "Sound: Console File Due",
+    "sort_order": 238
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Jun",
+    "day": 5,
+    "day_end": null,
+    "desc": "Sound: Design Script due",
+    "sort_order": 239
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Jun",
+    "day": 6,
+    "day_end": null,
+    "desc": "Designer Run/1st band rehearsal/Band Load in; Costumes/Makeup: Final actor pieces list due",
+    "sort_order": 240
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Jun",
+    "day": 7,
+    "day_end": null,
+    "desc": "2nd band rehearsal",
+    "sort_order": 241
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Jun",
+    "day": 8,
+    "day_end": null,
+    "desc": "Lighting Focus/Designer Run",
+    "sort_order": 242
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Jun",
+    "day": 9,
+    "day_end": null,
+    "desc": "SM Take Over/Spacing/Audio Load In; Hair/Wigs: Final Plot Due",
+    "sort_order": 243
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Jun",
+    "day": 10,
+    "day_end": null,
+    "desc": "Sitz/Wandelprobe",
+    "sort_order": 244
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Jun",
+    "day": 11,
+    "day_end": 13,
+    "desc": "TECH",
+    "sort_order": 245
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Jun",
+    "day": 15,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 246
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Jun",
+    "day": 16,
+    "day_end": null,
+    "desc": "Preview",
+    "sort_order": 247
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Jun",
+    "day": 18,
+    "day_end": null,
+    "desc": "OPEN",
+    "sort_order": 248
+  },
+  {
+    "show": "kimbo",
+    "year": 2027,
+    "month": "Jul",
+    "day": 18,
+    "day_end": null,
+    "desc": "CLOSE",
+    "sort_order": 249
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Mar",
+    "day": 17,
+    "day_end": null,
+    "desc": "Costumes: Prelim costume plot due/sketches",
+    "sort_order": 250
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Mar",
+    "day": 19,
+    "day_end": null,
+    "desc": "Props: Prelim prop list approval due; Scenic: Final ground plan Due",
+    "sort_order": 251
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Apr",
+    "day": 14,
+    "day_end": null,
+    "desc": "Costumes: Final Design, Materials & Rough plot Due",
+    "sort_order": 252
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "May",
+    "day": 3,
+    "day_end": null,
+    "desc": "Lighting: Prelim light plot due; Makeup/Hair/Wigs: Design Concepts Due; Sound: prelim cue list/design due",
+    "sort_order": 253
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "May",
+    "day": 31,
+    "day_end": null,
+    "desc": "Lighting: Final plot due",
+    "sort_order": 254
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jun",
+    "day": 7,
+    "day_end": null,
+    "desc": "Scenic: Rental package arrive",
+    "sort_order": 255
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jun",
+    "day": 14,
+    "day_end": null,
+    "desc": "SM Prep Week Starts; Sound: Console Schedule/cue list/qlab file Due",
+    "sort_order": 256
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jun",
+    "day": 21,
+    "day_end": null,
+    "desc": "Scenic/Lighting: Strike & load in starts",
+    "sort_order": 257
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jun",
+    "day": 22,
+    "day_end": null,
+    "desc": "Rehearsal START",
+    "sort_order": 258
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jun",
+    "day": 28,
+    "day_end": null,
+    "desc": "Sound: Console File Due",
+    "sort_order": 259
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jul",
+    "day": 2,
+    "day_end": 3,
+    "desc": "Lighting: Focus",
+    "sort_order": 260
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jul",
+    "day": 3,
+    "day_end": null,
+    "desc": "Sound: Design Script due",
+    "sort_order": 261
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jul",
+    "day": 4,
+    "day_end": null,
+    "desc": "Designer Run/1st band rehearsal/Band Load in; Costumes/Makeup: Final actor pieces list due",
+    "sort_order": 262
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jul",
+    "day": 5,
+    "day_end": null,
+    "desc": "2nd band rehearsal",
+    "sort_order": 263
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jul",
+    "day": 6,
+    "day_end": null,
+    "desc": "Designer Run",
+    "sort_order": 264
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jul",
+    "day": 7,
+    "day_end": null,
+    "desc": "SM Take Over/Spacing/Audio Load In; Hair/Wigs: Final Plot Due",
+    "sort_order": 265
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jul",
+    "day": 8,
+    "day_end": null,
+    "desc": "Sitz/Wandelprobe",
+    "sort_order": 266
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jul",
+    "day": 9,
+    "day_end": 11,
+    "desc": "TECH",
+    "sort_order": 267
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jul",
+    "day": 13,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 268
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jul",
+    "day": 14,
+    "day_end": null,
+    "desc": "Preview",
+    "sort_order": 269
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Jul",
+    "day": 16,
+    "day_end": null,
+    "desc": "OPEN",
+    "sort_order": 270
+  },
+  {
+    "show": "blonde",
+    "year": 2027,
+    "month": "Aug",
+    "day": 22,
+    "day_end": null,
+    "desc": "CLOSE",
+    "sort_order": 271
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Apr",
+    "day": 5,
+    "day_end": null,
+    "desc": "Scenic: Prelim ground plan/Skeleton drawings Due; Director/Choreo: Cast breakdown",
+    "sort_order": 272
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Apr",
+    "day": 26,
+    "day_end": null,
+    "desc": "Scenic/Props: Final ground plan/Skeleton drawings Due",
+    "sort_order": 273
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Apr",
+    "day": 28,
+    "day_end": null,
+    "desc": "Props: Prelim prop list approval due",
+    "sort_order": 274
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "May",
+    "day": 10,
+    "day_end": null,
+    "desc": "Scenic/Props: Prelim drafting package due",
+    "sort_order": 275
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "May",
+    "day": 24,
+    "day_end": null,
+    "desc": "Scenic: Final build drawings due; Props: Final furniture drawings due",
+    "sort_order": 276
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Jun",
+    "day": 14,
+    "day_end": null,
+    "desc": "Lighting: Prelim light plot due; Makeup/Hair/Wigs: Design Concepts Due",
+    "sort_order": 277
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Jun",
+    "day": 26,
+    "day_end": null,
+    "desc": "Costume: Rental Package Arrive",
+    "sort_order": 278
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Jun",
+    "day": 28,
+    "day_end": null,
+    "desc": "Lighting: Final plot due",
+    "sort_order": 279
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Jul",
+    "day": 12,
+    "day_end": null,
+    "desc": "SM Prep Week Starts; Sound: Console Schedule/cue list/qlab file Due",
+    "sort_order": 280
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Jul",
+    "day": 19,
+    "day_end": null,
+    "desc": "Scenic/Lighting: Strike & load in starts",
+    "sort_order": 281
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Jul",
+    "day": 20,
+    "day_end": null,
+    "desc": "Rehearsal START",
+    "sort_order": 282
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Jul",
+    "day": 26,
+    "day_end": null,
+    "desc": "Sound: Console File Due",
+    "sort_order": 283
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Jul",
+    "day": 31,
+    "day_end": null,
+    "desc": "Sound: Design Script due",
+    "sort_order": 284
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Aug",
+    "day": 1,
+    "day_end": null,
+    "desc": "Designer Run/1st band rehearsal/Band Load in; Costumes/Makeup: Final actor pieces list due",
+    "sort_order": 285
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Aug",
+    "day": 2,
+    "day_end": null,
+    "desc": "2nd band rehearsal",
+    "sort_order": 286
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Aug",
+    "day": 3,
+    "day_end": null,
+    "desc": "Lighting Focus/Designer Run",
+    "sort_order": 287
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Aug",
+    "day": 4,
+    "day_end": null,
+    "desc": "SM Take Over/Spacing/Audio Load In; Hair/Wigs: Final Plot Due",
+    "sort_order": 288
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Aug",
+    "day": 5,
+    "day_end": null,
+    "desc": "Sitz/Wandelprobe",
+    "sort_order": 289
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Aug",
+    "day": 6,
+    "day_end": 8,
+    "desc": "TECH",
+    "sort_order": 290
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Aug",
+    "day": 10,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 291
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Aug",
+    "day": 11,
+    "day_end": null,
+    "desc": "Preview",
+    "sort_order": 292
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Aug",
+    "day": 13,
+    "day_end": null,
+    "desc": "OPEN",
+    "sort_order": 293
+  },
+  {
+    "show": "fantasticks",
+    "year": 2027,
+    "month": "Sep",
+    "day": 19,
+    "day_end": null,
+    "desc": "CLOSE",
+    "sort_order": 294
+  },
+  {
+    "show": "tba_s",
+    "year": 2027,
+    "month": "Aug",
+    "day": 24,
+    "day_end": null,
+    "desc": "Rehearsal START (approx)",
+    "sort_order": 295
+  },
+  {
+    "show": "tba_s",
+    "year": 2027,
+    "month": "Sep",
+    "day": 10,
+    "day_end": 12,
+    "desc": "TECH",
+    "sort_order": 296
+  },
+  {
+    "show": "tba_s",
+    "year": 2027,
+    "month": "Sep",
+    "day": 14,
+    "day_end": null,
+    "desc": "Final Dress",
+    "sort_order": 297
+  },
+  {
+    "show": "tba_s",
+    "year": 2027,
+    "month": "Sep",
+    "day": 15,
+    "day_end": null,
+    "desc": "Preview",
+    "sort_order": 298
+  },
+  {
+    "show": "tba_s",
+    "year": 2027,
+    "month": "Sep",
+    "day": 17,
+    "day_end": null,
+    "desc": "OPEN",
+    "sort_order": 299
+  },
+  {
+    "show": "tba_h",
+    "year": 2027,
+    "month": "Sep",
+    "day": 20,
+    "day_end": null,
+    "desc": "Rehearsal START",
+    "sort_order": 300
+  }
+]

@@ -143,6 +143,39 @@ def validate_show(data):
         'closed_at': sanitize(data.get('closed_at', ''), 40),
     }
 
+SEASON_MONTHS = ('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec')
+
+def validate_season_event(data):
+    """Sanitize season-calendar event input fields. Raises ValueError with a
+    user-facing message on anything malformed enough that we shouldn't try
+    to guess — the API route turns that into a 400."""
+    show = sanitize(data.get('show', ''), 50)
+    month = data.get('month', '')
+    if month not in SEASON_MONTHS:
+        raise ValueError('month must be a 3-letter abbreviation, e.g. "Aug"')
+    try:
+        year = int(data.get('year'))
+        day = int(data.get('day'))
+    except (TypeError, ValueError):
+        raise ValueError('year and day must be numbers')
+    if not (2020 <= year <= 2100):
+        raise ValueError('year out of range')
+    if not (1 <= day <= 31):
+        raise ValueError('day out of range')
+    day_end_raw = data.get('day_end')
+    day_end = None
+    if day_end_raw not in (None, ''):
+        try:
+            day_end = int(day_end_raw)
+        except (TypeError, ValueError):
+            raise ValueError('day_end must be a number')
+        if not (day <= day_end <= 31):
+            raise ValueError('day_end must be >= day')
+    desc = sanitize(data.get('desc', ''), MAX_TEXT)
+    if not show or not desc:
+        raise ValueError('show and desc are required')
+    return {'show': show, 'year': year, 'month': month, 'day': day, 'day_end': day_end, 'desc': desc}
+
 def validate_journal(data):
     """Sanitize journal input fields."""
     return {
@@ -470,8 +503,11 @@ TOOL_FILES = {
     'lens-throw-calculator': 'lens-throw-calculator.html',
     'cl5-patch-generator': 'cl5-patch-generator.html',
 }
-# Only inventory.html actually needs Jinja (for the IS_ADMIN flag).
-TOOLS_NEEDING_JINJA = {'inventory'}
+# inventory.html and season-calendar.html need Jinja (for the IS_ADMIN flag
+# that gates their edit UI). Checked season-calendar.html's CSS for the
+# minified "}{#" collision pattern described above — it's hand-formatted,
+# one rule per line, no match — safe to add.
+TOOLS_NEEDING_JINJA = {'inventory', 'season-calendar'}
 
 @app.route('/tools/<name>')
 @login_required
@@ -1161,6 +1197,75 @@ def api_inventory_show_gear_archive(show_id):
 @require_api_key_or_session
 def api_inventory_gear_archive_all():
     return jsonify(models.list_show_gear_archive())
+
+# ══════════════════════════════════
+# WHOAMI — small helper for standalone tool pages (like season-calendar.html)
+# that are served without Jinja templating and need to know client-side
+# whether the logged-in user is an admin, without duplicating the role
+# check that admin_required already does server-side on the write routes.
+# ══════════════════════════════════
+
+@app.route('/api/whoami')
+@login_required
+def api_whoami():
+    user = auth.current_user()
+    return jsonify({'id': user['id'], 'name': user['name'], 'role': user['role']})
+
+# ══════════════════════════════════
+# SEASON CALENDAR — Important Dates tool. Reads are open to any logged-in
+# user (or the MCP server); writes are admin-only in the browser, same
+# pattern as inventory writes above (require_api_key_or_admin trusts the
+# machine credential at admin-equivalent level).
+# ══════════════════════════════════
+
+@app.route('/api/season-events', methods=['GET'])
+@require_api_key_or_session
+def api_list_season_events():
+    return jsonify(models.list_season_events())
+
+@app.route('/api/season-events', methods=['POST'])
+@require_api_key_or_admin
+def api_create_season_event():
+    try:
+        clean = validate_season_event(request.get_json() or {})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    user = auth.current_user()
+    event_id = models.create_season_event(clean, created_by=user['id'] if user else None,
+                                           created_by_name=user['name'] if user else 'api-key')
+    models.log_action(user['id'] if user else None, user['name'] if user else 'api-key',
+                       'season_event_created', target=str(event_id),
+                       detail=f"{clean['show']} {clean['month']} {clean['day']}: {clean['desc']}")
+    return jsonify(models.get_season_event(event_id)), 201
+
+@app.route('/api/season-events/<int:event_id>', methods=['PUT'])
+@require_api_key_or_admin
+def api_update_season_event(event_id):
+    if not models.get_season_event(event_id):
+        return jsonify({'error': 'Event not found'}), 404
+    try:
+        clean = validate_season_event(request.get_json() or {})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    models.update_season_event(event_id, clean)
+    user = auth.current_user()
+    models.log_action(user['id'] if user else None, user['name'] if user else 'api-key',
+                       'season_event_updated', target=str(event_id),
+                       detail=f"{clean['show']} {clean['month']} {clean['day']}: {clean['desc']}")
+    return jsonify(models.get_season_event(event_id))
+
+@app.route('/api/season-events/<int:event_id>', methods=['DELETE'])
+@require_api_key_or_admin
+def api_delete_season_event(event_id):
+    event = models.get_season_event(event_id)
+    if not event:
+        return jsonify({'error': 'Event not found'}), 404
+    models.delete_season_event(event_id)
+    user = auth.current_user()
+    models.log_action(user['id'] if user else None, user['name'] if user else 'api-key',
+                       'season_event_deleted', target=str(event_id),
+                       detail=f"{event['show_id']} {event['month']} {event['day']}: {event['desc']}")
+    return jsonify({'status': 'deleted'})
 
 # ══════════════════════════════════
 # VENUE FACT DB (Home page STAFF/GUEST editor)
