@@ -143,7 +143,8 @@
 const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
 // Shows now live in the season_shows DB table, not hardcoded here — loaded
 // via loadShows() below so a canceled show can be deleted (and its dates
-// with it) from the UI. See /api/season-shows (GET/DELETE) in app.py.
+// with it), and a new show (e.g. a lineup swap) can be added, from the UI.
+// See /api/season-shows (GET/POST/DELETE) in app.py.
 let SHOWS = [];
 const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MONTH_IDX={};MONTHS.forEach((m,i)=>MONTH_IDX[m]=i);
@@ -239,6 +240,7 @@ function renderControls(){
     html+=`<button class="filter-btn ${activeDepts.has(k)?'active':''}" onclick="setDept('${k}')">${v}</button>`;
   });
   html+='<span class="view-toggle">';
+  if(IS_ADMIN) html+=`<button class="add-event-btn" onclick="addShow()">+ Add Show</button>`;
   if(IS_ADMIN) html+=`<button class="add-event-btn" onclick="openAddModal()">+ Add Event</button>`;
   html+=`<button class="filter-btn" onclick="printCalendar()" title="Print the shows currently selected above">Print</button>`;
   html+=`<button class="filter-btn ${viewMode==='timeline'?'active':''}" onclick="setView('timeline')">Timeline</button>`;
@@ -261,6 +263,33 @@ async function deleteShow(id){
   }catch(err){
     alert(err.message||"Delete failed.");
   }
+}
+
+const NEW_SHOW_PALETTE=["#38bdf8","#a3e635","#fb7185","#facc15","#c084fc","#2dd4bf","#f472b6"];
+
+async function addShow(){
+  const name=prompt("Show name (e.g. \"In the Heights\"):");
+  if(!name)return;
+  const short=(prompt("Short code for the chip/legend (3-4 letters, e.g. \"ITH\"):","")||"").trim();
+  const color=NEW_SHOW_PALETTE[SHOWS.length%NEW_SHOW_PALETTE.length];
+  const payload={name:name.trim(),color,bg:hexToRgba(color,0.12)};
+  if(short)payload.short=short.toUpperCase();
+  try{
+    const created=await apiCall('POST','/api/season-shows',payload);
+    activeShows.add(created.id);
+    await loadShows();
+    await loadEvents();
+    render();
+  }catch(err){
+    alert(err.message||"Add show failed.");
+  }
+}
+
+function hexToRgba(hex,alpha){
+  const h=hex.replace('#','');
+  const bigint=parseInt(h.length===3?h.split('').map(c=>c+c).join(''):h,16);
+  const r=(bigint>>16)&255,g=(bigint>>8)&255,b=bigint&255;
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 function printCalendar(){

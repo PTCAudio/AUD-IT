@@ -8,6 +8,7 @@ Routes:
   /api/...       → REST API endpoints
 """
 import os
+import re
 import json
 import uuid
 import html as html_lib
@@ -175,6 +176,37 @@ def validate_season_event(data):
     if not show or not desc:
         raise ValueError('show and desc are required')
     return {'show': show, 'year': year, 'month': month, 'day': day, 'day_end': day_end, 'desc': desc}
+
+def slugify(text):
+    """Lowercase, alnum-only id derived from a show name (e.g. 'In the
+    Heights' -> 'intheheights'), matching the style of the existing
+    hardcoded season_shows ids (lesmis, stagemother, etc.)."""
+    return re.sub(r'[^a-z0-9]', '', text.lower())
+
+HEX_COLOR_RE = re.compile(r'^#[0-9a-fA-F]{3,8}$')
+
+def validate_season_show(data):
+    """Sanitize new-show input for the season calendar. id is derived from
+    name when not supplied explicitly. Raises ValueError with a
+    user-facing message on anything malformed enough that we shouldn't try
+    to guess — the API route turns that into a 400."""
+    name = sanitize(data.get('name', ''), 100)
+    if not name:
+        raise ValueError('name is required')
+    show_id = sanitize(data.get('id', ''), 50) or slugify(name)
+    show_id = re.sub(r'[^a-z0-9_-]', '', show_id.lower())
+    if not show_id:
+        raise ValueError('could not derive a valid id from name; pass one explicitly')
+    short = sanitize(data.get('short', ''), 10) or name[:3].upper()
+    color = sanitize(data.get('color', '#94a3b8'), 20)
+    if not HEX_COLOR_RE.match(color):
+        raise ValueError('color must be a hex value like #94a3b8')
+    bg = sanitize(data.get('bg', ''), 60) or f'rgba(148,163,184,0.12)'
+    try:
+        sort_order = int(data.get('sort_order')) if data.get('sort_order') not in (None, '') else None
+    except (TypeError, ValueError):
+        raise ValueError('sort_order must be a number')
+    return {'id': show_id, 'name': name, 'short': short, 'color': color, 'bg': bg, 'sort_order': sort_order}
 
 def validate_journal(data):
     """Sanitize journal input fields."""
@@ -1222,6 +1254,25 @@ def api_whoami():
 @require_api_key_or_session
 def api_list_season_shows():
     return jsonify(models.list_season_shows())
+
+@app.route('/api/season-shows', methods=['POST'])
+@require_api_key_or_admin
+def api_create_season_show():
+    """Adds a new show to the season calendar (e.g. a lineup swap like In
+    the Heights replacing a cancelled show). id defaults to a slug of the
+    name if not supplied; sort_order defaults to end-of-list."""
+    try:
+        clean = validate_season_show(request.get_json() or {})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    if models.get_season_show(clean['id']):
+        return jsonify({'error': f"A show with id '{clean['id']}' already exists"}), 409
+    show_id = models.create_season_show(clean)
+    user = auth.current_user()
+    models.log_action(user['id'] if user else None, user['name'] if user else 'api-key',
+                       'season_show_created', target=show_id,
+                       detail=clean['name'])
+    return jsonify(models.get_season_show(show_id)), 201
 
 @app.route('/api/season-shows/<show_id>', methods=['DELETE'])
 @require_api_key_or_admin

@@ -573,6 +573,22 @@ def get_season_show(show_id):
     return dict(row) if row else None
 
 
+def create_season_show(data):
+    """Adds a new row to season_shows. sort_order defaults to end-of-list
+    (max existing + 1) when not supplied, so new shows appear last in the
+    calendar's show filter/legend unless the caller places them deliberately."""
+    db = get_db()
+    sort_order = data.get('sort_order')
+    if sort_order is None:
+        sort_order = (db.execute('SELECT COALESCE(MAX(sort_order),-1) AS m FROM season_shows').fetchone()['m']) + 1
+    db.execute('''INSERT INTO season_shows (id, name, short, color, bg, sort_order)
+        VALUES (?,?,?,?,?,?)''',
+        (data['id'], data['name'], data['short'], data['color'], data['bg'], sort_order))
+    db.commit()
+    db.close()
+    return data['id']
+
+
 def delete_season_show(show_id):
     """Hard delete: removes the show and every one of its season_events
     (cancellations are permanent, per Matthew, 2026-08-13 — no archive/
