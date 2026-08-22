@@ -59,6 +59,23 @@
   .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; }
   .modal-overlay.open { display:flex; }
   .modal-box { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:24px; width:420px; max-width:90vw; }
+  .modal-box.wide { width:640px; }
+  .bulk-help { font-size:11px; color:var(--text-dim); line-height:1.5; margin-bottom:10px; }
+  .bulk-help code { background:var(--surface2); padding:1px 4px; border-radius:3px; }
+  #bf-text { min-height:260px; font-family:'JetBrains Mono',monospace; font-size:12px; }
+  .bulk-preview { font-size:12px; margin-top:10px; max-height:160px; overflow-y:auto; }
+  .bulk-preview .ok { color:#6bcb77; }
+  .bulk-preview .err { color:#ef4444; }
+  .bulk-preview .err-row { padding:2px 0; }
+  .manage-list { max-height:400px; overflow-y:auto; margin-bottom:6px; }
+  .manage-row { display:flex; align-items:center; gap:8px; padding:6px 8px; border-bottom:1px solid var(--border); }
+  .manage-row:last-child { border-bottom:none; }
+  .manage-row .ms-swatch { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+  .manage-row .ms-name { flex:1; font-size:13px; }
+  .manage-row .ms-moves { display:flex; gap:2px; }
+  .ms-move-btn { border:1px solid var(--border); background:var(--surface2); color:var(--text); border-radius:4px; width:24px; height:24px; cursor:pointer; font-size:12px; line-height:1; }
+  .ms-move-btn:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+  .ms-move-btn:disabled { opacity:0.3; cursor:default; }
   .modal-box h2 { font-family:'JetBrains Mono',monospace; font-size:15px; color:var(--accent); margin-bottom:16px; }
   .modal-field { margin-bottom:12px; }
   .modal-field label { display:block; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim); margin-bottom:4px; }
@@ -75,6 +92,8 @@
   .modal-error { color:#ef4444; font-size:12px; margin-top:8px; display:none; }
   .chip-del { margin-left:6px; font-weight:400; opacity:0.6; }
   .chip-del:hover { opacity:1; color:#ef4444; }
+  .chip-edit { margin-left:6px; font-weight:400; opacity:0.6; }
+  .chip-edit:hover { opacity:1; color:var(--accent); }
   #printScopeLabel { display:none; }
   @media(max-width:600px) { .header,.controls,.content { padding-left:16px; padding-right:16px; } .event-row { grid-template-columns:60px 1fr; gap:8px; } }
   @media print {
@@ -135,6 +154,48 @@
       <span style="flex:1"></span>
       <button class="modal-btn" onclick="closeEventModal()">Cancel</button>
       <button class="modal-btn primary" onclick="submitEventForm()" style="margin-left:8px">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="bulkModal">
+  <div class="modal-box wide">
+    <h2>Bulk Import Dates</h2>
+    <div class="bulk-help">
+      Paste a whole show's date list at once instead of adding events one by one. Pick the show below, then paste lines like:<br>
+      <code>2026</code> (a year header — applies to every date line under it, until the next year header)<br>
+      <code>Apr 20 — Rehearsal START</code><br>
+      <code>May 12–16 — TECH</code> (a day range uses an en dash or hyphen between the two days)<br>
+      Separator between the date and the description can be <code>—</code>, <code>-</code>, or <code>:</code>.
+    </div>
+    <div class="modal-field">
+      <label>Show</label>
+      <select id="bf-show"></select>
+    </div>
+    <div class="modal-field">
+      <label>Paste dates here</label>
+      <textarea id="bf-text" placeholder="2026&#10;Apr 20 — Rehearsal START&#10;Apr 26 — Sound: Console file due&#10;..." oninput="updateBulkPreview()"></textarea>
+    </div>
+    <div class="bulk-preview" id="bf-preview"></div>
+    <div class="modal-error" id="bulkModalError"></div>
+    <div class="modal-actions">
+      <span style="flex:1"></span>
+      <button class="modal-btn" onclick="closeBulkModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="submitBulkImport()" style="margin-left:8px">Import</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="manageShowsModal">
+  <div class="modal-box">
+    <h2>Manage Shows — Order</h2>
+    <div class="bulk-help">Use the arrows to move a show up or down in the list. This only changes display order (the chip/legend order and print grouping) — it doesn't touch any dates.</div>
+    <div class="manage-list" id="manageShowsList"></div>
+    <div class="modal-error" id="manageShowsError"></div>
+    <div class="modal-actions">
+      <span style="flex:1"></span>
+      <button class="modal-btn" onclick="closeManageShowsModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="saveShowOrder()" style="margin-left:8px">Save Order</button>
     </div>
   </div>
 </div>
@@ -231,8 +292,9 @@ function renderControls(){
   let html='<label>Shows</label>';
   SHOWS.forEach(s=>{
     const active=activeShows.has(s.id)?"active":"";
+    const editBtn=IS_ADMIN?`<span class="chip-edit" title="Change this show's position in the list" onclick="event.stopPropagation();reorderShow('${s.id}')">&#9998;</span>`:'';
     const delBtn=IS_ADMIN?`<span class="chip-del" title="Cancel/delete this show" onclick="event.stopPropagation();deleteShow('${s.id}')">&times;</span>`:'';
-    html+=`<span class="show-chip ${active}" style="color:${s.color};border-color:${s.color};background:${active?s.bg:'transparent'}" onclick="toggleShow('${s.id}')">${s.short}${delBtn}</span>`;
+    html+=`<span class="show-chip ${active}" style="color:${s.color};border-color:${s.color};background:${active?s.bg:'transparent'}" onclick="toggleShow('${s.id}')">${s.short}${editBtn}${delBtn}</span>`;
   });
   html+='<span style="width:12px"></span><label>Dept</label>';
   const dl={all:"All",audio:"Audio",lighting:"LX",scenic:"Scenic",costumes:"Cost",props:"Props",video:"Video","hair/wigs":"H/W",sm:"SM",production:"Prod"};
@@ -242,11 +304,32 @@ function renderControls(){
   html+='<span class="view-toggle">';
   if(IS_ADMIN) html+=`<button class="add-event-btn" onclick="addShow()">+ Add Show</button>`;
   if(IS_ADMIN) html+=`<button class="add-event-btn" onclick="openAddModal()">+ Add Event</button>`;
+  if(IS_ADMIN) html+=`<button class="add-event-btn" onclick="openBulkModal()">+ Bulk Import Dates</button>`;
+  if(IS_ADMIN) html+=`<button class="filter-btn" onclick="openManageShowsModal()" title="Reorder shows in the filter/legend">Manage Shows</button>`;
   html+=`<button class="filter-btn" onclick="printCalendar()" title="Print the shows currently selected above">Print</button>`;
   html+=`<button class="filter-btn ${viewMode==='timeline'?'active':''}" onclick="setView('timeline')">Timeline</button>`;
   html+=`<button class="filter-btn ${viewMode==='grid'?'active':''}" onclick="setView('grid')">Grid</button>`;
   html+='</span>';
   c.innerHTML=html;
+}
+
+async function reorderShow(id){
+  const s=getShowInfo(id);
+  if(!s)return;
+  const ordered=SHOWS.slice().sort((a,b)=>a.sort_order-b.sort_order);
+  const listing=ordered.map(x=>`${x.sort_order}: ${x.name}${x.id===id?'  <-- this one':''}`).join('\n');
+  const input=prompt(`Current order (sort_order: show):\n\n${listing}\n\nEnter a new sort_order for "${s.name}" (use a number between the two shows you want it sandwiched between, e.g. between 9 and 11 use 10):`, s.sort_order);
+  if(input===null)return;
+  const sortOrder=parseInt(input,10);
+  if(isNaN(sortOrder)){alert("Not a number.");return;}
+  try{
+    await apiCall('PUT','/api/season-shows/'+id,{sort_order:sortOrder});
+    await loadShows();
+    await loadEvents();
+    render();
+  }catch(err){
+    alert(err.message||"Reorder failed.");
+  }
 }
 
 async function deleteShow(id){
@@ -378,6 +461,8 @@ function populateModalSelects(){
   showSel.innerHTML=SHOWS.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   const monthSel=document.getElementById("ef-month");
   monthSel.innerHTML=MONTHS.map(m=>`<option value="${m}">${m}</option>`).join('');
+  const bulkShowSel=document.getElementById("bf-show");
+  bulkShowSel.innerHTML=SHOWS.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
 }
 
 function openAddModal(){
@@ -462,6 +547,142 @@ async function quickDeleteEvent(id){
     render();
   }catch(err){
     alert(err.message||"Delete failed.");
+  }
+}
+
+// ── Bulk import (paste a whole show's date list at once) ───────────
+// Accepts loose text: a lone 4-digit year on its own line sets the year
+// for every date line under it until the next year header; date lines
+// look like "Mon Day[-DayEnd] <sep> Description" where <sep> is an em
+// dash, en dash, hyphen, or colon. This mirrors the format Matthew's
+// "Important Dates" schedules and season-calendar KB page milestone
+// tables are usually pasted in as (2026-08-22, added after a lineup
+// swap — In the Heights replacing Stage Mother — made re-entering 25
+// dates one at a time through Add Event painful).
+const BULK_DATE_LINE_RE=/^[-*•]?\s*([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:\s*[–-]\s*(\d{1,2}))?\s*[—–:-]\s*(.+)$/;
+const BULK_YEAR_LINE_RE=/^[#*\s]*(\d{4})[#*\s]*$/;
+
+function parseBulkText(text){
+  const monthNorm={};
+  MONTHS.forEach(m=>monthNorm[m.toLowerCase()]=m);
+  const lines=text.split(/\r?\n/);
+  let year=null;
+  const events=[];
+  const errors=[];
+  lines.forEach((raw,idx)=>{
+    const line=raw.trim();
+    if(!line)return;
+    const yearMatch=line.match(BULK_YEAR_LINE_RE);
+    if(yearMatch){year=parseInt(yearMatch[1],10);return;}
+    const m=line.match(BULK_DATE_LINE_RE);
+    if(!m){errors.push({line:idx+1,text:raw,error:"Couldn't parse as a date line or a year header (a lone 4-digit year on its own line)."});return;}
+    const month=monthNorm[m[1].slice(0,3).toLowerCase()];
+    if(!month){errors.push({line:idx+1,text:raw,error:`Unrecognized month "${m[1]}".`});return;}
+    if(!year){errors.push({line:idx+1,text:raw,error:'No year set yet — add a year header line (e.g. "2026") above this date.'});return;}
+    const day=parseInt(m[2],10);
+    const dayEnd=m[3]?parseInt(m[3],10):null;
+    if(day<1||day>31){errors.push({line:idx+1,text:raw,error:"Day out of range."});return;}
+    events.push({year,month,day,day_end:dayEnd,desc:m[4].trim()});
+  });
+  return {events,errors};
+}
+
+function updateBulkPreview(){
+  const text=document.getElementById("bf-text").value;
+  const {events,errors}=parseBulkText(text);
+  const el=document.getElementById("bf-preview");
+  if(!text.trim()){el.innerHTML="";return;}
+  let html=`<div class="ok">${events.length} date(s) parsed and ready to import.</div>`;
+  if(errors.length){
+    html+=`<div class="err">${errors.length} line(s) couldn't be parsed — these will be skipped unless fixed:</div>`;
+    html+=errors.map(e=>`<div class="err-row">Line ${e.line}: "${e.text.trim()}" — ${e.error}</div>`).join('');
+  }
+  el.innerHTML=html;
+}
+
+function openBulkModal(){
+  document.getElementById("bf-show").value=SHOWS[0].id;
+  document.getElementById("bf-text").value="";
+  document.getElementById("bf-preview").innerHTML="";
+  document.getElementById("bulkModalError").style.display="none";
+  document.getElementById("bulkModal").classList.add("open");
+}
+
+function closeBulkModal(){document.getElementById("bulkModal").classList.remove("open");}
+
+function showBulkModalError(msg){
+  const el=document.getElementById("bulkModalError");
+  el.textContent=msg;
+  el.style.display="block";
+}
+
+async function submitBulkImport(){
+  const show=document.getElementById("bf-show").value;
+  const {events,errors}=parseBulkText(document.getElementById("bf-text").value);
+  if(errors.length){showBulkModalError(`Fix the ${errors.length} unparsed line(s) above before importing (or delete them if they're not date lines).`);return;}
+  if(!events.length){showBulkModalError("Nothing to import — paste at least one date line.");return;}
+  const payload={events:events.map(e=>({...e,show}))};
+  try{
+    const res=await apiCall('POST','/api/season-events/bulk',payload);
+    closeBulkModal();
+    activeShows.add(show);
+    await loadEvents();
+    render();
+    alert(`Imported ${res.count} date(s) for "${getShowInfo(show).name}".`);
+  }catch(err){
+    showBulkModalError(err.message||"Import failed.");
+  }
+}
+
+// ── Manage Shows (manual reorder) ───────────────────────────────────
+// A visual alternative to the pencil-icon single-show reorderShow()
+// prompt above — lets an admin drag the whole lineup into place with
+// up/down buttons and save it in one PUT /api/season-shows/reorder call,
+// rather than typing an exact sort_order number per show.
+let manageOrder=[];
+
+function openManageShowsModal(){
+  manageOrder=SHOWS.slice().sort((a,b)=>a.sort_order-b.sort_order).map(s=>s.id);
+  document.getElementById("manageShowsError").style.display="none";
+  renderManageShowsList();
+  document.getElementById("manageShowsModal").classList.add("open");
+}
+
+function closeManageShowsModal(){document.getElementById("manageShowsModal").classList.remove("open");}
+
+function renderManageShowsList(){
+  const el=document.getElementById("manageShowsList");
+  el.innerHTML=manageOrder.map((id,i)=>{
+    const s=getShowInfo(id);
+    if(!s)return '';
+    return `<div class="manage-row">
+      <span class="ms-swatch" style="background:${s.color}"></span>
+      <span class="ms-name">${s.name}</span>
+      <span class="ms-moves">
+        <button class="ms-move-btn" onclick="moveShowInList(${i},-1)" ${i===0?'disabled':''} title="Move up">&uarr;</button>
+        <button class="ms-move-btn" onclick="moveShowInList(${i},1)" ${i===manageOrder.length-1?'disabled':''} title="Move down">&darr;</button>
+      </span>
+    </div>`;
+  }).join('');
+}
+
+function moveShowInList(index,dir){
+  const target=index+dir;
+  if(target<0||target>=manageOrder.length)return;
+  [manageOrder[index],manageOrder[target]]=[manageOrder[target],manageOrder[index]];
+  renderManageShowsList();
+}
+
+async function saveShowOrder(){
+  try{
+    await apiCall('PUT','/api/season-shows/reorder',{order:manageOrder});
+    closeManageShowsModal();
+    await loadShows();
+    render();
+  }catch(err){
+    const el=document.getElementById("manageShowsError");
+    el.textContent=err.message||"Save failed.";
+    el.style.display="block";
   }
 }
 

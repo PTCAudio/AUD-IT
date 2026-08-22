@@ -208,6 +208,39 @@ def validate_season_show(data):
         raise ValueError('sort_order must be a number')
     return {'id': show_id, 'name': name, 'short': short, 'color': color, 'bg': bg, 'sort_order': sort_order}
 
+def validate_season_show_update(data):
+    """Sanitize a partial season-show edit — only fields present in the
+    request are validated/returned, so a caller can send just {'sort_order':
+    10} to re-slot a show without touching its name/colors. Raises
+    ValueError with a user-facing message; the API route turns that into a
+    400."""
+    clean = {}
+    if 'name' in data:
+        name = sanitize(data.get('name', ''), 100)
+        if not name:
+            raise ValueError('name cannot be blank')
+        clean['name'] = name
+    if 'short' in data:
+        short = sanitize(data.get('short', ''), 10)
+        if not short:
+            raise ValueError('short cannot be blank')
+        clean['short'] = short
+    if 'color' in data:
+        color = sanitize(data.get('color', ''), 20)
+        if not HEX_COLOR_RE.match(color):
+            raise ValueError('color must be a hex value like #94a3b8')
+        clean['color'] = color
+    if 'bg' in data:
+        clean['bg'] = sanitize(data.get('bg', ''), 60)
+    if 'sort_order' in data:
+        try:
+            clean['sort_order'] = int(data.get('sort_order'))
+        except (TypeError, ValueError):
+            raise ValueError('sort_order must be a number')
+    if not clean:
+        raise ValueError('no editable fields supplied')
+    return clean
+
 def validate_journal(data):
     """Sanitize journal input fields."""
     return {
@@ -1274,6 +1307,56 @@ def api_create_season_show():
                        detail=clean['name'])
     return jsonify(models.get_season_show(show_id)), 201
 
+@app.route('/api/season-shows/<show_id>', methods=['PUT'])
+@require_api_key_or_admin
+def api_update_season_show(show_id):
+    """Partial edit of a show — mainly for re-slotting sort_order (e.g. a
+    lineup-swap show should sit where the cancelled show used to be, not at
+    the end of the list) without touching its already-entered dates."""
+    if not models.get_season_show(show_id):
+        return jsonify({'error': 'Show not found'}), 404
+    try:
+        clean = validate_season_show_update(request.get_json() or {})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    models.update_season_show(show_id, clean)
+    user = auth.current_user()
+    models.log_action(user['id'] if user else None, user['name'] if user else 'api-key',
+                       'season_show_updated', target=show_id,
+                       detail=', '.join(f'{k}={v}' for k, v in clean.items()))
+    return jsonify(models.get_season_show(show_id))
+
+@app.route('/api/season-shows/reorder', methods=['PUT'])
+@require_api_key_or_admin
+def api_reorder_season_shows():
+    """Saves a whole rearranged show lineup in one call — the Manage Shows
+    UI's drag/reorder list sends the full ordered list of show ids on save
+    rather than one sort_order PUT per moved show. Expects
+    {"order": [show_id, show_id, ...]} containing every existing show id
+    exactly once (any other shape is rejected rather than guessed at,
+    since silently dropping or duplicating a show's position would be a
+    confusing way to fail)."""
+    body = request.get_json() or {}
+    order = body.get('order')
+    if not isinstance(order, list) or not order:
+        return jsonify({'error': 'order must be a non-empty array of show ids'}), 400
+    existing_ids = {s['id'] for s in models.list_season_shows()}
+    order_set = set(order)
+    if len(order) != len(order_set):
+        return jsonify({'error': 'order contains duplicate show ids'}), 400
+    if order_set != existing_ids:
+        missing = existing_ids - order_set
+        extra = order_set - existing_ids
+        detail = []
+        if missing: detail.append(f"missing: {', '.join(sorted(missing))}")
+        if extra: detail.append(f"unknown: {', '.join(sorted(extra))}")
+        return jsonify({'error': f"order must contain every existing show exactly once ({'; '.join(detail)})"}), 400
+    models.reorder_season_shows(order)
+    user = auth.current_user()
+    models.log_action(user['id'] if user else None, user['name'] if user else 'api-key',
+                       'season_shows_reordered', detail=', '.join(order))
+    return jsonify(models.list_season_shows())
+
 @app.route('/api/season-shows/<show_id>', methods=['DELETE'])
 @require_api_key_or_admin
 def api_delete_season_show(show_id):
@@ -1309,6 +1392,41 @@ def api_create_season_event():
                        'season_event_created', target=str(event_id),
                        detail=f"{clean['show']} {clean['month']} {clean['day']}: {clean['desc']}")
     return jsonify(models.get_season_event(event_id)), 201
+
+@app.route('/api/season-events/bulk', methods=['POST'])
+@require_api_key_or_admin
+def api_create_season_events_bulk():
+    """Bulk-import path: pastes a whole show's date list (e.g. an
+    "Important Dates" schedule, or a lineup-swap replacement schedule) in
+    one call instead of one POST /api/season-events per line. Expects
+    {"events": [{show, year, month, day, day_end?, desc}, ...]}.
+    All-or-nothing: if any row fails validation, nothing is inserted and
+    the response lists every failing row (1-indexed) with its error, so
+    the caller can fix the whole batch and resubmit rather than ending up
+    with a half-imported show."""
+    body = request.get_json() or {}
+    raw_events = body.get('events')
+    if not isinstance(raw_events, list) or not raw_events:
+        return jsonify({'error': 'events must be a non-empty array'}), 400
+    if len(raw_events) > 200:
+        return jsonify({'error': 'events array too large (max 200 per call)'}), 400
+    clean_events = []
+    errors = []
+    for i, raw in enumerate(raw_events):
+        try:
+            clean_events.append(validate_season_event(raw if isinstance(raw, dict) else {}))
+        except ValueError as e:
+            errors.append({'index': i + 1, 'error': str(e)})
+    if errors:
+        return jsonify({'error': 'Some rows failed validation; nothing was imported.', 'row_errors': errors}), 400
+    user = auth.current_user()
+    event_ids = models.create_season_events_bulk(clean_events, created_by=user['id'] if user else None,
+                                                   created_by_name=user['name'] if user else 'api-key')
+    shows_touched = sorted(set(e['show'] for e in clean_events))
+    models.log_action(user['id'] if user else None, user['name'] if user else 'api-key',
+                       'season_events_bulk_created', target=','.join(shows_touched),
+                       detail=f"{len(event_ids)} date(s) imported for {', '.join(shows_touched)}")
+    return jsonify({'status': 'created', 'count': len(event_ids), 'events': [models.get_season_event(i) for i in event_ids]}), 201
 
 @app.route('/api/season-events/<int:event_id>', methods=['PUT'])
 @require_api_key_or_admin

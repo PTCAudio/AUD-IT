@@ -589,6 +589,41 @@ def create_season_show(data):
     return data['id']
 
 
+def update_season_show(show_id, data):
+    """Partial update of a season_shows row — used mainly to re-slot a show's
+    sort_order (e.g. a lineup swap that should sit where the cancelled show
+    used to be, not at the end of the list) without touching its events."""
+    db = get_db()
+    fields = []
+    values = []
+    field_map = {
+        'name': 'name', 'short': 'short', 'color': 'color',
+        'bg': 'bg', 'sort_order': 'sort_order',
+    }
+    for js_key, db_key in field_map.items():
+        if js_key in data:
+            fields.append(f'{db_key}=?')
+            values.append(data[js_key])
+    if fields:
+        values.append(show_id)
+        db.execute(f'UPDATE season_shows SET {",".join(fields)} WHERE id=?', values)
+        db.commit()
+    db.close()
+
+
+def reorder_season_shows(ordered_ids):
+    """Sets sort_order for every season show to its index in ordered_ids —
+    used by the Manage Shows drag/reorder UI to save a whole rearranged
+    lineup in one call instead of one PUT per moved show. Caller is
+    expected to have already validated ordered_ids is a full permutation
+    of every existing show id (see api_reorder_season_shows)."""
+    db = get_db()
+    for i, show_id in enumerate(ordered_ids):
+        db.execute('UPDATE season_shows SET sort_order=? WHERE id=?', (i, show_id))
+    db.commit()
+    db.close()
+
+
 def delete_season_show(show_id):
     """Hard delete: removes the show and every one of its season_events
     (cancellations are permanent, per Matthew, 2026-08-13 — no archive/
@@ -657,6 +692,27 @@ def create_season_event(data, created_by=None, created_by_name=''):
     event_id = cur.lastrowid
     db.close()
     return event_id
+
+
+def create_season_events_bulk(events, created_by=None, created_by_name=''):
+    """Inserts many season_events rows in one transaction — used by the
+    bulk-import path (pasting a whole show's "Important Dates" list at once
+    instead of one Add Event round trip per line). Assigns each row the
+    next sort_order in the sequence it was given, so paste order becomes
+    display order among same-day events. Returns the list of new event ids
+    in the same order as the input."""
+    db = get_db()
+    max_order = db.execute('SELECT COALESCE(MAX(sort_order),0) AS m FROM season_events').fetchone()['m']
+    ids = []
+    for i, data in enumerate(events):
+        cur = db.execute('''INSERT INTO season_events (show_id, year, month, day, day_end, desc, sort_order, created_by, created_by_name)
+            VALUES (?,?,?,?,?,?,?,?,?)''',
+            (data['show'], data['year'], data['month'], data['day'], data.get('day_end'), data['desc'],
+             max_order + 1 + i, created_by, created_by_name))
+        ids.append(cur.lastrowid)
+    db.commit()
+    db.close()
+    return ids
 
 
 def update_season_event(event_id, data):
