@@ -567,6 +567,7 @@ TOOL_FILES = {
     'season-calendar': 'season-calendar.html',
     'lens-throw-calculator': 'lens-throw-calculator.html',
     'cl5-patch-generator': 'cl5-patch-generator.html',
+    'me1-label-strip': 'me1-label-strip.html',
 }
 # inventory.html and season-calendar.html need Jinja (for the IS_ADMIN flag
 # that gates their edit UI). Checked season-calendar.html's CSS for the

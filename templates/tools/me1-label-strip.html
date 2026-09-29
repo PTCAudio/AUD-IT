@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ME1 Label Strip &mdash; PTC Audio</title>
+<style>
+  :root{
+    --red:#E82C2A;
+    --black:#0a0a0a;
+    --ink:#eee;
+    --paper:#1c1c1c;
+    --grey:#111111;
+    --dim:#999;
+    --border:#333;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--grey);color:var(--ink)}
+  header{background:var(--black);color:#fff;padding:18px 28px;display:flex;align-items:baseline;gap:14px;border-bottom:4px solid var(--red)}
+  header .mark{background:var(--red);color:#fff;font-weight:800;padding:4px 10px;letter-spacing:1px;font-size:15px}
+  header h1{font-size:19px;margin:0;font-weight:600}
+  header .sub{color:#aaa;font-size:12.5px;margin-left:auto}
+  main{max-width:880px;margin:26px auto;padding:0 20px 60px;display:grid;gap:18px}
+  .card{background:var(--paper);border:1px solid var(--border);border-radius:10px;padding:20px 22px}
+  .card h2{margin:0 0 14px;font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--red)}
+  .card h2 .cnt{color:var(--dim);text-transform:none;letter-spacing:0;font-weight:400;font-size:12px}
+
+  .strip-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:8px 8px}
+  .btnfield{display:flex;flex-direction:column;gap:4px}
+  .btnfield label{font-size:10px;font-weight:700;color:var(--dim);text-align:center}
+  .btnfield input{font-size:13px;padding:7px 6px;border:1.5px solid var(--border);border-radius:6px;background:#262626;color:var(--ink);text-align:center;width:100%}
+  .btnfield input:focus{outline:none;border-color:var(--red)}
+  .row-split{margin:14px 0 4px;height:1px;background:var(--border)}
+
+  .row{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+  select,input[type=number]{font-size:16px;padding:9px 10px;border:1.5px solid var(--border);border-radius:7px;background:#262626;color:var(--ink)}
+  select:focus,input:focus{outline:none;border-color:var(--red)}
+  input[type=number]{width:90px}
+
+  button{font-size:13px;font-weight:700;padding:9px 16px;border:none;border-radius:7px;cursor:pointer;background:var(--red);color:#fff;white-space:nowrap}
+  button.ghost{background:transparent;color:var(--red);border:1.5px solid var(--red)}
+  button.dim{background:transparent;color:var(--dim);border:1.5px solid var(--border)}
+  button:active{transform:scale(.97)}
+  .plain{font-size:13px;color:var(--dim);margin:10px 0 0;line-height:1.5}
+  .plain b{color:var(--ink)}
+
+  .preview-wrap{overflow-x:auto;padding:4px 0}
+  .preview-strip{display:flex;flex-direction:column;width:568px;border:1.5px solid var(--border);border-radius:4px;overflow:hidden;background:#fff}
+  .preview-strip .prow{display:flex}
+  .preview-strip .prow:first-child{border-bottom:1px solid #ccc}
+  .preview-strip .pcell{flex:1;padding:8px 2px;text-align:center;font-size:10.5px;font-weight:800;color:#000;border-right:1px dotted #bbb;line-height:1.15}
+  .preview-strip .pcell:last-child{border-right:none}
+  .preview-dims{font-size:11.5px;color:var(--dim);margin-top:8px;font-family:var(--mono)}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--black);color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;border-left:4px solid var(--red)}
+  .toast.show{opacity:1}
+  footer{text-align:center;color:var(--dim);font-size:12px;padding:10px 0 30px}
+
+  /* ---- print output (built into #pr just before window.print()) ---- */
+  #pr{display:none}
+  .plabel{width:150mm;height:15mm;border:0.5pt solid #999;display:flex;flex-direction:column;box-sizing:border-box}
+  .plabel .prow{flex:1;display:flex}
+  .plabel .prow:first-child{border-bottom:0.5pt solid #999}
+  .plabel .pcell{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;font-size:8pt;font-weight:900;color:#000;border-right:0.25pt dotted #bbb;padding:0 1px;line-height:1;font-family:Arial,Helvetica,sans-serif}
+  .plabel .pcell:last-child{border-right:none}
+  .psheet{display:flex;flex-direction:column;align-items:center;gap:3mm;padding-top:18mm}
+  .psheet:not(:first-child){page-break-before:always;break-before:page}
+  .plabel{page-break-inside:avoid;break-inside:avoid}
+
+  @media print{
+    html,body{background:#fff!important}
+    body>*:not(#pr){display:none!important}
+    #pr{display:block!important;background:#fff}
+    @page{margin:0;size:letter portrait}
+  }
+</style>
+</head>
+<body>
+<header>
+  <span class="mark">PTC</span>
+  <h1>ME1 Label Strip</h1>
+  <span class="sub">Fill in the 16 button labels &middot; print sheets sized to the ME1&rsquo;s channel-ID strip</span>
+</header>
+<main>
+
+  <div class="card">
+    <h2>Button labels <span class="cnt">&mdash; top row (1&ndash;8), then bottom row (9&ndash;16)</span></h2>
+    <div class="strip-grid" id="topRow"></div>
+    <div class="row-split"></div>
+    <div class="strip-grid" id="bottomRow"></div>
+    <p class="plain">
+      <button class="ghost" onclick="resetDefaults()">Reset to Suffs defaults</button>
+      <button class="dim" onclick="clearAll()">Clear all</button>
+      &nbsp; Labels auto-save in this browser as you type.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Preview <span class="cnt">&mdash; one strip, to scale</span></h2>
+    <div class="preview-wrap">
+      <div class="preview-strip" id="previewStrip"></div>
+    </div>
+    <div class="preview-dims">150mm &times; 15mm per strip &middot; matches the ME1&rsquo;s measured channel-ID recess</div>
+  </div>
+
+  <div class="card">
+    <h2>Print</h2>
+    <div class="row">
+      <div class="field">
+        <label for="copies">Number of copies</label>
+        <input type="number" id="copies" min="1" max="60" value="12">
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button onclick="doPrint()">Print Labels</button>
+      </div>
+    </div>
+    <p class="plain" id="pageInfo"></p>
+    <p class="plain">12 strips fit per Letter page with a dashed cut line between each. Print at 100% / actual size &mdash; do not use &ldquo;fit to page.&rdquo;</p>
+  </div>
+
+</main>
+<div id="pr"></div>
+<div class="toast" id="toast"></div>
+<footer>PTC AUD-IT &mdash; strips print at 150mm &times; 15mm, measured against the actual Allen &amp; Heath ME1 unit</footer>
+<script>
+var STORE_KEY = 'ptc_me1_labels_v1';
+
+var DEFAULTS = [
+  "LEADS","ENS","PERC","BASS","CELLO","VIOLIN","REEDS","TROMB",
+  "TRUMPETS","GTR","K1","K2","SHOUT/VOG","HORN VRB","SFX","ROOM"
+];
+
+function gi(id){ return document.getElementById(id); }
+function toast(msg){
+  var t = gi('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+function x(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function loadLabels(){
+  try{
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return DEFAULTS.slice();
+    var parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length !== 16) return DEFAULTS.slice();
+    return parsed;
+  }catch(e){
+    return DEFAULTS.slice();
+  }
+}
+function saveLabels(){
+  var vals = currentLabels();
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(vals)); }catch(e){}
+  renderPreview();
+}
+function currentLabels(){
+  var out = [];
+  for (var i = 1; i <= 16; i++){
+    var el = gi('btn' + i);
+    out.push(el ? el.value : '');
+  }
+  return out;
+}
+
+function buildFields(){
+  var labels = loadLabels();
+  var top = gi('topRow'), bottom = gi('bottomRow');
+  top.innerHTML = ''; bottom.innerHTML = '';
+  for (var i = 1; i <= 16; i++){
+    var wrap = document.createElement('div');
+    wrap.className = 'btnfield';
+    var lab = document.createElement('label');
+    lab.textContent = i;
+    var inp = document.createElement('input');
+    inp.type = 'text';
+    inp.id = 'btn' + i;
+    inp.value = labels[i - 1] || '';
+    inp.maxLength = 16;
+    inp.oninput = saveLabels;
+    wrap.appendChild(lab);
+    wrap.appendChild(inp);
+    (i <= 8 ? top : bottom).appendChild(wrap);
+  }
+  renderPreview();
+}
+
+function resetDefaults(){
+  for (var i = 1; i <= 16; i++){ gi('btn' + i).value = DEFAULTS[i - 1]; }
+  saveLabels();
+  toast('Reset to Suffs defaults');
+}
+function clearAll(){
+  for (var i = 1; i <= 16; i++){ gi('btn' + i).value = ''; }
+  saveLabels();
+  toast('Cleared');
+}
+
+function renderPreview(){
+  var labels = currentLabels();
+  var top = labels.slice(0, 8), bottom = labels.slice(8, 16);
+  function rowHtml(items){
+    return '<div class="prow">' + items.map(function(v){
+      return '<div class="pcell">' + (x(v) || '&nbsp;') + '</div>';
+    }).join('') + '</div>';
+  }
+  gi('previewStrip').innerHTML = rowHtml(top) + rowHtml(bottom);
+}
+
+function updatePageInfo(){
+  var n = parseInt(gi('copies').value, 10) || 1;
+  var pages = Math.ceil(n / 12);
+  gi('pageInfo').innerHTML = '<b>' + n + '</b> strip' + (n === 1 ? '' : 's') +
+    ' &rarr; <b>' + pages + '</b> printed page' + (pages === 1 ? '' : 's') + ' (up to 12 per page)';
+}
+
+function doPrint(){
+  var n = parseInt(gi('copies').value, 10);
+  if (!n || n < 1) n = 1;
+  var labels = currentLabels();
+  var top = labels.slice(0, 8), bottom = labels.slice(8, 16);
+
+  function rowHtml(items){
+    return '<div class="prow">' + items.map(function(v){
+      return '<div class="pcell">' + (x(v) || '&nbsp;') + '</div>';
+    }).join('') + '</div>';
+  }
+  var stripHtml = '<div class="plabel">' + rowHtml(top) + rowHtml(bottom) + '</div>';
+
+  var perPage = 12;
+  var pagesHtml = '';
+  var remaining = n;
+  while (remaining > 0){
+    var onThisPage = Math.min(perPage, remaining);
+    var sheet = '<div class="psheet">' + new Array(onThisPage).fill(stripHtml).join('') + '</div>';
+    pagesHtml += sheet;
+    remaining -= onThisPage;
+  }
+
+  gi('pr').innerHTML = pagesHtml;
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){ window.print(); });
+  });
+}
+
+gi('copies').addEventListener('input', updatePageInfo);
+buildFields();
+updatePageInfo();
+</script>
+</body>
+</html>
