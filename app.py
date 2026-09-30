@@ -126,19 +126,38 @@ def get_sheet():
     return client.open_by_key(os.environ['INVENTORY_SHEET_ID']).sheet1
 
 
+def _computed_available(item):
+    """Mirrors templates/tools/inventory.html's computeAvailableFromForm():
+    available = max(0, qty - show_allocations - space_allocations - broken
+    - repair - retired - unknown). The stored units_json['available'] field
+    is NOT trustworthy on its own — it's only recomputed when someone saves
+    the item through the edit modal's UI. A write path that sets show_qty
+    without also recalculating units (e.g. the MCP inventory tools, per the
+    CLAUDE.md gotcha) leaves the stored 'available' stale/wrong. Recomputing
+    it here makes the sheet self-heal regardless of that staleness.
+    """
+    units = item.get('units') or {}
+    qty = item.get('qty') or 0
+    shows = models.get_item_shows(item['id'])
+    spaces = models.get_item_spaces(item['id'])
+    show_total = sum((v.get('qty') or 0) for v in shows.values())
+    space_total = sum((v.get('qty') or 0) for v in spaces.values())
+    others = sum((units.get(k) or 0) for k in ('broken', 'repair', 'retired', 'unknown'))
+    return max(0, qty - show_total - space_total - others)
+
+
 def sync_inventory_to_sheet():
     """Push all non-deleted inventory items to the PTC Inventory sheet.
     Field names match the real inventory_items columns / models.list_items()
-    shape (category/subcategory/make/model/description/location/qty, plus
-    a units dict with an 'available' key) — not SQLAlchemy model attrs,
-    this app has no ORM.
+    shape (category/subcategory/make/model/description/location/qty) — not
+    SQLAlchemy model attrs, this app has no ORM. Available is recomputed
+    live (see _computed_available) rather than read from the stored field.
     """
     sheet = get_sheet()
     items = models.list_items()  # excludes soft-deleted items by default
 
     rows = []
     for item in items:
-        units = item.get('units') or {}
         rows.append([
             item.get('category') or '',
             item.get('subcategory') or '',
@@ -147,7 +166,7 @@ def sync_inventory_to_sheet():
             item.get('description') or '',
             item.get('location') or '',
             item.get('qty') or 0,
-            units.get('available', 0) if isinstance(units, dict) else 0,
+            _computed_available(item),
         ])
 
     sheet.clear()
