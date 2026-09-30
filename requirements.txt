@@ -7,3 +7,6 @@ pypdf==5.1.0
 flask-wtf==1.2.2
 flask-limiter==3.9.2
 bleach==6.2.0
+gspread==6.1.4
+google-auth==2.35.0
+APScheduler==3.10.4

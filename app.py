@@ -25,6 +25,9 @@ import models
 import auth
 import email_utils
 import pdf_utils
+import gspread
+from google.oauth2.service_account import Credentials
+from apscheduler.schedulers.background import BackgroundScheduler
 
 load_dotenv()
 
@@ -101,6 +104,65 @@ KB_ALLOWED_ATTRS = {
     'td': ['align'],
 }
 KB_ALLOWED_PROTOCOLS = ['http', 'https', 'mailto']
+
+# ══════════════════════════════════
+# GOOGLE SHEETS INVENTORY SYNC
+# Pushes inventory_items to the "PTC Inventory" Google Sheet every 10 min
+# so the designer (Viewer access) can see current inventory read-only.
+# Auth: service account inventory-sync-bot@ptc-inventory-sync.iam.gserviceaccount.com
+# Creds + sheet ID come from Render env vars (see .env.example / README).
+# ══════════════════════════════════
+SHEET_HEADER = [
+    'Category', 'Subcategory', 'Make', 'Model',
+    'Description', 'Location', 'Total Qty', 'Available',
+]
+
+
+def get_sheet():
+    creds_dict = json.loads(os.environ['GOOGLE_SERVICE_ACCOUNT_JSON'])
+    scopes = ['https://www.googleapis.com/auth/spreadsheets']
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    client = gspread.authorize(creds)
+    return client.open_by_key(os.environ['INVENTORY_SHEET_ID']).sheet1
+
+
+def sync_inventory_to_sheet():
+    """Push all non-deleted inventory items to the PTC Inventory sheet.
+    Field names match the real inventory_items columns / models.list_items()
+    shape (category/subcategory/make/model/description/location/qty, plus
+    a units dict with an 'available' key) — not SQLAlchemy model attrs,
+    this app has no ORM.
+    """
+    sheet = get_sheet()
+    items = models.list_items()  # excludes soft-deleted items by default
+
+    rows = []
+    for item in items:
+        units = item.get('units') or {}
+        rows.append([
+            item.get('category') or '',
+            item.get('subcategory') or '',
+            item.get('make') or '',
+            item.get('model') or '',
+            item.get('description') or '',
+            item.get('location') or '',
+            item.get('qty') or 0,
+            units.get('available', 0) if isinstance(units, dict) else 0,
+        ])
+
+    sheet.clear()
+    sheet.update('A1', [SHEET_HEADER] + rows)
+
+
+def start_inventory_sync_scheduler():
+    """Render's gunicorn start command (see render.yaml) runs a single
+    worker with no -w flag, so this is safe to start unconditionally —
+    there's only ever one process that would run it.
+    """
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(sync_inventory_to_sheet, 'interval', minutes=10)
+    scheduler.start()
+
 
 # ══════════════════════════════════
 # INPUT VALIDATION
@@ -1583,6 +1645,11 @@ for _rule in app.url_map.iter_rules():
 with app.app_context():
     models.init_db()
     bootstrap_admin()
+
+# Only start the sync scheduler when the Sheets env vars are actually
+# configured, so local dev / tests without them don't crash on import.
+if os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON') and os.environ.get('INVENTORY_SHEET_ID'):
+    start_inventory_sync_scheduler()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
